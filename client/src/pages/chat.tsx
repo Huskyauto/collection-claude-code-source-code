@@ -1480,6 +1480,9 @@ export default function ChatPage() {
       streamTtsQueueRef.abort = new AbortController();
     }
 
+    let staleTimer: ReturnType<typeof setTimeout> | null = null;
+    let staleWarned = false;
+
     try {
       const body: any = { content: content || "" };
       if (attachments.length > 0) {
@@ -1499,6 +1502,25 @@ export default function ChatPage() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      const STALE_TIMEOUT_MS = 90000;
+
+      const resetStaleTimer = () => {
+        if (staleTimer) clearTimeout(staleTimer);
+        staleWarned = false;
+        staleTimer = setTimeout(() => {
+          if (!staleWarned) {
+            staleWarned = true;
+            toast({ description: "Response is taking longer than expected. The system may be processing a complex request.", variant: "default" });
+            setToolCalls((prev) => [...prev, {
+              id: `stale_${Date.now()}`,
+              name: "⏳ Long Processing",
+              input: { elapsed: "90+ seconds without response" },
+              output: { status: "The system is still working. You can wait or stop and retry." },
+              done: true,
+            }]);
+          }
+        }, STALE_TIMEOUT_MS);
+      };
 
       const optimisticContent = attachments.length > 0
         ? `<!-- attachments:${JSON.stringify(attachments.map(a => ({ url: a.url, name: a.name, type: a.type })))} -->\n${content || ""}`
@@ -1508,9 +1530,11 @@ export default function ChatPage() {
         (old: any) => old ? { ...old, messages: [...old.messages, { id: Date.now(), conversationId, role: "user", content: optimisticContent, createdAt: new Date().toISOString() }] } : old
       );
 
+      resetStaleTimer();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        resetStaleTimer();
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
@@ -1682,6 +1706,44 @@ export default function ChatPage() {
                 done: true,
               }]);
             }
+            if (data.type === "failover") {
+              setToolCalls((prev) => [...prev, {
+                id: `failover_${Date.now()}`,
+                name: "🔄 Model Failover",
+                input: { from: data.from, reason: data.reason },
+                output: { switchedTo: data.to, status: "Retrying with alternate model" },
+                done: true,
+              }]);
+            }
+            if (data.type === "adaptive_heal") {
+              setToolCalls((prev) => [...prev, {
+                id: `aheal_${Date.now()}`,
+                name: `🩹 Adaptive Recovery`,
+                input: { tool: data.tool, error: data.error },
+                output: { attempt: data.attempt, hasLessons: data.hasLessons },
+                done: true,
+              }]);
+            }
+            if (data.type === "adaptive_escalation") {
+              setToolCalls((prev) => [...prev, {
+                id: `aesc_${Date.now()}`,
+                name: `⚡ Escalation`,
+                input: { tool: data.tool, reason: data.reason },
+                output: { error: data.error, attempt: data.attempt },
+                done: true,
+              }]);
+            }
+            if (data.error && !data.content && !data.done) {
+              const errMsg = typeof data.error === "string" ? data.error : "Something went wrong";
+              setToolCalls((prev) => [...prev, {
+                id: `err_${Date.now()}`,
+                name: "❌ System Error",
+                input: { error: errMsg },
+                output: { status: "The system encountered an issue. Your message may need to be resent." },
+                done: true,
+              }]);
+              toast({ description: errMsg, variant: "destructive" });
+            }
             if (data.type === "reflection") {
               if (data.status === "evaluating") {
                 setToolCalls((prev) => [...prev, {
@@ -1777,9 +1839,22 @@ export default function ChatPage() {
       }
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        toast({ description: "Failed to send message", variant: "destructive" });
+        const errorDetail = err?.message?.includes("Failed to fetch")
+          ? "Connection lost — please check your internet and try again."
+          : err?.message?.includes("Failed to send")
+          ? "The server couldn't process your message. Please try again."
+          : err?.message || "Something went wrong. Please try again.";
+        toast({ description: errorDetail, variant: "destructive" });
+        setToolCalls((prev) => [...prev, {
+          id: `err_${Date.now()}`,
+          name: "❌ Connection Error",
+          input: { error: errorDetail },
+          output: { status: "Your message may not have been processed. Try resending." },
+          done: true,
+        }]);
       }
     } finally {
+      if (staleTimer) clearTimeout(staleTimer);
       setStreaming(false);
       setStreamingContent("");
       setStreamThinking("");
