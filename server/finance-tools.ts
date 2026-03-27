@@ -53,7 +53,9 @@ export async function fetchFinanceNews(
   sources?: string[],
   count: number = 10
 ): Promise<{ news: NewsItem[]; sourcesSummary: string }> {
-  const targetSources = sources?.filter(s => NEWS_SOURCES[s]) || ["cls", "wallstreetcn", "hackernews"];
+  const defaults = ["cls", "wallstreetcn", "hackernews"];
+  const validSources = sources?.filter(s => NEWS_SOURCES[s]) || [];
+  const targetSources = validSources.length > 0 ? validSources : defaults;
   const allNews: NewsItem[] = [];
 
   const fetches = targetSources.map(async (sourceId) => {
@@ -102,25 +104,32 @@ export async function fetchStockPrice(
   ticker: string,
   days: number = 30
 ): Promise<{ ticker: string; klines: StockKline[]; summary: string }> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - days);
-  const startStr = start.toISOString().slice(0, 10).replace(/-/g, "");
-  const endStr = end.toISOString().slice(0, 10).replace(/-/g, "");
+  const safeTicker = String(ticker || "").trim();
+  const safeDays = Number.isFinite(days) ? days : 30;
 
-  const params = new URLSearchParams({
-    secid: getSecId(ticker),
-    fields1: "f1,f2,f3,f4,f5,f6",
-    fields2: "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
-    klt: "101",
-    fqt: "1",
-    beg: startStr,
-    end: endStr,
-    lmt: "1000",
-    ut: EASTMONEY_UT,
-  });
+  if (!safeTicker || !/^[0-9]{4,6}$/.test(safeTicker)) {
+    return { ticker: safeTicker, klines: [], summary: `Invalid ticker "${safeTicker}". Must be a 4-6 digit numeric code (e.g., '600519' for Moutai, '00700' for Tencent).` };
+  }
 
   try {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - safeDays);
+    const startStr = start.toISOString().slice(0, 10).replace(/-/g, "");
+    const endStr = end.toISOString().slice(0, 10).replace(/-/g, "");
+
+    const params = new URLSearchParams({
+      secid: getSecId(safeTicker),
+      fields1: "f1,f2,f3,f4,f5,f6",
+      fields2: "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+      klt: "101",
+      fqt: "1",
+      beg: startStr,
+      end: endStr,
+      lmt: "1000",
+      ut: EASTMONEY_UT,
+    });
+
     const resp = await fetch(`${EASTMONEY_KLINE_URL}?${params}`, {
       signal: AbortSignal.timeout(10000),
     });
@@ -128,36 +137,41 @@ export async function fetchStockPrice(
     const json = await resp.json();
     const data = json.data;
     if (!data || !data.klines || data.klines.length === 0) {
-      return { ticker, klines: [], summary: `No data found for ticker ${ticker}. It may be invalid or delisted.` };
+      return { ticker: safeTicker, klines: [], summary: `No data found for ticker ${safeTicker}. It may be invalid or delisted.` };
     }
 
-    const stockName = data.name || ticker;
-    const klines: StockKline[] = data.klines.map((k: string) => {
-      const parts = k.split(",");
-      return {
-        date: parts[0],
-        open: parseFloat(parts[1]),
-        close: parseFloat(parts[2]),
-        high: parseFloat(parts[3]),
-        low: parseFloat(parts[4]),
-        volume: parseInt(parts[5]),
-        changePercent: parseFloat(parts[8]),
-      };
-    });
+    const stockName = data.name || safeTicker;
+    const klines: StockKline[] = [];
+    for (const k of data.klines) {
+      const parts = String(k).split(",");
+      if (parts.length < 9) continue;
+      const open = parseFloat(parts[1]);
+      const close = parseFloat(parts[2]);
+      const high = parseFloat(parts[3]);
+      const low = parseFloat(parts[4]);
+      const volume = parseInt(parts[5]);
+      const changePercent = parseFloat(parts[8]);
+      if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
+      klines.push({ date: parts[0], open, close, high, low, volume, changePercent });
+    }
+
+    if (klines.length === 0) {
+      return { ticker: safeTicker, klines: [], summary: `Received data for ${safeTicker} but all rows were malformed.` };
+    }
 
     const latest = klines[klines.length - 1];
     const first = klines[0];
-    const periodChange = ((latest.close - first.open) / first.open * 100).toFixed(2);
+    const periodChange = first.open > 0 ? ((latest.close - first.open) / first.open * 100).toFixed(2) : "N/A";
     const high = Math.max(...klines.map(k => k.high));
     const low = Math.min(...klines.map(k => k.low));
 
-    const summary = `${stockName} (${ticker}): ${klines.length} trading days from ${first.date} to ${latest.date}. ` +
+    const summary = `${stockName} (${safeTicker}): ${klines.length} trading days from ${first.date} to ${latest.date}. ` +
       `Latest close: ¥${latest.close.toFixed(2)}, period change: ${periodChange}%, ` +
       `range: ¥${low.toFixed(2)} - ¥${high.toFixed(2)}, latest volume: ${latest.volume.toLocaleString()}`;
 
-    return { ticker, klines, summary };
+    return { ticker: safeTicker, klines, summary };
   } catch (err: any) {
-    return { ticker, klines: [], summary: `Failed to fetch stock data for ${ticker}: ${err.message}` };
+    return { ticker: safeTicker, klines: [], summary: `Failed to fetch stock data for ${safeTicker}: ${err.message}` };
   }
 }
 

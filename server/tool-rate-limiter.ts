@@ -22,6 +22,10 @@ const EXPENSIVE_TOOLS: Record<string, RateLimitConfig> = {
   analyze_pdf:          { maxPerMinute: 3, maxPerHour: 15, maxPerDay: 50 },
   web_search:           { maxPerMinute: 5, maxPerHour: 30, maxPerDay: 100 },
   web_fetch:            { maxPerMinute: 5, maxPerHour: 30, maxPerDay: 100 },
+  finance_news:         { maxPerMinute: 3, maxPerHour: 15, maxPerDay: 60 },
+  finance_stock_price:  { maxPerMinute: 5, maxPerHour: 30, maxPerDay: 100 },
+  finance_stock_search: { maxPerMinute: 5, maxPerHour: 20, maxPerDay: 80 },
+  finance_market_overview: { maxPerMinute: 3, maxPerHour: 12, maxPerDay: 40 },
   generate_social_image: { maxPerMinute: 2, maxPerHour: 10, maxPerDay: 30 },
 };
 
