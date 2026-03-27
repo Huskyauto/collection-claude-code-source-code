@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import { getSubscriptionAccessToken } from "./oauth-subscriptions";
 import { decryptApiKey } from "./crypto";
+import { isClaudeRunnerAvailable, getClaudeRunnerBaseUrl } from "./claude-runner";
 
 export const replitOpenai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -246,6 +247,18 @@ export async function getClientForModel(modelId: string, tenantId?: number): Pro
 
   let actualModelId = modelId;
   if (modelId === "o4-mini-openai") actualModelId = "o4-mini";
+
+  if (model.provider === "anthropic" && isClaudeRunnerAvailable()) {
+    const cacheKey = "claude-runner-bridge";
+    if (!clientCache.has(cacheKey)) {
+      clientCache.set(cacheKey, new OpenAI({
+        apiKey: "claude-runner-local",
+        baseURL: getClaudeRunnerBaseUrl(),
+      }));
+    }
+    console.log(`[providers] Routing ${modelId} through Claude Runner bridge (Max plan, $0 per-token cost)`);
+    return { client: clientCache.get(cacheKey)!, actualModelId };
+  }
 
   const subClient = await trySubscriptionAuth(model.provider, tenantId);
   if (subClient) return { client: subClient, actualModelId };

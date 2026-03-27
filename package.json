@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.85",
     "@anthropic-ai/sdk": "^0.78.0",
     "@coinbase/cdp-sdk": "^1.45.0",
     "@google/genai": "^1.44.0",

@@ -200,6 +200,18 @@ app.use((req, res, next) => {
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  try {
+    const { startClaudeRunnerBridge } = await import("./claude-runner");
+    const bridgeOk = await startClaudeRunnerBridge();
+    if (bridgeOk) {
+      console.log("[startup] Claude Runner bridge active — Anthropic models routed through CLI (Max plan, $0 cost)");
+    } else {
+      console.log("[startup] Claude Runner bridge not available — using standard Anthropic API");
+    }
+  } catch (err: any) {
+    console.log("[startup] Claude Runner init skipped:", err.message?.slice(0, 80));
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

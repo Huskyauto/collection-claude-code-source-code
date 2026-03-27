@@ -13,7 +13,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - **Ask before** major architectural changes, new external dependencies, or large refactors.
 - **GitHub push**: Always use `bash /tmp/push-gh.sh` which runs a secret scanner (10+ patterns), verifies `.replit`/`browser-config.json` are untracked, then pushes. Script auto-created on app startup by `server/index.ts`. Both `routes.ts` (manual backup) and `heartbeat.ts` (auto-backup) use it. If secrets detected, push is BLOCKED.
 - **Git-excluded files** (tracked before March 2026, now untracked): `.replit`, `data/browser-config.json`, `attached_assets/`, `uploads/`, `project-assets/`, `data/lobster-workflows/`.
-- Cost-conscious ($600+ spent on AI calls). Minimize unnecessary AI token usage.
+- Cost-conscious ($600+ spent on AI calls). Minimize unnecessary AI token usage. Claude Runner bridge active for $0 per-token Anthropic routing when Max plan authenticated.
 - **HARD RULE**: ALL files/images/screenshots go to Google Drive via `uploadAndShare()`. Local URLs banned.
 - **ALWAYS update BOTH env var AND `provider_keys` DB TABLE when rotating API keys**.
 - **heartbeat log status**: Uses `"error"` not `"failed"` — status checks must use `!== "success"` not `=== "failed"`.
@@ -71,8 +71,10 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Frontend Pages:** Over 25 pages for dashboards, chat, agent management, settings, reports, and user-specific functionalities.
 - **Database:** PostgreSQL with Drizzle ORM, featuring 33+ tables.
 
+- **Claude Runner Bridge:** `server/claude-runner.ts` — local OpenAI-compatible bridge on port 7779 that spawns Claude Code CLI (`@anthropic-ai/claude-code`) as a subprocess. When active, ALL Anthropic model requests are routed through the CLI instead of the Anthropic API. With Max plan auth (`claude login`), this means $0 per-token cost. Falls back gracefully to standard API if CLI unavailable. Auto-starts on server boot. Status: `GET /api/admin/claude-runner`. Bridge supports streaming SSE, handles NDJSON→SSE translation, retries on transient errors, and auto-kills orphaned processes on client disconnect.
+
 ## External Dependencies
-- **AI Providers:** OpenAI, Anthropic, Google Gemini, xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi).
+- **AI Providers:** OpenAI, Anthropic, Google Gemini, xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi), Claude Runner (CLI bridge, optional).
 - **Payments:** Stripe (Connect, BYOK), Coinbase (CDP SDK, Commerce API).
 - **Services:** ElevenLabs (STT only), Google Drive, Firecrawl (web scraping, crawling, site mapping + DB storage in `scraped_pages` table), Jina AI (Reader).
 - **Storage:** Replit Object Storage, PostgreSQL.

@@ -456,6 +456,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/admin/claude-runner", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const tenantId = getTenantFromRequest(req);
+      if (tenantId !== ADMIN_TENANT_ID) return res.status(403).json({ error: "Admin access required" });
+      const { isClaudeRunnerAvailable, getClaudeRunnerStats } = await import("./claude-runner");
+      res.json({
+        available: isClaudeRunnerAvailable(),
+        ...getClaudeRunnerStats(),
+        description: "Routes Anthropic models through Claude Code CLI (Max plan = flat rate, $0 per-token)"
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/admin/tenants", authMiddleware, async (req: Request, res: Response) => {
     try {
       const tenantId = getTenantFromRequest(req);
