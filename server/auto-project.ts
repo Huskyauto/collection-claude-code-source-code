@@ -20,18 +20,17 @@ const EXCLUDE_PATTERNS = [
   /\b(?:fix|debug|error|bug|broken|not working|issue with)\b/i,
 ];
 
-function shouldAutoCreateProject(userMessage: string, messageCount: number): boolean {
-  if (messageCount >= CONVERSATIONAL_THRESHOLD) {
-    return true;
-  }
-
+function shouldAutoCreateProject(userMessage: string, messageCount: number, allUserMessages?: string[]): boolean {
   for (const pat of EXCLUDE_PATTERNS) {
     if (pat.test(userMessage)) return false;
   }
 
   let signalScore = 0;
-  for (const pat of PROJECT_SIGNAL_PATTERNS) {
-    if (pat.test(userMessage)) signalScore++;
+  const messagesToScan = allUserMessages?.length ? allUserMessages : [userMessage];
+  for (const msg of messagesToScan) {
+    for (const pat of PROJECT_SIGNAL_PATTERNS) {
+      if (pat.test(msg)) { signalScore++; break; }
+    }
   }
 
   const actionVerbs = (userMessage.match(/\b(build|create|develop|design|launch|write|draft|produce|research|analyze|deploy|plan|set up|implement|execute)\b/gi) || []);
@@ -40,6 +39,10 @@ function shouldAutoCreateProject(userMessage: string, messageCount: number): boo
 
   const conjunctions = (userMessage.match(/\b(and then|then|after that|next|finally|also|additionally|step \d)\b/gi) || []).length;
   if (conjunctions >= 2) signalScore++;
+
+  if (messageCount >= CONVERSATIONAL_THRESHOLD && signalScore >= 1) {
+    return true;
+  }
 
   return signalScore >= 2;
 }
@@ -111,38 +114,40 @@ export async function checkAndAutoCreateProject(
     `);
     const msgRows = (msgRes as any).rows || msgRes;
     const messageCount = msgRows.length;
-
-    if (!shouldAutoCreateProject(userMessage, messageCount)) return null;
-
     const userMessages = msgRows.filter((m: any) => m.role === "user").map((m: any) => m.content || "");
     const aiMessages = msgRows.filter((m: any) => m.role === "assistant").map((m: any) => m.content || "");
+
+    if (!shouldAutoCreateProject(userMessage, messageCount, userMessages)) return null;
+
     const trigger = messageCount >= CONVERSATIONAL_THRESHOLD ? "extended_conversation" : "project_keywords";
 
     const projectName = extractProjectName(conv.title, userMessages);
     const projectDescription = buildProjectDescription(userMessages, aiMessages);
+    const noteText = "Project auto-created from conversation #" + conversationId + " (" + trigger + "). " + (userMessages[0]?.slice(0, 200) || "");
 
-    const insertRes = await db.execute(sql`
-      INSERT INTO projects (name, description, status, tenant_id, created_at, updated_at)
-      VALUES (${projectName}, ${projectDescription}, 'active', ${tenantId}, NOW(), NOW())
-      RETURNING id
+    const txResult = await db.execute(sql`
+      WITH new_project AS (
+        INSERT INTO projects (name, description, status, tenant_id, created_at, updated_at)
+        VALUES (${projectName}, ${projectDescription}, 'active', ${tenantId}, NOW(), NOW())
+        RETURNING id
+      ),
+      link_conv AS (
+        UPDATE conversations SET project_id = (SELECT id FROM new_project) WHERE id = ${conversationId}
+      ),
+      link_project AS (
+        INSERT INTO project_conversations (project_id, conversation_id)
+        SELECT id, ${conversationId} FROM new_project
+        ON CONFLICT DO NOTHING
+      ),
+      add_note AS (
+        INSERT INTO project_notes (project_id, note, author)
+        SELECT id, ${noteText}, 'system' FROM new_project
+      )
+      SELECT id FROM new_project
     `);
-    const insertRows = (insertRes as any).rows || insertRes;
-    const projectId = insertRows?.[0]?.id;
+    const txRows = (txResult as any).rows || txResult;
+    const projectId = txRows?.[0]?.id;
     if (!projectId) return null;
-
-    await db.execute(sql`
-      UPDATE conversations SET project_id = ${projectId} WHERE id = ${conversationId}
-    `);
-
-    await db.execute(sql`
-      INSERT INTO project_conversations (project_id, conversation_id) VALUES (${projectId}, ${conversationId})
-      ON CONFLICT DO NOTHING
-    `);
-
-    await db.execute(sql`
-      INSERT INTO project_notes (project_id, note, author)
-      VALUES (${projectId}, ${"Project auto-created from conversation #" + conversationId + " (" + trigger + "). " + userMessages[0]?.slice(0, 200)}, 'system')
-    `);
 
     console.log(`[auto-project] Created project #${projectId}: "${projectName}" from conv #${conversationId} (trigger: ${trigger})`);
 

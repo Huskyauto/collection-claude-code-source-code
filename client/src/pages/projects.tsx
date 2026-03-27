@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest, authFetch } from "@/lib/queryClient";
@@ -60,10 +60,18 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
-  const initialProjectId = (() => {
-    try { const p = new URLSearchParams(window.location.search).get("id"); return p ? parseInt(p) : null; } catch { return null; }
-  })();
-  const [selectedProject, setSelectedProject] = useState<number | null>(initialProjectId);
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [location, navigate] = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+      if (id) {
+        const parsed = parseInt(id);
+        if (!isNaN(parsed)) setSelectedProject(parsed);
+      }
+    } catch {}
+  }, [location]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "", customerName: "", customerEmail: "", tags: "" });
@@ -74,7 +82,6 @@ export default function ProjectsPage() {
   const [editNameValue, setEditNameValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [, navigate] = useLocation();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
