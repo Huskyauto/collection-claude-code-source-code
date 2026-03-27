@@ -2,7 +2,7 @@
 
 **Built by AI Buddy LLC, Illinois**
 
-VisionClaw is an enterprise-grade agentic AI platform that operates as a fully autonomous AI corporation. It features 14 specialized AI personas forming a complete corporate team, 8 connected AI providers, 85+ tools, and rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards — now powered by a full 6-tier Agency Expansion Framework with earned autonomy, trust scoring, and an autonomous self-tuning engine.
+VisionClaw is an enterprise-grade agentic AI platform that operates as a fully autonomous AI corporation. It features 14 specialized AI personas forming a complete corporate team, 8+ connected AI providers (plus Claude Runner CLI bridge), 87+ tools, and rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards — now powered by a full 6-tier Agency Expansion Framework with earned autonomy, trust scoring, and an autonomous self-tuning engine.
 
 ---
 
@@ -13,6 +13,7 @@ VisionClaw is an enterprise-grade agentic AI platform that operates as a fully a
 - [Architecture](#architecture)
 - [AI Personas](#ai-personas)
 - [AI Providers](#ai-providers)
+- [Claude Runner Bridge](#claude-runner-bridge)
 - [Subscription-First LLM Routing](#subscription-first-llm-routing-byos)
 - [Feature Categories](#feature-categories)
 - [Agency Expansion Framework](#agency-expansion-framework)
@@ -22,6 +23,7 @@ VisionClaw is an enterprise-grade agentic AI platform that operates as a fully a
 - [Security](#security)
 - [Database](#database)
 - [API Endpoints](#api-endpoints)
+- [Project Structure](#project-structure)
 - [Deployment](#deployment)
 - [License](#license)
 
@@ -40,7 +42,7 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 | Metric | Value |
 |---|---|
 | AI Personas | 14 specialized roles |
-| AI Providers | 8 connected (OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter, DeepSeek, Meta Llama) |
+| AI Providers | 8+ connected (OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter, DeepSeek, Meta Llama, Claude Runner CLI) |
 | Tools | 87+ (communication, research, code, browsing, finance, agentic ops, Google Workspace, virtual browser) |
 | Governance Rules | 40 rules across 7 categories (including agency_expansion) |
 | Trust Score Categories | 9 categories, 40 scores across 13 agents |
@@ -49,11 +51,13 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 | Decision Protocols | 5 collective intelligence protocols |
 | Evaluators | 9 real-time system evaluators |
 | Operation Scaffolds | 65 structured scaffolds across 12 departments |
+| Server Modules | 110+ TypeScript files |
 | Frontend Pages | 25+ |
 | Database Tables | 33+ |
 | Agentic Design Patterns | 6 book-inspired patterns |
 | Communication Channels | AgentMail, WhatsApp, Discord, Telegram |
 | YouTube Integration | OAuth channel management (upload, analytics, comments) |
+| Context Window Guard | Zero-loss compaction with archive-before-condense |
 
 ---
 
@@ -104,13 +108,51 @@ Each persona has unique brand voice, expert rules, operating loops, per-agent re
 | Provider | Models |
 |---|---|
 | OpenAI | GPT-5.4, GPT-4.1, GPT-4.1 Mini, GPT-5 Mini, o4-mini |
-| Anthropic | Claude Opus 4.6, Claude Opus 4, Claude Sonnet 4 |
+| Anthropic | Claude Opus 4.6, Claude Sonnet 4.6, Claude Opus 4, Claude Sonnet 4 |
 | Google Gemini | Gemini 3.1 Pro, Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Flash |
-| xAI | Grok 4, Grok 3 |
-| OpenRouter | DeepSeek R1/V3.2, Llama 4 Maverick/Scout, Qwen 3.5, Kimi K2.5, MiniMax M2.7 |
-| Perplexity | Sonar Pro, Sonar Deep Research |
-| DeepSeek | DeepSeek V3.2, DeepSeek R1 |
-| Meta | Llama 4 Maverick, Llama 4 Scout |
+| xAI | Grok 4, Grok 3, Grok 3 Mini |
+| OpenRouter | DeepSeek R1/V3.2, Llama 4 Maverick/Scout, Qwen 3.5/2.5 VL, Kimi K2.5, MiniMax M2.7, Mistral Large 3 |
+| Perplexity | Sonar Pro, Sonar, Sonar Reasoning Pro, Sonar Deep Research |
+| DeepSeek | DeepSeek V3.2, DeepSeek R1 (via OpenRouter) |
+| Meta | Llama 4 Maverick, Llama 4 Scout (via OpenRouter) |
+| Claude Runner | Claude CLI bridge — all Anthropic models via CLI subprocess (optional) |
+
+---
+
+## Claude Runner Bridge
+
+**File:** `server/claude-runner.ts`
+
+A local OpenAI-compatible bridge server on port 7779 that spawns the Claude Code CLI (`@anthropic-ai/claude-code`) as a subprocess. When the bridge is active and healthy, ALL Anthropic model requests are automatically routed through the CLI instead of the Anthropic API.
+
+### How It Works
+
+```
+Chat Request → Provider Router → Claude Runner Bridge (127.0.0.1:7779)
+  → spawn `npx claude -p "..." --output-format stream-json`
+    → NDJSON → SSE/JSON translation → back to chat engine
+```
+
+### Key Features
+
+- **Streaming and Non-Streaming Support** — Full OpenAI chat completions protocol compliance
+- **Environment Sanitization** — Only PATH, HOME, NODE_ENV, and ANTHROPIC_API_KEY passed to subprocess (no secret leakage)
+- **Health Degradation** — 5 consecutive CLI failures marks bridge unhealthy; auto-recovers after 5 minutes
+- **Per-Request Timeout** — 2-minute deadline with SIGTERM→SIGKILL escalation
+- **Client Disconnect Cleanup** — Orphaned processes killed on client abort
+- **Graceful Fallback** — Falls back to standard Anthropic API when bridge unavailable
+- **Auto-Start** — Bridge initializes on server boot; no manual setup needed
+
+### Cost Savings
+
+| Auth Method | Billing |
+|---|---|
+| ANTHROPIC_API_KEY (current) | Per-token API pricing |
+| `claude login` (Max plan) | $0 per-token — flat rate subscription |
+
+### Status Endpoint
+
+`GET /api/admin/claude-runner` — Returns bridge health, request count, error count, and live process count.
 
 ---
 
@@ -121,11 +163,22 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - **OAuth Subscription Tokens** — Connect ChatGPT Plus and Google Gemini subscriptions via OAuth; tokens used as PRIMARY inference source before any API key costs
 - **Google OAuth with PKCE** — Redirect-based flow with `generative-language` scope for Gemini API access
 - **OpenAI OAuth with PKCE** — Code-paste flow with STS token exchange for ChatGPT Plus API access
+- **Claude Runner Bridge** — Highest-priority route for Anthropic models when CLI bridge is healthy
 - **Tiered Failover TTLs** — 429 rate limit = 2-minute cooldown, 401/403 auth failure = 10-minute cooldown
 - **Automatic API Key Fallback** — When subscription quota exhausted, seamlessly falls through to API keys
 - **Token Refresh Loop** — Active subscription tokens refreshed every 45 minutes
 - **YouTube OAuth** — Web application flow with PKCE for YouTube Data API v3
 - **Cost-Optimized Tiers** — Simple tasks use free subscriptions; only premium/complex tasks incur API costs
+
+### Provider Priority Cascade
+
+```
+1. Claude Runner Bridge (Anthropic models only, if healthy)
+2. OAuth Subscription Tokens (ChatGPT Plus, Google Gemini)
+3. Tenant-Specific API Keys
+4. Platform API Keys (env vars / DB)
+5. Replit Built-in AI Integration
+```
 
 ### Smart Model Auto-Selection
 
@@ -137,7 +190,6 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - **Persona Cost Tier Integration** — Respects per-persona cost budgets
 - **Model Capabilities Registry** — Tracks features per model (vision, function calling, thinking)
 - **Adaptive Model Upgrade/Downgrade** — Per-round complexity assessment in tool loops
-- **Failover Cascade** — Subscription tokens > API keys > Replit built-in models
 
 ---
 
@@ -171,9 +223,10 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - **Proactive Context Loading** — Anticipates context the agent needs
 - **Three-Tier Semantic Memory** — Facts, Notes, Vector Knowledge Base with MMR diversity ranking
 - **Document Search** — BM25/Vector/Hybrid search
-- **Zero-Loss Compaction** — Archives full transcripts before summarizing
+- **Zero-Loss Compaction** — Archives full transcripts before summarizing; extracts important facts to memory
 - **Per-Tenant Memory Backup** — Automated backup to Google Drive
 - **pgvector** — Native PostgreSQL vector similarity with HNSW indexes
+- **Context Window Guard** — Evaluates token usage, triggers archive-before-condense when nearing limits, injects condensed summary messages
 
 ### Data Protection System
 - **Soft-Delete** — 30-day recovery window for deleted conversations
@@ -216,10 +269,10 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 ### 87+ AI Tools
 - **Communication:** Email (AgentMail), WhatsApp, Discord, Telegram, channel messaging
 - **Research:** Web search, Firecrawl extraction, Jina AI reader, deep research sessions
-- **Finance:** Market news (10+ sources), stock price data (A-Share & HK), ticker search, market overview indices
+- **Finance:** Market news (10+ sources), stock price data (A-Share and HK), ticker search, market overview indices
 - **Documents:** PDF generation, Google Drive upload, file management, data export
 - **Code:** Code execution, debugging, architecture review
-- **Virtual Browsing:** Browserless cloud-based headless Chrome with vision-enabled screenshots
+- **Virtual Browsing:** Browserless cloud-based headless Chrome with vision-enabled screenshots, multi-page workflows, form filling
 - **Agentic:** Desk management, event emission, delegation, watchlist alerts, orchestration
 - **Google Workspace:** Drive file management, document creation
 - **System:** Health monitoring, usage tracking, model routing, settings management
@@ -251,6 +304,7 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - **SSRF Protection** — DNS-based URL validation blocks internal/private IP navigation
 - **Tenant Isolation** — Isolated browser contexts and cookie storage per tenant
 - **Credential Vault** — Encrypted login storage per tenant
+- **Live Browser Preview** — Floating panel streams real-time screenshots and status during agent browsing
 
 ### YouTube Integration
 - **YouTube OAuth** — Web application flow with PKCE for YouTube Data API v3
@@ -277,7 +331,7 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 | Tool | Description | API Source |
 |---|---|---|
 | `finance_news` | Real-time headlines from 10+ sources (Cailian Press, WallStreetCN, Xueqiu, Hacker News, Weibo, Baidu) | NewsNow API |
-| `finance_stock_price` | Daily OHLCV data with summary statistics | EastMoney Direct (A-Share & HK) |
+| `finance_stock_price` | Daily OHLCV data with summary statistics | EastMoney Direct (A-Share and HK) |
 | `finance_stock_search` | Ticker lookup by company name or code | EastMoney Direct |
 | `finance_market_overview` | Major market index snapshots with daily changes | EastMoney Direct |
 
@@ -295,6 +349,14 @@ Sliding-window rate limiting per tenant per tool. Prevents runaway agent loops f
 - **Default Limits:** 10/min, 60/hr, 200/day for unlisted tools
 - **In-Memory Cache:** Periodic cleanup of expired windows
 - **Actionable Errors:** Blocked calls return clear messages with retry timing
+
+### Project Brain System
+- Auto-maintained `.md` knowledge file per project stored in `project-brains/`
+- Tracks overview, status, assets, decisions, facts, session log, and next steps
+- Injected into project conversations for continuity
+- Auto-asset capture detects deliverables and saves to `project-assets/`
+- Auto-transcript system saves full timestamped markdown transcripts to `project-transcripts/`
+- Auto-Project Detection creates projects when user signals intent to build
 
 ### Stability and Monitoring
 - **Stability Watchdog** — Autonomous infrastructure watchdog (Chief of Staff, every 10 min)
@@ -354,7 +416,7 @@ Starting trust scores reflect each agent's initial risk profile:
 
 Enables agents to take autonomous action based on detected conditions:
 
-- **PAB System (Proactive Action Budget):** Daily budgets scale with trust: 0 at score ≤50, 1 at ≤65, 3 at ≤80, 5 at 80+
+- **PAB System (Proactive Action Budget):** Daily budgets scale with trust: 0 at score <=50, 1 at <=65, 3 at <=80, 5 at 80+
 - **32 Triggers** across 9 personas covering competitive moves, financial alerts, pipeline health, content gaps, system degradation, regulatory changes, and more
 - **5-Tier Quality Tracking:** exceptional (+5 trust), solid (+3), acceptable (+1), poor (-5), harmful (-10)
 - **Override Controls:** Budget overrides and manual trigger management
@@ -366,21 +428,22 @@ Pre-approved direct agent-to-agent handoff routes that bypass Felix orchestratio
 
 | Lane | Route | Work Type |
 |---|---|---|
-| EL-01 | Scribe → Proof | Content review |
-| EL-02 | Proof → Scribe | Revision feedback |
-| EL-03 | Radar → Apollo | Prospect intelligence |
-| EL-04 | Radar → Cassandra | Market financial data |
-| EL-05 | Atlas → Cassandra | Metrics for financial |
-| EL-06 | Cassandra → Felix | Financial alert |
-| EL-07 | Chief of Staff → Forge | Technical incident |
-| EL-08 | Teagan → Scribe | Longform content request |
-| EL-09 | Apollo → Scribe | Proposal copy request |
-| EL-10 | Apollo → Luna | Contract review |
-| EL-11 | Luna → Felix | Legal risk alert |
-| EL-12 | Neptune → Scribe | Script request media |
+| EL-01 | Scribe -> Proof | Content review |
+| EL-02 | Proof -> Scribe | Revision feedback |
+| EL-03 | Radar -> Apollo | Prospect intelligence |
+| EL-04 | Radar -> Cassandra | Market financial data |
+| EL-05 | Atlas -> Cassandra | Metrics for financial |
+| EL-06 | Cassandra -> Felix | Financial alert |
+| EL-07 | Chief of Staff -> Forge | Technical incident |
+| EL-08 | Teagan -> Scribe | Longform content request |
+| EL-09 | Apollo -> Scribe | Proposal copy request |
+| EL-10 | Apollo -> Luna | Contract review |
+| EL-11 | Luna -> Felix | Legal risk alert |
+| EL-12 | Neptune -> Scribe | Script request media |
 
-- **Trust Eligibility:** Both source and target agents must have trust ≥ 60 in tool_compliance AND purpose_adherence
+- **Trust Eligibility:** Both source and target agents must have trust >= 60 in tool_compliance AND purpose_adherence
 - **Daily Cap:** Configurable per lane (default 10/day, tuned by auto-tuner)
+- **Dynamic Caps:** Scale with trust scores (trust >=90 = 2x cap, >=80 = 1.5x, >=70 = 1.2x, <65 = 0.8x cap)
 - **Auto-Suspension:** 3 consecutive failures automatically suspends a lane (24h default, auto-cleanup)
 
 ### Tier 5: Environmental Awareness
@@ -399,8 +462,8 @@ Continuous monitoring of external conditions:
 | Talent Market | Luna (14) | Weekly |
 | Industry Events | Radar (9) | Daily |
 
-- **Signal Classification:** NOISE → LOW → MEDIUM → HIGH → CRITICAL
-- **Signal Routing Matrix:** Each classification level has specific routing rules (e.g., CRITICAL → immediate Felix + human escalation)
+- **Signal Classification:** NOISE -> LOW -> MEDIUM -> HIGH -> CRITICAL
+- **Signal Routing Matrix:** Each classification level has specific routing rules (e.g., CRITICAL -> immediate Felix + human escalation)
 
 ### Tier 6: Collective Intelligence
 **File:** `server/collective-intelligence.ts`
@@ -413,21 +476,21 @@ Multi-agent decision-making protocols for complex questions:
 | Specialist + Critique | Moderate | 2 LLM calls | Unlimited |
 | Chain of Debates | Complex | 4-6 LLM calls | 5/day |
 | Tree of Thought | Ambiguous | 3-5 LLM calls | 5/day |
-| Full Council (ToT → Debate → Critique → Cost) | Strategic | 10-15 LLM calls | 2/day |
+| Full Council (ToT -> Debate -> Critique -> Cost) | Strategic | 10-15 LLM calls | 2/day |
 
 - **Participant Domains:** financial_decision, product_strategy, content_marketing, technical_architecture, hiring_team
-- **Token Budget Guards:** Protocols restricted when daily spend ≥ 80%
+- **Token Budget Guards:** Protocols restricted when daily spend >= 80%
 - **Complexity Auto-Classification:** Based on domain count, risk level, and keyword analysis
 - **Daily limits dynamically tuned** by the auto-tuner
 
 ### Governance Integration
 9 new governance rules (#32-#40) tie evaluators to automated responses:
-- Trust score critical → lock agent autonomy
-- Proactive action quality poor → suspend proactive budget
-- Express lane failure spike → auto-cap or suspend lanes
-- Environmental signal escalation → route to humans
-- Collective intelligence budget overrun → cap protocols
-- Earned autonomy audit → periodic trust verification
+- Trust score critical -> lock agent autonomy
+- Proactive action quality poor -> suspend proactive budget
+- Express lane failure spike -> auto-cap or suspend lanes
+- Environmental signal escalation -> route to humans
+- Collective intelligence budget overrun -> cap protocols
+- Earned autonomy audit -> periodic trust verification
 
 ---
 
@@ -453,14 +516,15 @@ An autonomous engine that runs every 24 hours and calibrates the entire agency f
 | Trust deltas (task_success, task_failure, etc.) | Per-event min/max | Score ceiling/floor clustering, high failure rates |
 | Evaluator warning thresholds | 50-85% (daily_spend) | Too many false warnings, insufficient critical detection |
 | Evaluator critical thresholds | 80-95% (daily_spend) | Frequent critical events |
-| Express lane daily cap | 5-25 | High usage with low failures → increase; high failures → decrease |
-| CI protocol daily limits | 2-10 | High proactive success rate → increase limits |
-| HITL rejection penalty | -3 to -12 | High rejection rate → stronger penalty |
+| Express lane daily cap | 5-25 | High usage with low failures -> increase; high failures -> decrease |
+| CI protocol daily limits | 2-10 | High proactive success rate -> increase limits |
+| HITL rejection penalty | -3 to -12 | High rejection rate -> stronger penalty |
 
 ### Safety Guardrails
 - **Minimum Data Requirement:** 20+ tasks in 7 days before making any adjustments
 - **Hardcoded Safe Bounds:** Every parameter has absolute min/max it can never exceed
-- **Confidence Threshold:** Adjustments require ≥ 50% confidence score
+- **Bootstrap Mode:** New tenants (5-19 tasks/7d) use tighter bounds, capped confidence at 0.55, max 2 changes per cycle
+- **Confidence Threshold:** Adjustments require >= 50% confidence score
 - **Audit Trail:** Every tuning cycle persisted to evaluator_snapshots table
 - **90-Snapshot Rolling History** for trend analysis
 - **Manual Override:** Any parameter can be manually set via API
@@ -512,6 +576,7 @@ The chat interface includes modern UX features designed for a smooth, profession
 - **Model Badge** — Shows which AI model was auto-selected for each response
 - **Message Timestamps** — Time displayed on each message
 - **Copy and Speak Buttons** — One-click copy or text-to-speech on any assistant message
+- **Live Browser Preview** — Floating panel streams real-time screenshots during agent browsing
 
 ---
 
@@ -529,6 +594,11 @@ The chat interface includes modern UX features designed for a smooth, profession
 - **Atomic Trust Updates** — CTE-based SQL prevents race conditions on concurrent score changes
 - **Never-Auto Actions** — Payment, destructive, and kill-switch operations always require human approval
 - **Input Validation** — API endpoints validate types, ranges, and use Number.isFinite() checks
+- **SSRF Protection** — DNS-based URL validation blocks internal/private IP browser navigation
+- **Credential Vault** — Encrypted per-tenant credential storage for browser automation
+- **Claude Runner Env Sanitization** — Only allowlisted environment variables passed to CLI subprocess
+- **GitHub Secret Scanner** — Pre-push scanner blocks commits containing API keys, tokens, or secrets (10+ patterns)
+- **Context Window Guard** — Archive-before-condense preserves full conversation history before compaction
 
 ---
 
@@ -596,6 +666,61 @@ PostgreSQL with Drizzle ORM, featuring 33+ tables including:
 | POST | /api/agency/auto-tuner/override | Override a specific parameter (path + value) |
 | POST | /api/agency/auto-tuner/reset | Reset all parameters to defaults |
 
+### Admin API (`/api/admin/*`)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/admin/claude-runner | Claude Runner bridge status and stats |
+| GET | /api/admin/tenants | List all tenants (admin only) |
+| PATCH | /api/admin/tenants/:id | Update tenant settings |
+| POST | /api/admin/tenants/:id/reset-usage | Reset tenant usage counters |
+| POST | /api/admin/backup-tenant | Full tenant data backup to Google Drive |
+| POST | /api/admin/backup-conversation | Backup specific conversation |
+| POST | /api/admin/purge-expired | Purge expired soft-deleted data |
+
+---
+
+## Project Structure
+
+```
+server/                         # Backend (110+ TypeScript modules)
+  index.ts                      # Server entry point
+  routes.ts                     # Express API routes
+  chat-engine.ts                # Core AI chat processing with SSE
+  providers.ts                  # Multi-provider LLM routing
+  claude-runner.ts              # Claude Code CLI bridge (port 7779)
+  tools.ts                      # 87+ tool definitions
+  tool-router.ts                # Semantic tool routing
+  tool-rate-limiter.ts          # Per-tool rate limiting
+  trust-engine.ts               # Trust Score Engine (Tier 2)
+  evaluators.ts                 # 9 Evaluators (Tier 1)
+  express-lanes.ts              # Express Lanes (Tier 4)
+  proactive-engine.ts           # Proactive Initiative Engine (Tier 3)
+  environmental-awareness.ts    # Environmental Awareness (Tier 5)
+  collective-intelligence.ts    # Collective Intelligence (Tier 6)
+  auto-tuner.ts                 # Autonomous Self-Tuning Engine
+  process-governor.ts           # 40-rule governance engine
+  scaffolding.ts                # Corporate Operations Scaffolding
+  heartbeat.ts                  # Heartbeat Engine
+  ceo-orchestrator.ts           # CEO Orchestrator (Felix)
+  context-window-guard.ts       # Context window management
+  compaction.ts                 # Zero-loss compaction with archiving
+  finance-tools.ts              # Finance market intelligence
+  browser-tool.ts               # Virtual browser integration
+  safety-layer.ts               # IronClaw safety layer
+  stability-watchdog.ts         # Infrastructure watchdog
+  health-monitor.ts             # System health checks
+  ...                           # 90+ additional modules
+
+client/src/                     # Frontend (React 18 + Vite)
+  pages/                        # 25+ page components
+  components/                   # UI components (shadcn/ui)
+  hooks/                        # Custom React hooks
+  lib/                          # Utilities
+
+shared/                         # Shared types and schemas
+  schema.ts                     # Drizzle ORM schema (33+ tables)
+```
+
 ---
 
 ## Deployment
@@ -614,4 +739,4 @@ Proprietary — AI Buddy LLC. All rights reserved.
 
 ---
 
-*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring a self-improving agency framework that learns from operational experience.*
+*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring a self-improving agency framework that learns from operational experience, 110+ server modules, and cost-optimized multi-provider LLM routing with Claude Runner CLI bridge integration.*

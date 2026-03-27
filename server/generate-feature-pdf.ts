@@ -119,15 +119,22 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     const metrics = [
       ["AI Personas", "14 specialized roles"],
-      ["AI Providers", "8 connected"],
-      ["AI Tools", "59+ capabilities"],
-      ["Governance Rules", "30 rules across 6 categories"],
+      ["AI Providers", "8+ connected (+ Claude Runner CLI bridge)"],
+      ["AI Tools", "87+ capabilities"],
+      ["Governance Rules", "40 rules across 7 categories"],
+      ["Trust Scores", "9 categories, 40 scores across 13 agents"],
+      ["Express Lanes", "12 agent-to-agent direct handoff routes"],
+      ["Proactive Triggers", "32 triggers across 9 personas"],
+      ["Decision Protocols", "5 collective intelligence protocols"],
+      ["Evaluators", "9 real-time system evaluators"],
+      ["Operation Scaffolds", "65 across 12 departments"],
+      ["Server Modules", "110+ TypeScript files"],
       ["Frontend Pages", "25+"],
-      ["Database Tables", "29+"],
+      ["Database Tables", "33+"],
       ["Design Patterns", "6 book-inspired patterns"],
       ["Comm Channels", "AgentMail, WhatsApp, Discord, Telegram"],
-      ["YouTube", "OAuth channel management (upload, analytics, comments)"],
-      ["ElevenLabs", "Creator plan (110K chars/month, 23 voices)"],
+      ["YouTube", "OAuth channel management"],
+      ["Context Guard", "Zero-loss compaction w/ archive"],
     ];
     drawSubheading("Key Metrics");
     for (const [label, value] of metrics) {
@@ -166,7 +173,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     drawSubheading("Database");
     const dbItems = [
-      "PostgreSQL with Drizzle ORM, 29+ tables",
+      "PostgreSQL with Drizzle ORM, 33+ tables",
       "pgvector for native vector similarity search with HNSW indexes",
       "Automated schema management with safe migration patterns",
       "Production-only pgvector initialization (avoids migration conflicts)",
@@ -198,19 +205,28 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawText("Each persona features unique brand voice, expert rules, operating loops, per-agent reasoning config, and Personality Files (SOUL.md, STYLE.md, USER.md, RULES.md, CONTEXT.md).");
 
     // === SECTION 3: AI PROVIDERS ===
-    drawHeading("Section 3: AI Providers (8 Connected)");
+    drawHeading("Section 3: AI Providers (8+ Connected)");
     const providers = [
       ["OpenAI", "GPT-5.4, GPT-4.1, GPT-4.1 Mini, GPT-5 Mini, o4-mini"],
-      ["Anthropic", "Claude Opus 4.6, Claude Opus 4, Claude Sonnet 4"],
-      ["Google Gemini", "Gemini 3.1 Pro, Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Flash"],
-      ["xAI", "Grok 4, Grok 3"],
-      ["OpenRouter", "DeepSeek R1/V3.2, Llama 4, Qwen 3.5, Kimi K2.5, MiniMax M2.7"],
-      ["Perplexity", "Sonar Pro, Sonar Deep Research"],
-      ["DeepSeek", "DeepSeek V3.2, DeepSeek R1"],
-      ["Meta", "Llama 4 Maverick, Llama 4 Scout"],
+      ["Anthropic", "Claude Opus 4.6, Sonnet 4.6, Opus 4, Sonnet 4"],
+      ["Google Gemini", "Gemini 3.1 Pro, 3 Pro, 3 Flash, 2.5 Flash"],
+      ["xAI", "Grok 4, Grok 3, Grok 3 Mini"],
+      ["OpenRouter", "DeepSeek R1/V3.2, Llama 4, Qwen 3.5/2.5 VL, Kimi K2.5, MiniMax M2.7, Mistral Large 3"],
+      ["Perplexity", "Sonar Pro, Sonar, Sonar Reasoning Pro, Deep Research"],
+      ["DeepSeek", "DeepSeek V3.2, DeepSeek R1 (via OpenRouter)"],
+      ["Meta", "Llama 4 Maverick, Llama 4 Scout (via OpenRouter)"],
+      ["Claude Runner", "All Anthropic models via CLI bridge (optional)"],
     ];
     drawTableRow(["Provider", "Models"], [110, 400], true);
     for (const p of providers) drawTableRow(p, [110, 400]);
+
+    y -= 8;
+    drawSubheading("Claude Runner Bridge");
+    drawBullet("Local OpenAI-compatible bridge on port 7779 spawning Claude Code CLI");
+    drawBullet("All Anthropic requests auto-routed through CLI when bridge healthy");
+    drawBullet("With Max plan: $0 per-token (flat rate). With API key: standard pricing");
+    drawBullet("Env sanitization (allowlist), health degradation, 2-min timeout, graceful fallback");
+    drawBullet("Status: GET /api/admin/claude-runner");
 
     y -= 8;
     drawSubheading("Subscription-First Routing (BYOS)");
@@ -274,11 +290,12 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     // === SECTION 6: PROCESS GOVERNOR ===
     drawHeading("Section 6: Process Governor");
-    drawBullet("30-rule governance engine across 6 categories");
-    drawBullet("16 condition evaluators for rule matching");
+    drawBullet("40-rule governance engine across 7 categories (incl. agency_expansion)");
+    drawBullet("25 condition evaluators including 9 live evaluator-backed conditions");
     drawBullet("Emergency Kill Switch for immediate shutdown");
     drawBullet("Governance Frameworks: NIST, OWASP, Singapore IMDA");
     drawBullet("Automated Framework Review (quarterly)");
+    drawBullet("Rules #32-#40 tie agency evaluators to automated responses");
     drawBullet("Tiered escalation with multi-channel notification and audit trail");
 
     // === SECTION 7: INTELLIGENCE & MEMORY ===
@@ -329,19 +346,32 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     }
 
     // === SECTION 10: TOOLS ===
-    drawHeading("Section 10: 59+ AI Tools");
+    drawHeading("Section 10: 87+ AI Tools");
     const toolCategories = [
       ["Communication", "Email (AgentMail), WhatsApp, Discord, Telegram, channel messaging"],
       ["Research", "Web search, Firecrawl extraction, Jina AI reader, deep research sessions"],
+      ["Finance", "Market news (10+ sources), stock price (A-Share/HK), ticker search, market overview"],
       ["Documents", "PDF generation, Google Drive upload, file management, data export"],
       ["Code", "Code execution, debugging, architecture review"],
-      ["Virtual Browsing", "Browserless cloud browser, screenshots, form filling, vision-enabled"],
-      ["Agentic", "Desk management, event emission, delegation, watchlist, autonomy rules"],
+      ["Virtual Browser", "Browserless headless Chrome, screenshots, form fill, vision, multi-page workflows"],
+      ["Agentic", "Desk mgmt, event emission, delegation, watchlist, orchestration, autonomy rules"],
       ["Google Workspace", "Drive file management, document creation"],
       ["System", "Health monitoring, usage tracking, model routing, dashboard generation"],
     ];
     drawTableRow(["Category", "Tools"], [110, 400], true);
     for (const tc of toolCategories) drawTableRow(tc, [110, 400]);
+
+    y -= 8;
+    drawSubheading("Finance Market Intelligence (server/finance-tools.ts)");
+    drawBullet("4 tools: finance_news, finance_stock_price, finance_stock_search, finance_market_overview");
+    drawBullet("Free APIs (NewsNow, EastMoney Direct) - no API keys required");
+    drawBullet("Mapped to Cassandra (primary) and Radar via tool router");
+    drawBullet("Rate limited: news 3/min 15/hr, stock tools 5/min 30/hr");
+
+    drawSubheading("Per-Tool Rate Limiter (server/tool-rate-limiter.ts)");
+    drawBullet("Sliding-window per tenant per tool. Prevents runaway agent loops");
+    drawBullet("Expensive tools: deep_research 1/min, produce_video 1/min, browser 2/min");
+    drawBullet("Actionable error messages with retry timing");
 
     // === SECTION 11: OPENCLAW FEATURES ===
     drawHeading("Section 11: OpenClaw-Inspired Features");
@@ -428,7 +458,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Enumerates all configured API keys and OAuth subscriptions");
     drawBullet("Lists server capabilities: FFmpeg, pgvector, Node.js, Object Storage, Chromium");
     drawBullet("Shows connected services: Google Drive, AgentMail, YouTube, Telegram, Discord");
-    drawBullet("Categorizes all 59+ tools with descriptions");
+    drawBullet("Categorizes all 87+ tools with descriptions");
     drawBullet("Lists all available AI models grouped by provider");
     drawBullet("5-minute cache to avoid regeneration overhead");
     drawBullet("Prevents personas from asking users to set up already-configured services");
@@ -462,14 +492,60 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawHeading("Section 18: Security");
     drawBullet("IronClaw-inspired SafetyLayer - 17 secret patterns, PolicyEngine, injection protection");
     drawBullet("Helmet CSP headers for content security");
-    drawBullet("Provider Key Proxy for centralized API key management");
+    drawBullet("Provider Key Proxy for centralized API key management with encryption");
     drawBullet("Multi-auth: Replit Auth, Email/Password, Admin PIN (HMAC-SHA256 with salt)");
     drawBullet("Timing-safe cryptography, DB-persisted password reset tokens");
-    drawBullet("Multi-tenant data isolation on all queries");
+    drawBullet("Multi-tenant data isolation on all queries, parameterized SQL everywhere");
+    drawBullet("Atomic trust updates - CTE-based SQL prevents race conditions");
+    drawBullet("Never-auto actions: payment, destructive, kill-switch always require human approval");
+    drawBullet("SSRF protection - DNS-based URL validation blocks private IP browser navigation");
+    drawBullet("Claude Runner env sanitization - only allowlisted vars passed to CLI subprocess");
+    drawBullet("GitHub secret scanner - pre-push blocks commits with 10+ secret patterns");
+    drawBullet("Context window guard - archive-before-condense preserves full history");
     drawBullet("Soft account deletion with recovery");
 
-    // === SECTION 19: DATABASE ===
-    drawHeading("Section 19: Database Schema (29+ Tables)");
+    // === SECTION 19: AGENCY EXPANSION FRAMEWORK ===
+    drawHeading("Section 19: Agency Expansion Framework (6 Tiers)");
+
+    drawSubheading("Tier 1: Real-Time Evaluators (server/evaluators.ts)");
+    drawBullet("9 evaluators: daily_spend, pii_exposure, agent_spend_ratio, failover_rate, purpose_drift");
+    drawBullet("  auth_failures, desk_queue, content_pipeline, tool_boundary_violations");
+    drawBullet("Each exposes live metrics; feeds governance rules #32-#40 automatically");
+    drawBullet("Snapshot storage in evaluator_snapshots table for historical trending");
+
+    drawSubheading("Tier 2: Trust Score Engine (server/trust-engine.ts)");
+    drawBullet("9 trust categories: task_execution, communication, resource_management, security_compliance");
+    drawBullet("  learning_adaptation, proactive_initiative, collaboration, decision_quality, user_satisfaction");
+    drawBullet("40 scores across 13 agents; starting scores seeded from autonomy level");
+    drawBullet("Hysteresis: rises by 1-5 pts (positive events), drops by 3-15 pts (negative events)");
+    drawBullet("Autonomy levels: restricted (<20), supervised (20-39), assisted (40-59), autonomous (60-79), trusted (80+)");
+    drawBullet("Never-auto actions: payment, destructive, kill-switch always require human approval");
+    drawBullet("Atomic CTE-based SQL updates prevent concurrent race conditions");
+
+    drawSubheading("Tier 3: Proactive Initiative Engine (server/proactive-engine.ts)");
+    drawBullet("Proactive Action Budget (PAB): daily limits by trust level (restricted=0, trusted=12)");
+    drawBullet("32 triggers across 9 personas (VisionClaw, Felix, Forge, Blueprint, Cassandra, Radar, etc.)");
+    drawBullet("Action types: scan (1 PAB), suggest (2), create_draft (3), alert (1), execute (5)");
+    drawBullet("Quality tracking: accept/reject/ignore with trust score feedback loop");
+
+    drawSubheading("Tier 4: Express Lanes (server/express-lanes.ts)");
+    drawBullet("12 agent-to-agent direct handoff routes (e.g., VisionClaw->Felix, Forge->Proof)");
+    drawBullet("Eligibility: sender trust >= 60 in task_execution category");
+    drawBullet("Volume caps: 10 handoffs/day/lane, auto-suspend after 3 consecutive failures");
+    drawBullet("Felix notified of all express lane handoffs for oversight");
+
+    drawSubheading("Tier 5: Environmental Awareness (server/environmental-awareness.ts)");
+    drawBullet("8 scan types: market, competitor, technology, regulatory, internal, security, user_behavior, resource");
+    drawBullet("Signal classification: NOISE -> INFO -> NOTABLE -> IMPORTANT -> URGENT -> CRITICAL");
+    drawBullet("Routing matrix maps signal types to responsible personas");
+
+    drawSubheading("Tier 6: Collective Intelligence (server/collective-intelligence.ts)");
+    drawBullet("5 decision protocols: individual, specialist_critique, chain_of_debates, tree_of_thought, full_council");
+    drawBullet("Complexity classifier auto-selects protocol based on impact/urgency/reversibility");
+    drawBullet("Token budget controls prevent runaway costs during multi-agent deliberation");
+
+    // === SECTION 20: DATABASE ===
+    drawHeading("Section 20: Database Schema (33+ Tables)");
     const tableGroups = [
       ["Core", "tenants, conversations, messages, personas"],
       ["Intelligence", "memory_entries, agent_knowledge, daily_notes, compaction_archives"],
@@ -480,6 +556,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Governance", "governance_rules, governance_actions, governance_frameworks"],
       ["Autonomy", "autonomy_rules, autonomy_log"],
       ["Analytics", "action_outcomes, outcome_patterns, watchlist_items, watchlist_alerts"],
+      ["Agency", "trust_scores, proactive_actions, express_lane_usage, evaluator_snapshots"],
       ["System", "skills, custom_tools, experiments, provider_keys, tenant_provider_keys"],
       ["Config", "mcp_servers, model_registry_updates, personality_files, oauth_subscriptions"],
       ["Payments", "stripe_customers, stripe_subscriptions, stripe_products, stripe_prices"],
