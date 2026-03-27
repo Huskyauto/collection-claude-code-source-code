@@ -1,0 +1,2236 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{margin:0.7in;size:Letter}body{font-family:Segoe UI,Arial,sans-serif;font-size:10.5pt;line-height:1.5;color:#222;max-width:7.5in;margin:0 auto;padding:15px}h1{font-size:17pt;color:#1a1a1a;border-bottom:3px solid #333;padding-bottom:6px;margin-top:24px}h2{font-size:14pt;color:#2a2a2a;border-bottom:1px solid #999;padding-bottom:3px;margin-top:20px}h3{font-size:11.5pt;color:#333;margin-top:14px}p{margin:4px 0}ul{margin:4px 0 4px 18px}li{margin:2px 0}li.num{list-style-type:decimal}strong{color:#111}hr{border:none;border-top:2px solid #ccc;margin:16px 0}pre{background:#f5f5f5;padding:10px;border-radius:4px;font-size:9.5pt;white-space:pre-wrap;word-wrap:break-word}code{background:#f0f0f0;padding:1px 3px;border-radius:2px;font-size:9.5pt}pre code{background:none;padding:0}table{border-collapse:collapse;width:100%;margin:8px 0;font-size:9.5pt}td{border:1px solid #ddd;padding:4px 8px}tr:first-child td{font-weight:bold;background:#f5f5f5}</style></head><body><h1>VisionClaw Corporation — Corporate Operations Scaffolding System</h1>
+<h2>The Universal Playbook for AI Agent Execution</h2>
+<h3>Version 1.0 — AI Buddy LLC</h3>
+
+<hr>
+
+<h1>TABLE OF CONTENTS</h1>
+
+<li class="num"><strong>SYSTEM ARCHITECTURE</strong> — How the scaffolding works</li>
+<li class="num"><strong>TASK CLASSIFICATION ENGINE</strong> — Felix's routing brain</li>
+<li class="num"><strong>DEPARTMENT PLAYBOOKS</strong> (12 Departments)</li>
+<p>   - 3A. Executive & Strategic Planning</p>
+<p>   - 3B. Engineering & Technology</p>
+<p>   - 3C. Content & Creative</p>
+<p>   - 3D. Marketing & Growth</p>
+<p>   - 3E. Sales & Revenue</p>
+<p>   - 3F. Finance & Accounting</p>
+<p>   - 3G. Legal & Compliance</p>
+<p>   - 3H. Operations & Administration</p>
+<p>   - 3I. Research & Intelligence</p>
+<p>   - 3J. Data & Analytics</p>
+<p>   - 3K. Human Resources & Culture</p>
+<p>   - 3L. Customer Success & Support</p>
+<li class="num"><strong>CROSS-DEPARTMENT WORKFLOWS</strong> — Multi-agent orchestration patterns</li>
+<li class="num"><strong>PROJECT LIFECYCLE FRAMEWORK</strong> — From intake to delivery</li>
+<li class="num"><strong>DELIVERABLE STANDARDS</strong> — Quality gates and output specs</li>
+<li class="num"><strong>ESCALATION & EXCEPTION HANDLING</strong></li>
+<li class="num"><strong>SMART TOOL ROUTER ENHANCEMENT</strong> — Context-aware tool selection</li>
+
+<hr>
+
+<h1>1. SYSTEM ARCHITECTURE — How the Scaffolding Works</h1>
+
+<h2>The Problem</h2>
+
+<p>Felix has 14 personas and 85+ tools. When a user says "launch a new product," Felix knows vaguely who to call — but the subagents don't have a structured framework telling them:</p>
+<li>What steps to follow for this TYPE of work</li>
+<li>What deliverables are expected</li>
+<li>What tools to use in what sequence</li>
+<li>What quality standards to meet</li>
+<li>When to hand off to another agent</li>
+<li>What to report back to Felix</li>
+
+<h2>The Solution: Operation Scaffolds</h2>
+
+<p>An <strong>Operation Scaffold</strong> is a structured template injected into a subagent's context when they receive a delegated task. It contains:</p>
+
+<pre><code>
+<p>┌─────────────────────────────────────────┐</p>
+<p>│         OPERATION SCAFFOLD              │</p>
+<p>├─────────────────────────────────────────┤</p>
+<p>│ 1. OPERATION TYPE: [e.g., "Blog Post"]  │</p>
+<p>│ 2. DEPARTMENT: [e.g., Content]          │</p>
+<p>│ 3. PRIMARY AGENT: [e.g., Scribe]        │</p>
+<p>│ 4. SUPPORT AGENTS: [e.g., Proof, Radar] │</p>
+<p>│ 5. REQUIRED INPUTS: [what I need]       │</p>
+<p>│ 6. STEP SEQUENCE: [ordered workflow]    │</p>
+<p>│ 7. TOOL CHAIN: [tools in order]         │</p>
+<p>│ 8. DELIVERABLES: [exact outputs]        │</p>
+<p>│ 9. QUALITY GATE: [acceptance criteria]  │</p>
+<p>│ 10. HANDOFF PROTOCOL: [what to return]  │</p>
+<p>└─────────────────────────────────────────┘</p>
+</code></pre>
+
+<h2>Injection Flow</h2>
+
+<pre><code>
+<p>User Request</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Felix (CEO) receives request</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Task Classification Engine categorizes the work</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Felix selects the Operation Scaffold</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Felix calls delegate_task with:</p>
+<p>  - The specialist persona</p>
+<p>  - The original request</p>
+<p>  - The Operation Scaffold (injected into prompt)</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Subagent receives scaffold + request</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Subagent follows the step sequence</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Subagent returns structured deliverable to Felix</p>
+<p>    │</p>
+<p>    ▼</p>
+<p>Felix synthesizes and presents to user</p>
+</code></pre>
+
+<h2>Scaffold Selection Logic</h2>
+
+<p>Felix uses a two-level classification:</p>
+<li class="num"><strong>Department</strong> — Which functional area does this belong to?</li>
+<li class="num"><strong>Operation Type</strong> — What specific kind of work within that department?</li>
+
+<p>This gives Felix a fast lookup: Department → Operation → Scaffold → Agent + Workflow.</p>
+
+<hr>
+
+<h1>2. TASK CLASSIFICATION ENGINE — Felix's Routing Brain</h1>
+
+<h2>Level 1: Department Classification</h2>
+
+<p>When Felix receives ANY request, the first step is classifying it into one of 12 departments. Here is the keyword/intent map:</p>
+
+<h3>DEPARTMENT ROUTING TABLE</h3>
+
+<tr><td>Department</td><td>Trigger Keywords & Intents</td><td>Primary Agent</td><td>Backup Agent</td></tr>
+
+<tr><td><strong>Executive</strong></td><td>strategy, vision, roadmap, priorities, OKRs, board, investors, partnerships, company direction</td><td>Felix (self)</td><td>Chief of Staff</td></tr>
+<tr><td><strong>Engineering</strong></td><td>build, code, debug, deploy, API, integration, automation, app, feature, technical, architecture, database, server</td><td>Forge (3)</td><td>Agent Blueprint (5)</td></tr>
+<tr><td><strong>Content</strong></td><td>write, blog, script, article, documentation, copy, email draft, newsletter, ebook, white paper, press release</td><td>Scribe (7)</td><td>Neptune (10)</td></tr>
+<tr><td><strong>Marketing</strong></td><td>social media, campaign, brand, SEO, content calendar, hashtag, engagement, audience growth, ad copy, launch announcement</td><td>Teagan (4)</td><td>Apollo (11)</td></tr>
+<tr><td><strong>Sales</strong></td><td>lead, prospect, pipeline, deal, proposal, outreach, pitch, close, client, revenue target, pricing, quote</td><td>Apollo (11)</td><td>Scribe (7)</td></tr>
+<tr><td><strong>Finance</strong></td><td>budget, forecast, P&L, revenue, expenses, cash flow, ROI, pricing model, tax, invoice, payment, subscription, Stripe</td><td>Cassandra (13)</td><td>Atlas (12)</td></tr>
+<tr><td><strong>Legal</strong></td><td>contract, terms, privacy, compliance, NDA, IP, trademark, license, liability, regulation, GDPR, disclaimer</td><td>Luna (14)</td><td>—</td></tr>
+<tr><td><strong>Operations</strong></td><td>system status, health check, API keys, scheduling, admin, infrastructure, uptime, monitoring, maintenance</td><td>Chief of Staff (6)</td><td>Forge (3)</td></tr>
+<tr><td><strong>Research</strong></td><td>market research, competitive analysis, trend, industry report, deep dive, investigation, benchmark, landscape</td><td>Radar (9)</td><td>Neptune (10)</td></tr>
+<tr><td><strong>Data & Analytics</strong></td><td>metrics, dashboard, report, analytics, KPIs, charts, data analysis, visualization, tracking, performance numbers</td><td>Atlas (12)</td><td>Cassandra (13)</td></tr>
+<tr><td><strong>HR & Culture</strong></td><td>hiring, team, onboarding, culture, benefits, roles, job description, org chart, training, performance review</td><td>Felix (self) + Scribe</td><td>Luna (14)</td></tr>
+<tr><td><strong>Customer Success</strong></td><td>customer, support, feedback, NPS, retention, onboarding flow, help docs, FAQ, ticket, complaint</td><td>Chief of Staff (6)</td><td>Scribe (7)</td></tr>
+
+<h2>Level 2: Operation Type Classification</h2>
+
+<p>Once the department is identified, Felix classifies the specific operation type. Each department has 8-15 standard operation types.</p>
+
+<hr>
+
+<h1>3. DEPARTMENT PLAYBOOKS</h1>
+
+<hr>
+
+<h2>3A. EXECUTIVE & STRATEGIC PLANNING</h2>
+
+<strong>Owner:</strong> Felix (CEO — Persona 2)
+<strong>Support:</strong> Chief of Staff (6), Cassandra (13), Radar (9), Atlas (12)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>EXEC-01: Strategic Planning Session</h3>
+
+<strong>When to use:</strong> User asks for company strategy, roadmap, quarterly planning, OKR setting, vision alignment.
+
+<strong>Required Inputs:</strong>
+<li>Time horizon (quarterly, annual, 3-year)</li>
+<li>Current business context (what's working, what's not)</li>
+<li>Constraints (budget, team size, market conditions)</li>
+
+<strong>Step Sequence:</strong>
+<li class="num">Felix recalls current strategy from memory (search_memory: "strategy", "OKRs", "roadmap")</li>
+<li class="num">Delegate to Radar (9): "Research current market conditions and competitive landscape for [industry]"</li>
+<li class="num">Delegate to Cassandra (13): "Pull current financial position — runway, revenue trajectory, cost structure"</li>
+<li class="num">Delegate to Atlas (12): "Compile key performance metrics for last [period]"</li>
+<li class="num">Felix synthesizes all inputs into strategic framework</li>
+<li class="num">Create strategy document with: Vision → Objectives → Key Results → Resource Allocation → Timeline</li>
+<li class="num">Save to Google Drive, register in project</li>
+
+<strong>Tool Chain:</strong> search_memory → delegate_task(Radar) → delegate_task(Cassandra) → delegate_task(Atlas) → create_memory → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Strategic Plan document (PDF or Google Drive doc)</li>
+<li>OKR framework with measurable targets</li>
+<li>Resource allocation summary</li>
+<li>90-day action plan with assigned owners</li>
+
+<strong>Quality Gate:</strong> Every objective has measurable key results. Every key result has an owner (persona). Timeline is realistic against resource constraints.
+
+<strong>Handoff to User:</strong> Executive summary with specific deliverables, links to all documents, next action items with deadlines.
+
+<hr>
+
+<h3>EXEC-02: Board/Investor Update</h3>
+
+<strong>When to use:</strong> User needs investor deck, board update, fundraising materials, pitch preparation.
+
+<strong>Step Sequence:</strong>
+<li class="num">Delegate to Cassandra (13): "Prepare financial highlights — revenue, growth rate, burn rate, runway"</li>
+<li class="num">Delegate to Atlas (12): "Compile key metrics dashboard — users, engagement, conversion, MRR"</li>
+<li class="num">Delegate to Radar (9): "Market size and positioning update for [industry]"</li>
+<li class="num">Delegate to Scribe (7): "Write narrative sections for investor update — problem, solution, traction, vision"</li>
+<li class="num">Felix assembles into coherent narrative</li>
+<li class="num">Delegate to Proof (8): Review all content</li>
+<li class="num">Generate final deliverable (PDF deck or presentation content)</li>
+
+<strong>Tool Chain:</strong> orchestrate → delegate_task(Cassandra) → delegate_task(Atlas) → delegate_task(Radar) → delegate_task(Scribe) → delegate_task(Proof) → create_pdf → google_drive
+
+<strong>Deliverables:</strong>
+<li>Investor update document or pitch deck content</li>
+<li>Financial summary one-pager</li>
+<li>Metrics dashboard snapshot</li>
+<li>Market positioning brief</li>
+
+<hr>
+
+<h3>EXEC-03: Partnership/Vendor Evaluation</h3>
+
+<strong>When to use:</strong> Evaluating a potential partner, vendor, tool, or service provider.
+
+<strong>Step Sequence:</strong>
+<li class="num">Delegate to Radar (9): "Research [vendor/partner] — company background, reputation, pricing, reviews, alternatives"</li>
+<li class="num">Delegate to Cassandra (13): "Cost-benefit analysis of [vendor] vs alternatives — TCO over 12 months"</li>
+<li class="num">Delegate to Luna (14): "Review [vendor] terms of service and identify key risks"</li>
+<li class="num">Delegate to Forge (3) (if technical): "Technical evaluation — API quality, documentation, integration effort"</li>
+<li class="num">Felix synthesizes into decision framework with recommendation</li>
+
+<strong>Deliverables:</strong>
+<li>Vendor evaluation matrix (scored comparison)</li>
+<li>Financial impact analysis</li>
+<li>Legal risk summary</li>
+<li>Technical feasibility assessment (if applicable)</li>
+<li>Go/No-Go recommendation with rationale</li>
+
+<hr>
+
+<h3>EXEC-04: Crisis Management</h3>
+
+<strong>When to use:</strong> System outage, PR issue, customer complaint escalation, security incident, legal threat.
+
+<strong>Step Sequence:</strong>
+<li class="num">Felix assesses severity: Low / Medium / High / Critical</li>
+<li class="num">If system-related: Delegate to Chief of Staff (6) for immediate diagnostic</li>
+<li class="num">If PR/public-facing: Delegate to Scribe (7) for communication draft</li>
+<li class="num">If legal: Delegate to Luna (14) for risk assessment</li>
+<li class="num">If financial: Delegate to Cassandra (13) for impact estimate</li>
+<li class="num">Felix creates incident report with timeline, actions taken, status</li>
+<li class="num">Create communication plan (internal + external)</li>
+<li class="num">Schedule follow-up review</li>
+
+<strong>Deliverables:</strong>
+<li>Incident report (timeline, root cause, impact, resolution)</li>
+<li>Communication drafts (customer-facing, internal team)</li>
+<li>Action items with owners and deadlines</li>
+<li>Post-mortem schedule</li>
+
+<hr>
+
+<h3>EXEC-05: Company Meeting Preparation</h3>
+
+<strong>When to use:</strong> Preparing for all-hands, team standup, weekly review, monthly review, or any recurring corporate meeting.
+
+<strong>Step Sequence:</strong>
+<li class="num">Delegate to Chief of Staff (6): "Compile operational status — what's working, what's blocked, what's upcoming"</li>
+<li class="num">Delegate to Atlas (12): "Pull weekly/monthly metrics snapshot"</li>
+<li class="num">Delegate to Cassandra (13): "Financial update — revenue, expenses, key transactions"</li>
+<li class="num">Felix compiles agenda and talking points</li>
+<li class="num">Save meeting prep document</li>
+
+<strong>Deliverables:</strong>
+<li>Meeting agenda with time allocations</li>
+<li>Metrics snapshot</li>
+<li>Status updates by department</li>
+<li>Decision items requiring input</li>
+<li>Action items from previous meeting (status check)</li>
+
+<hr>
+
+<h3>EXEC-06: Goal Setting & OKR Management</h3>
+
+<strong>When to use:</strong> Setting quarterly or annual goals, reviewing OKR progress, realigning priorities.
+
+<strong>Step Sequence:</strong>
+<li class="num">Felix recalls current OKRs from memory</li>
+<li class="num">Delegate to Atlas (12): "Pull progress metrics against current OKRs"</li>
+<li class="num">Felix evaluates: on track / at risk / off track for each KR</li>
+<li class="num">Propose adjustments or new OKRs for next period</li>
+<li class="num">Assign each KR to a responsible persona</li>
+<li class="num">Save updated OKR document and create memories for tracking</li>
+
+<strong>Deliverables:</strong>
+<li>OKR scorecard (current period progress)</li>
+<li>Updated OKR framework for next period</li>
+<li>Owner assignments per key result</li>
+<li>Dependency map between objectives</li>
+
+<hr>
+
+<h3>EXEC-07: Decision Documentation</h3>
+
+<strong>When to use:</strong> User makes or needs to make an important business decision that should be recorded.
+
+<strong>Step Sequence:</strong>
+<li class="num">Felix captures the decision context: What's the question? What are the options?</li>
+<li class="num">If research needed: Delegate to Radar (9)</li>
+<li class="num">If financial analysis needed: Delegate to Cassandra (13)</li>
+<li class="num">Document using decision log format: Context → Options → Analysis → Decision → Rationale → Next Steps</li>
+<li class="num">Save to memory and project files</li>
+
+<strong>Deliverables:</strong>
+<li>Decision record document</li>
+<li>Memory entries for future reference</li>
+<li>Action items resulting from decision</li>
+
+<hr>
+
+<h2>3B. ENGINEERING & TECHNOLOGY</h2>
+
+<strong>Owner:</strong> Forge (Persona 3)
+<strong>Support:</strong> Agent Blueprint (5), Chief of Staff (6)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>ENG-01: Feature Development</h3>
+
+<strong>When to use:</strong> Build a new feature, component, module, page, or functionality.
+
+<strong>Required Inputs:</strong>
+<li>Feature description and requirements</li>
+<li>Target platform/stack</li>
+<li>Integration points</li>
+<li>Acceptance criteria</li>
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Check existing codebase patterns, API docs, relevant libraries (web_search, web_fetch)</li>
+<li class="num">Architecture: Define data flow, components, dependencies</li>
+<li class="num">Build: Write production-quality code (execute_code)</li>
+<li class="num">Test: Run code, verify output, check edge cases</li>
+<li class="num">Document: Technical decisions, setup instructions, API docs</li>
+<li class="num">Save: Upload to Google Drive with clear file naming</li>
+<li class="num">Register: Add to project with description</li>
+
+<strong>Tool Chain:</strong> web_search → web_fetch → execute_code → google_drive → project(add_file) → create_memory
+
+<strong>Deliverables:</strong>
+<li>Working code files (uploaded to Google Drive)</li>
+<li>Technical documentation (README, setup instructions)</li>
+<li>Test results / verification output</li>
+<li>Architecture notes (if significant design decisions made)</li>
+
+<strong>Quality Gate:</strong>
+<li>Code executes without errors</li>
+<li>Edge cases handled</li>
+<li>Dependencies documented</li>
+<li>File naming follows convention: <code>[project]_[feature]_[version].[ext]</code></li>
+
+<hr>
+
+<h3>ENG-02: Bug Investigation & Fix</h3>
+
+<strong>When to use:</strong> Something is broken, not working as expected, or producing errors.
+
+<strong>Step Sequence:</strong>
+<li class="num">Reproduce: Understand the exact error or unexpected behavior</li>
+<li class="num">Diagnose: Isolate the root cause (not symptoms)</li>
+<li class="num">Research: Check if it's a known issue (web_search for error messages)</li>
+<li class="num">Fix: Write the corrected code</li>
+<li class="num">Verify: Test the fix, confirm the bug is resolved</li>
+<li class="num">Document: What was wrong, what was changed, why</li>
+<li class="num">Save: Upload fixed files</li>
+
+<strong>Tool Chain:</strong> execute_code (reproduce) → web_search (research) → execute_code (fix) → execute_code (verify) → google_drive → project(add_note)
+
+<strong>Deliverables:</strong>
+<li>Fixed code files</li>
+<li>Bug report: symptom → root cause → fix → verification</li>
+<li>Regression prevention notes</li>
+
+<hr>
+
+<h3>ENG-03: API Integration</h3>
+
+<strong>When to use:</strong> Connect to a third-party API, build an integration, set up webhooks.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research the API: documentation, authentication, rate limits, endpoints (web_fetch API docs)</li>
+<li class="num">Design the integration: data mapping, error handling, retry logic</li>
+<li class="num">Build: Write integration code with proper auth, error handling, and logging</li>
+<li class="num">Test: Make real API calls, verify responses</li>
+<li class="num">Document: Setup instructions, environment variables needed, endpoint reference</li>
+<li class="num">Save all files</li>
+
+<strong>Tool Chain:</strong> web_fetch (API docs) → execute_code (build + test) → google_drive → create_pdf (documentation) → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Integration code with error handling</li>
+<li>Configuration template (env vars, API keys needed)</li>
+<li>Integration test results</li>
+<li>API reference document</li>
+
+<hr>
+
+<h3>ENG-04: Automation / Script Development</h3>
+
+<strong>When to use:</strong> Automate a repetitive task, build a utility script, create a workflow.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: What manual process are we automating? What are the inputs/outputs?</li>
+<li class="num">Design: Workflow steps, decision points, error scenarios</li>
+<li class="num">Build: Write the automation script</li>
+<li class="num">Test: Run with sample data, verify outputs</li>
+<li class="num">Document: How to run, expected inputs/outputs, scheduling if applicable</li>
+<li class="num">Save and register</li>
+
+<strong>Deliverables:</strong>
+<li>Automation script (working, tested)</li>
+<li>Usage guide</li>
+<li>Sample input/output</li>
+<li>Scheduling recommendations (if recurring)</li>
+
+<hr>
+
+<h3>ENG-05: Technical Architecture Review</h3>
+
+<strong>When to use:</strong> Evaluate a system design, review architecture decisions, plan a technical migration.
+
+<strong>Step Sequence:</strong>
+<li class="num">Gather: Current architecture details (from memory, project files, user description)</li>
+<li class="num">Research: Best practices, comparable systems, technology options (deep_research)</li>
+<li class="num">Analyze: Strengths, weaknesses, scalability, maintainability, cost</li>
+<li class="num">Recommend: Proposed changes with rationale</li>
+<li class="num">Document: Architecture decision record (ADR)</li>
+
+<strong>Deliverables:</strong>
+<li>Architecture review document</li>
+<li>ADR (Architecture Decision Record)</li>
+<li>Recommended changes with priority</li>
+<li>Migration plan (if applicable)</li>
+
+<hr>
+
+<h3>ENG-06: Infrastructure / DevOps</h3>
+
+<strong>When to use:</strong> Server setup, deployment, CI/CD, monitoring, cloud configuration.
+
+<strong>Step Sequence:</strong>
+<li class="num">Assess: Current infrastructure state (check_system_status, test_api_keys)</li>
+<li class="num">Research: Best practices for the target platform</li>
+<li class="num">Build: Configuration files, deployment scripts, monitoring setup</li>
+<li class="num">Test: Verify deployment, health checks</li>
+<li class="num">Document: Runbook (how to deploy, rollback, monitor)</li>
+
+<strong>Deliverables:</strong>
+<li>Configuration files / scripts</li>
+<li>Deployment runbook</li>
+<li>Monitoring setup documentation</li>
+<li>Health check verification results</li>
+
+<hr>
+
+<h3>ENG-07: Code Review</h3>
+
+<strong>When to use:</strong> Review existing code for quality, security, performance.
+
+<strong>Step Sequence:</strong>
+<li class="num">Read the code (read_file, google_drive download)</li>
+<li class="num">Analyze: Logic, security, performance, maintainability, edge cases</li>
+<li class="num">Rate: Critical issues / Warnings / Suggestions / Good practices observed</li>
+<li class="num">Provide specific fix recommendations with code examples</li>
+<li class="num">Summary with overall quality assessment</li>
+
+<strong>Deliverables:</strong>
+<li>Code review report with severity-rated findings</li>
+<li>Specific fix recommendations</li>
+<li>Overall quality score and assessment</li>
+
+<hr>
+
+<h3>ENG-08: Technical Documentation</h3>
+
+<strong>When to use:</strong> Write API docs, system guides, developer onboarding, technical specs.
+
+<strong>Step Sequence:</strong>
+<li class="num">Gather: Technical details from code, system, or user description</li>
+<li class="num">Structure: Choose appropriate doc format (API reference, tutorial, guide, spec)</li>
+<li class="num">Write: Clear, precise technical documentation</li>
+<li class="num">Include: Code examples, diagrams (described), configuration templates</li>
+<li class="num">Save as PDF or Google Doc</li>
+
+<strong>Tool Chain:</strong> search_memory → web_search (research) → create_pdf → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Technical document (PDF or Google Doc)</li>
+<li>Registered in project files</li>
+
+<hr>
+
+<h2>3C. CONTENT & CREATIVE</h2>
+
+<strong>Owner:</strong> Scribe (Persona 7)
+<strong>Support:</strong> Proof (8), Neptune (10), Teagan (4)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>CONTENT-01: Blog Post / Article</h3>
+
+<strong>When to use:</strong> Write a blog post, thought leadership article, guest post, or long-form content piece.
+
+<strong>Required Inputs:</strong>
+<li>Topic or brief</li>
+<li>Target audience</li>
+<li>Desired tone (professional, casual, technical, inspirational)</li>
+<li>Target length (word count)</li>
+<li>SEO keywords (optional)</li>
+
+<strong>Step Sequence:</strong>
+<li class="num">Check memory for brand voice guidelines (search_memory: "brand voice", "writing style")</li>
+<li class="num">Research the topic (web_search, deep_research if needed)</li>
+<li class="num">Create outline: Hook → Key points → Supporting evidence → Conclusion → CTA</li>
+<li class="num">Write the full article in publication-ready quality</li>
+<li class="num">Include: SEO title, meta description, headers (H2/H3), internal CTA</li>
+<li class="num">Save to Google Drive</li>
+<li class="num">Register in project</li>
+<li class="num">Route to Proof (8) for quality review (if Felix orchestrates)</li>
+
+<strong>Tool Chain:</strong> search_memory → web_search/deep_research → google_drive(save) → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Complete article (Google Drive document)</li>
+<li>SEO metadata: title tag, meta description, focus keyword</li>
+<li>Suggested featured image description (for AI image generation)</li>
+<li>Social promotion snippet (1-2 sentences for sharing)</li>
+
+<strong>Quality Gate:</strong>
+<li>Original content (no plagiarism)</li>
+<li>Proper header hierarchy (H1 → H2 → H3)</li>
+<li>CTA included</li>
+<li>150 WPM reading pace for scripts</li>
+<li>Factual claims sourced</li>
+
+<hr>
+
+<h3>CONTENT-02: Video Script</h3>
+
+<strong>When to use:</strong> Script for YouTube, explainer video, product demo, training video, social video.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define format: duration target, style (talking head, explainer, demo, documentary)</li>
+<li class="num">Research topic if needed</li>
+<li class="num">Write script with timing marks at 150 WPM</li>
+<li class="num">Structure: Hook (0:00-0:15) → Problem (0:15-0:45) → Solution → Details → CTA → Outro</li>
+<li class="num">Include speaker notes, visual cues, b-roll suggestions</li>
+<li class="num">Save to Google Drive</li>
+
+<strong>Deliverables:</strong>
+<li>Complete script with timing marks</li>
+<li>Visual direction notes (what's on screen)</li>
+<li>B-roll / visual asset suggestions</li>
+<li>Thumbnail concept description</li>
+<li>Title and description for platform</li>
+
+<hr>
+
+<h3>CONTENT-03: Email Campaign / Sequence</h3>
+
+<strong>When to use:</strong> Marketing email, drip sequence, newsletter, transactional email copy.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Purpose, audience segment, desired action</li>
+<li class="num">Write: Subject line (A/B variants), preview text, body, CTA</li>
+<li class="num">For sequences: Map the flow (email 1 → trigger → email 2 → etc.)</li>
+<li class="num">Include: Personalization tokens, unsubscribe note</li>
+<li class="num">Save each email as separate document</li>
+
+<strong>Deliverables:</strong>
+<li>Email copy (subject, preview, body, CTA) per email</li>
+<li>A/B subject line variants</li>
+<li>Sequence flow diagram (for drip campaigns)</li>
+<li>Send timing recommendations</li>
+
+<hr>
+
+<h3>CONTENT-04: Presentation / Slide Deck Content</h3>
+
+<strong>When to use:</strong> Keynote content, pitch deck copy, webinar slides, training deck, conference talk.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Audience, duration, key message, format</li>
+<li class="num">Create slide outline: Title → Agenda → Key slides → Summary → CTA</li>
+<li class="num">Write: Title + body + speaker notes per slide</li>
+<li class="num">Keep slides concise (max 6 bullet points, max 8 words per point)</li>
+<li class="num">Suggest visuals for each slide</li>
+
+<strong>Deliverables:</strong>
+<li>Slide content document (title, body, speaker notes per slide)</li>
+<li>Visual direction per slide</li>
+<li>Handout version (if applicable)</li>
+
+<hr>
+
+<h3>CONTENT-05: Business Document</h3>
+
+<strong>When to use:</strong> Proposal, one-pager, case study, white paper, SOW, internal memo, executive brief.
+
+<strong>Step Sequence:</strong>
+<li class="num">Identify document type and select appropriate template/structure</li>
+<li class="num">Research if needed (company info, industry data, competitive context)</li>
+<li class="num">Write in appropriate business format</li>
+<li class="num">Include executive summary for longer documents</li>
+<li class="num">Save as PDF with professional formatting</li>
+
+<strong>Tool Chain:</strong> search_memory → web_search → create_pdf → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Formatted business document (PDF)</li>
+<li>Executive summary</li>
+<li>Registered in project</li>
+
+<hr>
+
+<h3>CONTENT-06: Press Release</h3>
+
+<strong>When to use:</strong> Company announcement, product launch, partnership, milestone, event.
+
+<strong>Step Sequence:</strong>
+<li class="num">Gather: Who, what, when, where, why, quote from leadership</li>
+<li class="num">Write in inverted pyramid format: Headline → Lead → Body → Boilerplate</li>
+<li class="num">Include: Dateline, media contact, company boilerplate</li>
+<li class="num">Two versions: Full release + condensed social announcement</li>
+
+<strong>Deliverables:</strong>
+<li>Full press release (PDF)</li>
+<li>Social announcement version</li>
+<li>Media distribution list suggestions</li>
+
+<hr>
+
+<h3>CONTENT-07: Documentation / Knowledge Base</h3>
+
+<strong>When to use:</strong> Help docs, FAQ, user guide, internal wiki, process documentation, SOPs.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define scope and audience (internal team vs. external users)</li>
+<li class="num">Structure: Overview → Getting Started → Detailed Sections → FAQ → Troubleshooting</li>
+<li class="num">Write in clear, scannable format with headers and numbered steps</li>
+<li class="num">Include examples and edge cases</li>
+<li class="num">Save to knowledge base (create_knowledge) AND as document file</li>
+
+<strong>Deliverables:</strong>
+<li>Documentation file (Google Drive)</li>
+<li>Knowledge base entries (create_knowledge)</li>
+<li>Table of contents / navigation structure</li>
+
+<hr>
+
+<h3>CONTENT-08: Audio/Video Production</h3>
+
+<strong>When to use:</strong> Podcast narration, voiceover, video from slides, audio content.
+
+<strong>Delegated to:</strong> Neptune (10)
+
+<strong>Step Sequence:</strong>
+<li class="num">Scribe writes the script (CONTENT-02)</li>
+<li class="num">Neptune generates audio narration (generate_audio — ElevenLabs for quality, OpenAI for speed)</li>
+<li class="num">Neptune prepares slide images or visuals (generate_social_image if needed)</li>
+<li class="num">Neptune assembles video (create_slideshow_video — slides + audio → MP4)</li>
+<li class="num">Upload all files to Google Drive</li>
+<li class="num">Register in project with file details (duration, format, file size)</li>
+
+<strong>Tool Chain:</strong> generate_audio → generate_social_image → create_slideshow_video → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Audio file (MP3/WAV)</li>
+<li>Video file (MP4) if applicable</li>
+<li>Script document (source)</li>
+<li>Production notes: duration, file sizes, format specs</li>
+
+<hr>
+
+<h2>3D. MARKETING & GROWTH</h2>
+
+<strong>Owner:</strong> Teagan (Persona 4)
+<strong>Support:</strong> Apollo (11), Scribe (7), Neptune (10), Proof (8)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>MKT-01: Social Media Content Creation</h3>
+
+<strong>When to use:</strong> Create posts for any social platform (X/Twitter, LinkedIn, Instagram, Facebook, TikTok).
+
+<strong>Step Sequence:</strong>
+<li class="num">Identify platform and optimize for its format/audience</li>
+<li class="num">Research trending topics or relevant hooks (web_search)</li>
+<li class="num">Draft post with platform-appropriate tone, length, hashtags, CTA</li>
+<li class="num">Generate accompanying image (generate_social_image)</li>
+<li class="num">Schedule on content calendar (manage_content_calendar)</li>
+<li class="num">Optionally publish directly (publish_social_post)</li>
+
+<strong>Tool Chain:</strong> web_search → draft_social_post OR compose_social_post → manage_content_calendar → publish_social_post
+
+<strong>Deliverables:</strong>
+<li>Post text (platform-optimized)</li>
+<li>Generated image (uploaded to Google Drive)</li>
+<li>Calendar entry</li>
+<li>Publication confirmation (if published)</li>
+
+<strong>Quality Gate:</strong>
+<li>Platform character limits respected</li>
+<li>Hashtags relevant (3-5 for Twitter, 10-15 for Instagram)</li>
+<li>CTA included</li>
+<li>Image matches post theme</li>
+<li>Brand voice consistent</li>
+
+<hr>
+
+<h3>MKT-02: Content Calendar Planning</h3>
+
+<strong>When to use:</strong> Plan a week/month of content, create editorial calendar, map content themes.
+
+<strong>Step Sequence:</strong>
+<li class="num">Review current calendar (manage_content_calendar: view)</li>
+<li class="num">Research trending topics, holidays, industry events</li>
+<li class="num">Map themes to platforms (not one-size-fits-all)</li>
+<li class="num">Create daily/weekly content slots with topic, platform, format</li>
+<li class="num">Add all entries to content calendar</li>
+
+<strong>Deliverables:</strong>
+<li>Content calendar (structured entries)</li>
+<li>Theme/topic map</li>
+<li>Asset requirements list (images, videos needed)</li>
+
+<hr>
+
+<h3>MKT-03: Campaign Launch</h3>
+
+<strong>When to use:</strong> Multi-channel marketing campaign, product launch campaign, seasonal promotion.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Campaign objective, target audience, channels, timeline, budget</li>
+<li class="num">Delegate to Radar (9): Competitive campaign research</li>
+<li class="num">Create campaign brief: Messaging pillars, visual direction, channel strategy</li>
+<li class="num">Write content for each channel (coordinate with Scribe for long-form)</li>
+<li class="num">Generate visual assets (generate_social_image per platform)</li>
+<li class="num">Schedule all content (manage_content_calendar)</li>
+<li class="num">Set up tracking (marketing_analytics, marketing_experiment for A/B tests)</li>
+<li class="num">Document campaign plan</li>
+
+<strong>Tool Chain:</strong> orchestrate → web_search → compose_social_post (multiple) → manage_content_calendar → marketing_experiment → google_drive
+
+<strong>Deliverables:</strong>
+<li>Campaign brief document</li>
+<li>Content assets per channel (text + images)</li>
+<li>Calendar with all scheduled posts</li>
+<li>A/B test setup</li>
+<li>Campaign tracking framework</li>
+
+<hr>
+
+<h3>MKT-04: Marketing Performance Analysis</h3>
+
+<strong>When to use:</strong> Review campaign results, analyze marketing metrics, optimize strategy.
+
+<strong>Step Sequence:</strong>
+<li class="num">Pull analytics (marketing_analytics: report)</li>
+<li class="num">Compare against benchmarks and goals</li>
+<li class="num">Identify top performers and underperformers</li>
+<li class="num">Extract patterns: what content types, topics, posting times work best</li>
+<li class="num">Generate recommendations for next period</li>
+
+<strong>Tool Chain:</strong> marketing_analytics → generate_chart → create_pdf → google_drive
+
+<strong>Deliverables:</strong>
+<li>Marketing performance report with charts</li>
+<li>Top/bottom performers analysis</li>
+<li>Optimization recommendations</li>
+<li>Updated strategy for next period</li>
+
+<hr>
+
+<h3>MKT-05: Brand & Style Guide</h3>
+
+<strong>When to use:</strong> Define or update brand voice, visual identity, messaging guidelines.
+
+<strong>Step Sequence:</strong>
+<li class="num">Audit current brand presence (search_memory: "brand", "style guide")</li>
+<li class="num">Research competitive brand positioning</li>
+<li class="num">Define: Voice attributes, tone spectrum, do's and don'ts, visual direction</li>
+<li class="num">Write comprehensive brand guide</li>
+<li class="num">Save to memory for all agents to reference</li>
+
+<strong>Deliverables:</strong>
+<li>Brand & Style Guide document</li>
+<li>Memory entries for each persona to access</li>
+<li>Quick-reference one-pager</li>
+
+<hr>
+
+<h3>MKT-06: SEO Strategy</h3>
+
+<strong>When to use:</strong> Keyword research, SEO audit, content optimization, search strategy.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Target keywords, search volume, competition (web_search, deep_research)</li>
+<li class="num">Audit: Current content vs. keyword targets</li>
+<li class="num">Create: Keyword map (primary, secondary, long-tail per page/topic)</li>
+<li class="num">Recommend: Content gaps, optimization priorities, technical SEO items</li>
+<li class="num">Document strategy</li>
+
+<strong>Deliverables:</strong>
+<li>Keyword research report</li>
+<li>Content gap analysis</li>
+<li>SEO optimization recommendations</li>
+<li>Content creation priorities (what to write next)</li>
+
+<hr>
+
+<h2>3E. SALES & REVENUE</h2>
+
+<strong>Owner:</strong> Apollo (Persona 11)
+<strong>Support:</strong> Scribe (7), Cassandra (13), Proof (8), Forge (3)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>SALES-01: Prospect Research & Outreach</h3>
+
+<strong>When to use:</strong> Research a potential client, prepare personalized outreach, initiate contact.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research prospect: company, decision-maker, pain points, recent news (web_search, web_fetch, browser)</li>
+<li class="num">Check memory for any prior interactions (search_memory)</li>
+<li class="num">Identify value proposition alignment</li>
+<li class="num">Craft personalized outreach email (not generic template)</li>
+<li class="num">Send email (send_email)</li>
+<li class="num">Log interaction in memory (create_memory)</li>
+<li class="num">Track expected outcome (track_outcome)</li>
+<li class="num">Schedule follow-up</li>
+
+<strong>Tool Chain:</strong> web_search → web_fetch → search_memory → send_email → create_memory → track_outcome
+
+<strong>Deliverables:</strong>
+<li>Prospect research brief (key facts, pain points, opportunity)</li>
+<li>Personalized outreach email (sent)</li>
+<li>Memory entry for tracking</li>
+<li>Follow-up schedule</li>
+
+<strong>Quality Gate:</strong>
+<li>Outreach references specific prospect details (not generic)</li>
+<li>Value proposition is clear</li>
+<li>CTA is specific ("15-minute call Thursday?" not "let me know")</li>
+<li>No spelling/grammar errors</li>
+
+<hr>
+
+<h3>SALES-02: Proposal / Pitch Deck</h3>
+
+<strong>When to use:</strong> Create a client proposal, pitch deck, SOW, or pricing document.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Client needs, competitive alternatives, pricing benchmarks</li>
+<li class="num">Coordinate with Scribe (7) for proposal copy</li>
+<li class="num">Coordinate with Cassandra (13) for pricing strategy</li>
+<li class="num">Assemble proposal: Problem → Solution → Approach → Deliverables → Timeline → Pricing → Terms</li>
+<li class="num">Route to Proof (8) for review</li>
+<li class="num">Route to Luna (14) if contract terms included</li>
+<li class="num">Generate final PDF</li>
+<li class="num">Track in pipeline</li>
+
+<strong>Tool Chain:</strong> web_search → delegate_task(Scribe) → delegate_task(Cassandra) → delegate_task(Proof) → create_pdf → google_drive → project(add_file) → send_email
+
+<strong>Deliverables:</strong>
+<li>Complete proposal document (PDF)</li>
+<li>Pricing breakdown</li>
+<li>Timeline/milestone plan</li>
+<li>Cover letter / intro email</li>
+<li>Follow-up schedule</li>
+
+<hr>
+
+<h3>SALES-03: Pipeline Management</h3>
+
+<strong>When to use:</strong> Review sales pipeline, update deal statuses, forecast revenue.
+
+<strong>Step Sequence:</strong>
+<li class="num">Recall all active deals from memory (search_memory: "deal", "pipeline", "prospect")</li>
+<li class="num">Update statuses based on recent activity</li>
+<li class="num">Calculate pipeline value by stage</li>
+<li class="num">Generate pipeline visualization (generate_chart)</li>
+<li class="num">Identify deals needing attention (stale, at risk, ready to close)</li>
+<li class="num">Create action plan for each priority deal</li>
+
+<strong>Deliverables:</strong>
+<li>Pipeline report with deal stages and values</li>
+<li>Pipeline visualization chart</li>
+<li>At-risk deal alerts</li>
+<li>Weekly action plan per deal</li>
+
+<hr>
+
+<h3>SALES-04: Client Follow-Up Sequence</h3>
+
+<strong>When to use:</strong> Follow up after initial outreach, post-meeting, post-proposal, or re-engagement.
+
+<strong>Step Sequence:</strong>
+<li class="num">Recall last interaction (search_memory)</li>
+<li class="num">Determine appropriate follow-up timing and approach</li>
+<li class="num">Write personalized follow-up (reference previous conversation specifics)</li>
+<li class="num">Send via appropriate channel (send_email)</li>
+<li class="num">Log and schedule next follow-up</li>
+<li class="num">Track outcome</li>
+
+<strong>Deliverables:</strong>
+<li>Follow-up message (sent)</li>
+<li>Updated interaction log</li>
+<li>Next action scheduled</li>
+
+<hr>
+
+<h3>SALES-05: Competitive Positioning</h3>
+
+<strong>When to use:</strong> Prospect is comparing options, need battle cards, competitive differentiation.
+
+<strong>Step Sequence:</strong>
+<li class="num">Delegate to Radar (9): "Deep competitive analysis of [competitor(s)] — pricing, features, weaknesses, customer complaints"</li>
+<li class="num">Create battle card: Feature comparison, differentiators, objection handling, talk tracks</li>
+<li class="num">Save for future reference</li>
+
+<strong>Deliverables:</strong>
+<li>Competitive battle card</li>
+<li>Feature comparison matrix</li>
+<li>Objection handling scripts</li>
+<li>Win/loss analysis (if data available)</li>
+
+<hr>
+
+<h3>SALES-06: Digital Product Delivery</h3>
+
+<strong>When to use:</strong> Customer has purchased, needs file delivery with proper tracking.
+
+<strong>Step Sequence:</strong>
+<li class="num">Verify order details (customer name, email, product, payment)</li>
+<li class="num">Prepare deliverable file (create_pdf if needed)</li>
+<li class="num">Use deliver_product tool (automated: Drive upload → share → branded email → log)</li>
+<li class="num">Track delivery status (delivery_status)</li>
+<li class="num">Log in project</li>
+
+<strong>Tool Chain:</strong> create_pdf (if needed) → deliver_product → delivery_status → project(add_note)
+
+<strong>Deliverables:</strong>
+<li>Product delivered with shareable Drive link</li>
+<li>Branded delivery email sent</li>
+<li>Delivery confirmation with tracking ID</li>
+<li>Project updated</li>
+
+<hr>
+
+<h2>3F. FINANCE & ACCOUNTING</h2>
+
+<strong>Owner:</strong> Cassandra (Persona 13)
+<strong>Support:</strong> Atlas (12), Apollo (11)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>FIN-01: Financial Modeling / Analysis</h3>
+
+<strong>When to use:</strong> Revenue projection, cost analysis, pricing model, unit economics, what-if scenario.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define the financial question and key assumptions</li>
+<li class="num">Gather data: historical (search_memory), market (web_search), operational (delegate to Atlas)</li>
+<li class="num">Build model using execute_code (calculations, projections)</li>
+<li class="num">Run scenarios: best case, expected case, worst case</li>
+<li class="num">Visualize key outputs (generate_chart)</li>
+<li class="num">Document assumptions, methodology, and recommendations</li>
+<li class="num">Save as formal report</li>
+
+<strong>Tool Chain:</strong> search_memory → web_search → execute_code → generate_chart → create_pdf → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Financial model with calculations</li>
+<li>Three-scenario analysis (best/expected/worst)</li>
+<li>Charts: revenue projection, cost breakdown, margin trend</li>
+<li>Assumptions document</li>
+<li>Executive summary with recommendation</li>
+
+<strong>Quality Gate:</strong>
+<li>All assumptions explicitly stated</li>
+<li>Numbers are precise (no rounding unless noted)</li>
+<li>Scenarios have clear probability assessments</li>
+<li>Sources cited for market data</li>
+
+<hr>
+
+<h3>FIN-02: Budget Creation / Update</h3>
+
+<strong>When to use:</strong> Annual budget, department budget, project budget, budget reforecast.
+
+<strong>Step Sequence:</strong>
+<li class="num">Gather current spending data and commitments</li>
+<li class="num">Research market rates for new line items (web_search)</li>
+<li class="num">Build budget structure: Revenue categories → Expense categories → Net</li>
+<li class="num">Calculate: Monthly breakdown, quarterly totals, annual summary</li>
+<li class="num">Compare to prior period if available</li>
+<li class="num">Flag items needing approval or investigation</li>
+
+<strong>Deliverables:</strong>
+<li>Budget document with line-item detail</li>
+<li>Monthly cash flow projection</li>
+<li>Variance analysis (vs. prior period)</li>
+<li>Budget approval action items</li>
+
+<hr>
+
+<h3>FIN-03: Revenue Reporting / P&L</h3>
+
+<strong>When to use:</strong> Monthly close, revenue reconciliation, P&L statement, financial summary.
+
+<strong>Step Sequence:</strong>
+<li class="num">Pull revenue data (Stripe tools if applicable, memory, project files)</li>
+<li class="num">Compile expenses by category</li>
+<li class="num">Calculate: Gross revenue, net revenue, COGS, gross margin, operating expenses, net income</li>
+<li class="num">Compare to budget/forecast</li>
+<li class="num">Generate visualizations</li>
+<li class="num">Write narrative: What happened, why, what it means</li>
+
+<strong>Deliverables:</strong>
+<li>P&L statement (formatted)</li>
+<li>Revenue breakdown chart</li>
+<li>Expense breakdown chart</li>
+<li>Budget vs. actual comparison</li>
+<li>Narrative summary with key takeaways</li>
+
+<hr>
+
+<h3>FIN-04: Pricing Strategy</h3>
+
+<strong>When to use:</strong> Set pricing for a product/service, evaluate pricing changes, competitive pricing analysis.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Competitor pricing, market rates, customer willingness to pay (web_search)</li>
+<li class="num">Analyze: Cost structure, target margins, volume assumptions</li>
+<li class="num">Model: Multiple pricing tiers/options</li>
+<li class="num">Calculate: Revenue impact per scenario</li>
+<li class="num">Recommend: Pricing with rationale</li>
+
+<strong>Deliverables:</strong>
+<li>Pricing analysis document</li>
+<li>Competitor pricing comparison</li>
+<li>Revenue impact models per option</li>
+<li>Recommended pricing with rationale</li>
+
+<hr>
+
+<h3>FIN-05: Cash Flow Management</h3>
+
+<strong>When to use:</strong> Runway calculation, cash position update, payment timing optimization.
+
+<strong>Step Sequence:</strong>
+<li class="num">Current cash position</li>
+<li class="num">Projected inflows (committed revenue, expected deals)</li>
+<li class="num">Projected outflows (committed expenses, planned spending)</li>
+<li class="num">Calculate: Runway in months, monthly burn rate</li>
+<li class="num">Flag: Payment timing risks, large upcoming expenses</li>
+<li class="num">Recommend: Cash optimization actions</li>
+
+<strong>Deliverables:</strong>
+<li>Cash flow projection (12-month)</li>
+<li>Runway calculation</li>
+<li>Risk flags</li>
+<li>Optimization recommendations</li>
+
+<hr>
+
+<h3>FIN-06: Tax Preparation</h3>
+
+<strong>When to use:</strong> Quarterly tax estimate, annual tax prep, tax planning, deduction tracking.
+
+<strong>Step Sequence:</strong>
+<li class="num">Compile: Revenue, expenses, deductions by category</li>
+<li class="num">Research: Applicable tax rates, deadlines, deduction rules (web_search)</li>
+<li class="num">Calculate: Estimated tax liability</li>
+<li class="num">Document: What records are needed, what's ready, what's missing</li>
+<li class="num">Recommend: Tax-saving strategies if applicable</li>
+
+<strong>Deliverables:</strong>
+<li>Tax estimate calculation</li>
+<li>Deduction summary</li>
+<li>Required records checklist</li>
+<li>Filing deadline tracker</li>
+<li>Tax-saving recommendations</li>
+
+<hr>
+
+<h2>3G. LEGAL & COMPLIANCE</h2>
+
+<strong>Owner:</strong> Luna (Persona 14)
+<strong>Support:</strong> Cassandra (13), Felix (2)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>LEGAL-01: Contract Review</h3>
+
+<strong>When to use:</strong> Review any contract, agreement, terms before signing.
+
+<strong>Step Sequence:</strong>
+<li class="num">Obtain contract document (analyze_pdf, google_drive, or from project files)</li>
+<li class="num">Review clause by clause: Key terms, obligations, liabilities, termination, IP, indemnification</li>
+<li class="num">Flag risks by severity: Critical / High / Medium / Low</li>
+<li class="num">For each risk: What it means → Why it matters → Recommended change</li>
+<li class="num">Overall assessment: Sign as-is / Sign with modifications / Do not sign</li>
+<li class="num">Document recommendations</li>
+
+<strong>Tool Chain:</strong> analyze_pdf → web_search (legal precedents if needed) → create_pdf (review report) → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>Contract review report with risk flags</li>
+<li>Specific recommended changes (redline suggestions)</li>
+<li>Overall recommendation</li>
+<li>Caveat: "This is legal information, not legal advice — consult an attorney for critical matters"</li>
+
+<strong>Quality Gate:</strong>
+<li>Every clause reviewed</li>
+<li>Risks rated by severity</li>
+<li>Specific fix language provided (not just "this is risky")</li>
+<li>Attorney consultation recommended for critical matters</li>
+
+<hr>
+
+<h3>LEGAL-02: Terms of Service / Privacy Policy</h3>
+
+<strong>When to use:</strong> Create or update ToS, privacy policy, cookie policy, acceptable use policy.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Current regulatory requirements (GDPR, CCPA, etc.) (web_search)</li>
+<li class="num">Review: What data is collected, how it's used, who it's shared with</li>
+<li class="num">Draft: Comprehensive policy in plain language</li>
+<li class="num">Include: Required disclosures, user rights, opt-out mechanisms</li>
+<li class="num">Save as legal document</li>
+
+<strong>Deliverables:</strong>
+<li>Terms of Service document</li>
+<li>Privacy Policy document</li>
+<li>Cookie Policy (if applicable)</li>
+<li>Plain-language summary for users</li>
+
+<hr>
+
+<h3>LEGAL-03: NDA / Simple Agreement Drafting</h3>
+
+<strong>When to use:</strong> Draft an NDA, freelancer agreement, partnership MOU, or simple contract.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Parties, scope, key terms, duration</li>
+<li class="num">Research: Standard language for this type of agreement</li>
+<li class="num">Draft: Using clear, enforceable language</li>
+<li class="num">Include: Definitions, obligations, confidentiality, termination, governing law, dispute resolution</li>
+<li class="num">Flag items needing attorney review</li>
+<li class="num">Save as PDF</li>
+
+<strong>Deliverables:</strong>
+<li>Draft agreement (PDF)</li>
+<li>Key terms summary</li>
+<li>Items flagged for attorney review</li>
+
+<hr>
+
+<h3>LEGAL-04: Compliance Audit</h3>
+
+<strong>When to use:</strong> Regulatory review, compliance check, privacy audit, policy compliance verification.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: What regulations/standards apply (GDPR, CCPA, SOC2, industry-specific)</li>
+<li class="num">Research: Current requirements and recent changes (web_search)</li>
+<li class="num">Audit: Current practices vs. requirements</li>
+<li class="num">Gap analysis: What's compliant, what's not, what's partially compliant</li>
+<li class="num">Prioritize: Critical gaps → High → Medium → Low</li>
+<li class="num">Recommend: Remediation plan with timeline</li>
+
+<strong>Deliverables:</strong>
+<li>Compliance audit report</li>
+<li>Gap analysis matrix</li>
+<li>Remediation plan with priorities</li>
+<li>Regulatory change log</li>
+
+<hr>
+
+<h3>LEGAL-05: IP Protection</h3>
+
+<strong>When to use:</strong> Trademark search, copyright questions, IP strategy, invention disclosure.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Existing trademarks/IP in the space (web_search)</li>
+<li class="num">Assess: Current IP assets and protections</li>
+<li class="num">Identify: Gaps in protection</li>
+<li class="num">Recommend: Filing priorities, protection strategies</li>
+<li class="num">Document: IP inventory</li>
+
+<strong>Deliverables:</strong>
+<li>IP audit report</li>
+<li>Trademark search results</li>
+<li>Protection recommendations</li>
+<li>Filing priority list</li>
+
+<hr>
+
+<h2>3H. OPERATIONS & ADMINISTRATION</h2>
+
+<strong>Owner:</strong> Chief of Staff (Persona 6)
+<strong>Support:</strong> Forge (3), Agent Blueprint (5)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>OPS-01: System Health Check</h3>
+
+<strong>When to use:</strong> "Is everything working?", routine health check, pre-deployment verification.
+
+<strong>Step Sequence:</strong>
+<li class="num">Run test_api_keys — verify all AI provider connections</li>
+<li class="num">Run check_system_status — uptime, conversations, memory, heartbeats</li>
+<li class="num">Check list_models — available AI models</li>
+<li class="num">Verify Google Drive connectivity (google_drive: list)</li>
+<li class="num">Check email system (check_inbox)</li>
+<li class="num">Review recent errors or anomalies</li>
+<li class="num">Report in dashboard format with clear status indicators</li>
+
+<strong>Tool Chain:</strong> test_api_keys → check_system_status → list_models → google_drive(list) → check_inbox
+
+<strong>Deliverables:</strong>
+<li>System health dashboard</li>
+<li>Status per service: ✅ Healthy / ⚠️ Degraded / ❌ Down</li>
+<li>Action items for any issues</li>
+<li>Response times / latency metrics</li>
+
+<strong>Quality Gate:</strong>
+<li>Every service actually tested (not assumed)</li>
+<li>Specific numbers (latency in ms, not "seems fast")</li>
+<li>Token expiry times noted</li>
+<li>Issues have proposed fixes</li>
+
+<hr>
+
+<h3>OPS-02: Morning Standup / Daily Brief</h3>
+
+<strong>When to use:</strong> Daily 8:00 AM standup, start-of-day summary, "what's happening today?"
+
+<strong>Step Sequence:</strong>
+<li class="num">Check system health (abbreviated OPS-01)</li>
+<li class="num">Review overnight activity (get_daily_notes)</li>
+<li class="num">Check pending tasks across personas (manage_desk: get_status)</li>
+<li class="num">Review inbox for anything requiring attention (check_inbox)</li>
+<li class="num">Compile: Status → Priorities → Blockers → Today's Schedule</li>
+
+<strong>Deliverables:</strong>
+<li>Morning brief document</li>
+<li>Today's priority list</li>
+<li>Blocker report</li>
+<li>Schedule for the day</li>
+
+<hr>
+
+<h3>OPS-03: End of Day Summary</h3>
+
+<strong>When to use:</strong> 5:00 PM daily summary, "what got done today?"
+
+<strong>Step Sequence:</strong>
+<li class="num">Review day's activity (get_daily_notes)</li>
+<li class="num">Compile completed work by department</li>
+<li class="num">Note unfinished items and their status</li>
+<li class="num">Flag anything needing attention tomorrow</li>
+<li class="num">Write daily summary</li>
+
+<strong>Deliverables:</strong>
+<li>EOD summary</li>
+<li>Completed items list</li>
+<li>Carry-forward items</li>
+<li>Tomorrow's priorities</li>
+
+<hr>
+
+<h3>OPS-04: Weekly Operations Review</h3>
+
+<strong>When to use:</strong> Monday weekly review, operational retrospective, process improvement.
+
+<strong>Step Sequence:</strong>
+<li class="num">Compile daily summaries for the week</li>
+<li class="num">Aggregate metrics from Atlas (delegate if needed)</li>
+<li class="num">Review: What went well, what didn't, what to improve</li>
+<li class="num">Update any operational processes</li>
+<li class="num">Set priorities for next week</li>
+
+<strong>Deliverables:</strong>
+<li>Weekly operations report</li>
+<li>Metrics summary</li>
+<li>Process improvement recommendations</li>
+<li>Next week's priorities</li>
+
+<hr>
+
+<h3>OPS-05: Scheduling & Calendar Management</h3>
+
+<strong>When to use:</strong> Schedule meetings, manage calendar, coordinate across time zones.
+
+<strong>Step Sequence:</strong>
+<li class="num">Identify: What needs to be scheduled, who's involved, constraints</li>
+<li class="num">Check calendar (google_workspace: Calendar list)</li>
+<li class="num">Propose times</li>
+<li class="num">Create calendar event (google_workspace: Calendar create)</li>
+<li class="num">Send notifications if needed (send_email)</li>
+
+<strong>Deliverables:</strong>
+<li>Calendar event created</li>
+<li>Notifications sent</li>
+<li>Agenda prepared (if meeting)</li>
+
+<hr>
+
+<h3>OPS-06: Incident Response</h3>
+
+<strong>When to use:</strong> System outage, service degradation, critical error, security alert.
+
+<strong>Step Sequence:</strong>
+<li class="num">Assess severity immediately (check_system_status, test_api_keys)</li>
+<li class="num">Classify: Severity 1 (service down) / 2 (degraded) / 3 (minor) / 4 (cosmetic)</li>
+<li class="num">Communicate: Alert Felix (post_to_channel), notify user</li>
+<li class="num">Diagnose: Root cause investigation</li>
+<li class="num">Escalate to Forge (3) for technical fix if needed</li>
+<li class="num">Resolve and verify</li>
+<li class="num">Post-incident report</li>
+
+<strong>Deliverables:</strong>
+<li>Incident report (timeline, cause, resolution)</li>
+<li>Status updates (real-time)</li>
+<li>Post-incident review document</li>
+<li>Prevention recommendations</li>
+
+<hr>
+
+<h2>3I. RESEARCH & INTELLIGENCE</h2>
+
+<strong>Owner:</strong> Radar (Persona 9) + Neptune (Persona 10)
+<strong>Support:</strong> Atlas (12)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>RESEARCH-01: Market Research</h3>
+
+<strong>When to use:</strong> Market size, industry analysis, market trends, TAM/SAM/SOM.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define research scope and questions</li>
+<li class="num">Search multiple sources (web_search for breadth, web_fetch for depth)</li>
+<li class="num">For comprehensive research: use deep_research</li>
+<li class="num">Cross-reference findings from multiple sources</li>
+<li class="num">Analyze: Market size, growth rate, segments, trends</li>
+<li class="num">Structure report: Executive Summary → Market Overview → Segments → Trends → Opportunities → Risks → Sources</li>
+
+<strong>Tool Chain:</strong> web_search → web_fetch → deep_research → generate_chart → create_pdf → google_drive → project(add_file) → create_memory
+
+<strong>Deliverables:</strong>
+<li>Market research report (PDF)</li>
+<li>Market size/growth charts</li>
+<li>Trend analysis</li>
+<li>Opportunity matrix</li>
+<li>All sources cited</li>
+
+<strong>Quality Gate:</strong>
+<li>Multiple sources cross-referenced</li>
+<li>Data recency noted (how recent is each data point)</li>
+<li>Confidence levels stated</li>
+<li>Facts vs. analysis vs. speculation clearly distinguished</li>
+
+<hr>
+
+<h3>RESEARCH-02: Competitive Analysis</h3>
+
+<strong>When to use:</strong> Competitor deep dive, competitive landscape, feature comparison, battle cards.
+
+<strong>Step Sequence:</strong>
+<li class="num">Identify competitor set (direct, indirect, emerging)</li>
+<li class="num">Research each: Product, pricing, positioning, strengths, weaknesses, recent moves</li>
+<li class="num">Use firecrawl tools for deep site analysis if needed</li>
+<li class="num">Build comparison matrix</li>
+<li class="num">Identify differentiators and vulnerabilities</li>
+<li class="num">Strategic recommendations</li>
+
+<strong>Tool Chain:</strong> web_search → web_fetch → firecrawl_search → firecrawl_scrape → generate_chart → create_pdf → google_drive
+
+<strong>Deliverables:</strong>
+<li>Competitive analysis report</li>
+<li>Feature comparison matrix</li>
+<li>SWOT per competitor</li>
+<li>Strategic recommendations</li>
+<li>Battle cards for sales team</li>
+
+<hr>
+
+<h3>RESEARCH-03: Technology / Tool Research</h3>
+
+<strong>When to use:</strong> Evaluate tools, platforms, technologies, APIs, frameworks.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define requirements and evaluation criteria</li>
+<li class="num">Research candidates (web_search, web_fetch for documentation)</li>
+<li class="num">Compare: Features, pricing, documentation quality, community, integration effort</li>
+<li class="num">Score against criteria</li>
+<li class="num">Recommend with rationale</li>
+
+<strong>Deliverables:</strong>
+<li>Technology evaluation report</li>
+<li>Comparison matrix (scored)</li>
+<li>Recommendation with rationale</li>
+<li>Implementation considerations</li>
+
+<hr>
+
+<h3>RESEARCH-04: Industry Trend Report</h3>
+
+<strong>When to use:</strong> Trend tracking, emerging technology scan, "what's happening in [industry]?"
+
+<strong>Step Sequence:</strong>
+<li class="num">Multi-source research (deep_research)</li>
+<li class="num">Identify trends by category: technology, market, regulatory, behavioral</li>
+<li class="num">Assess each: Signal strength, timeline, impact potential</li>
+<li class="num">Extract implications for the business</li>
+<li class="num">Structure: Key Trends → Analysis → Implications → Action Items → Sources</li>
+
+<strong>Deliverables:</strong>
+<li>Trend report (structured, sourced)</li>
+<li>Trend heat map (impact vs. timeline)</li>
+<li>Action items based on trends</li>
+
+<hr>
+
+<h3>RESEARCH-05: Person / Company Research</h3>
+
+<strong>When to use:</strong> Due diligence on a person or company, background check, prospect research.
+
+<strong>Step Sequence:</strong>
+<li class="num">Search across multiple sources (web_search, web_fetch for LinkedIn/company site)</li>
+<li class="num">Compile: Background, history, recent activity, reputation, connections</li>
+<li class="num">For companies: Financials if public, leadership, products, news</li>
+<li class="num">Note red flags or concerns</li>
+<li class="num">Create dossier</li>
+
+<strong>Deliverables:</strong>
+<li>Research dossier</li>
+<li>Key facts summary</li>
+<li>Red flags / concerns</li>
+<li>Relevance to current business context</li>
+
+<hr>
+
+<h2>3J. DATA & ANALYTICS</h2>
+
+<strong>Owner:</strong> Atlas (Persona 12)
+<strong>Support:</strong> Cassandra (13), Forge (3)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>DATA-01: KPI Dashboard / Scorecard</h3>
+
+<strong>When to use:</strong> Create metrics dashboard, weekly scorecard, performance tracking display.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Which KPIs to track, data sources, time period</li>
+<li class="num">Collect data (execute_code, web_search for benchmarks, search_memory for historical)</li>
+<li class="num">Calculate: Current values, trends, period-over-period changes</li>
+<li class="num">Visualize: Charts per KPI (generate_chart — bar, line, pie as appropriate)</li>
+<li class="num">Add context: "So what?" for each metric — what does this number mean?</li>
+<li class="num">Compare to targets/benchmarks</li>
+<li class="num">Save report</li>
+
+<strong>Tool Chain:</strong> execute_code → search_memory → generate_chart → create_pdf → google_drive → project(add_file)
+
+<strong>Deliverables:</strong>
+<li>KPI dashboard (charts + commentary)</li>
+<li>Trend analysis per metric</li>
+<li>Against-target comparison</li>
+<li>Action recommendations for off-track metrics</li>
+
+<strong>Quality Gate:</strong>
+<li>Every metric has context (not just numbers)</li>
+<li>Trends shown (not just point-in-time)</li>
+<li>Benchmarks included where available</li>
+<li>Data quality issues noted honestly</li>
+
+<hr>
+
+<h3>DATA-02: Ad Hoc Analysis</h3>
+
+<strong>When to use:</strong> "Analyze this data", "what does this mean?", one-time data question.
+
+<strong>Step Sequence:</strong>
+<li class="num">Understand the question precisely</li>
+<li class="num">Gather or receive data</li>
+<li class="num">Process and clean data (execute_code)</li>
+<li class="num">Analyze: Patterns, outliers, correlations, trends</li>
+<li class="num">Visualize key findings (generate_chart)</li>
+<li class="num">Lead with the insight (bottom line first), then supporting data</li>
+
+<strong>Deliverables:</strong>
+<li>Analysis summary (insight-first)</li>
+<li>Supporting data and charts</li>
+<li>Methodology notes</li>
+<li>Caveats and limitations</li>
+
+<hr>
+
+<h3>DATA-03: Regular Reporting</h3>
+
+<strong>When to use:</strong> Weekly metrics, monthly report, quarterly review — recurring data compilation.
+
+<strong>Step Sequence:</strong>
+<li class="num">Pull data for the reporting period</li>
+<li class="num">Calculate standard metrics</li>
+<li class="num">Compare: vs. prior period, vs. target, vs. benchmark</li>
+<li class="num">Generate standard visualizations</li>
+<li class="num">Write narrative: Headlines → Details → Recommendations</li>
+
+<strong>Deliverables:</strong>
+<li>Period report (formatted, consistent template)</li>
+<li>Charts and visualizations</li>
+<li>Variance analysis</li>
+<li>Forward-looking commentary</li>
+
+<hr>
+
+<h3>DATA-04: Data Visualization</h3>
+
+<strong>When to use:</strong> User has data and needs it turned into charts, graphs, or visual displays.
+
+<strong>Step Sequence:</strong>
+<li class="num">Receive or collect data</li>
+<li class="num">Determine best visualization type (bar for comparison, line for trends, pie for composition, etc.)</li>
+<li class="num">Generate chart (generate_chart)</li>
+<li class="num">If complex: generate dashboard (generate_dashboard)</li>
+<li class="num">Add titles, labels, and context</li>
+
+<strong>Deliverables:</strong>
+<li>Chart(s) rendered in conversation</li>
+<li>Dashboard (if complex)</li>
+<li>Data interpretation notes</li>
+
+<hr>
+
+<h2>3K. HUMAN RESOURCES & CULTURE</h2>
+
+<strong>Owner:</strong> Felix (CEO — self-directed) + Scribe (7)
+<strong>Support:</strong> Luna (14), Cassandra (13)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>HR-01: Job Description / Role Definition</h3>
+
+<strong>When to use:</strong> Create a job posting, define a role, write hiring requirements.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Role title, department, reporting structure, key responsibilities</li>
+<li class="num">Research: Market salary ranges, comparable job postings (web_search)</li>
+<li class="num">Write: Title → Summary → Responsibilities → Requirements → Nice-to-haves → Compensation → Benefits</li>
+<li class="num">Route to Luna (14) for compliance review (equal opportunity, legal language)</li>
+<li class="num">Save as document</li>
+
+<strong>Delegated to:</strong> Scribe (7) for writing, Luna (14) for review
+
+<strong>Deliverables:</strong>
+<li>Job description document</li>
+<li>Salary benchmark data</li>
+<li>Posting-ready version (formatted for job boards)</li>
+
+<hr>
+
+<h3>HR-02: Onboarding Documentation</h3>
+
+<strong>When to use:</strong> Create onboarding materials for new team members, contractors, or partners.
+
+<strong>Step Sequence:</strong>
+<li class="num">Define: Role, access needed, key contacts, first-week priorities</li>
+<li class="num">Create onboarding checklist: Day 1 → Week 1 → Month 1</li>
+<li class="num">Write welcome materials and role-specific guides</li>
+<li class="num">Document: Tool access, communication channels, key processes</li>
+<li class="num">Save to knowledge base and project files</li>
+
+<strong>Deliverables:</strong>
+<li>Onboarding checklist</li>
+<li>Welcome packet</li>
+<li>Role-specific guide</li>
+<li>Access/setup requirements list</li>
+
+<hr>
+
+<h3>HR-03: Policy Documentation</h3>
+
+<strong>When to use:</strong> Employee handbook, workplace policies, remote work policy, expense policy.
+
+<strong>Step Sequence:</strong>
+<li class="num">Research: Best practices, legal requirements (web_search)</li>
+<li class="num">Draft policy in clear language</li>
+<li class="num">Route to Luna (14) for legal review</li>
+<li class="num">Save as official document</li>
+
+<strong>Deliverables:</strong>
+<li>Policy document</li>
+<li>Legal review notes</li>
+<li>Employee acknowledgment form (if needed)</li>
+
+<hr>
+
+<h2>3L. CUSTOMER SUCCESS & SUPPORT</h2>
+
+<strong>Owner:</strong> Chief of Staff (Persona 6) + Scribe (7)
+<strong>Support:</strong> Forge (3), Apollo (11)
+
+<h3>Operation Types & Scaffolds</h3>
+
+<hr>
+
+<h3>CS-01: Help Documentation / FAQ</h3>
+
+<strong>When to use:</strong> Create customer-facing help docs, FAQ, troubleshooting guides.
+
+<strong>Step Sequence:</strong>
+<li class="num">Identify common questions/issues (from memory, inbox, user feedback)</li>
+<li class="num">Write answers in clear, non-technical language</li>
+<li class="num">Structure: Question → Answer → Steps (if applicable) → Related topics</li>
+<li class="num">Save to knowledge base (create_knowledge) and as document</li>
+<li class="num">Route to Proof (8) for accuracy review</li>
+
+<strong>Deliverables:</strong>
+<li>FAQ document</li>
+<li>Knowledge base entries</li>
+<li>Troubleshooting guide (if applicable)</li>
+
+<hr>
+
+<h3>CS-02: Customer Communication</h3>
+
+<strong>When to use:</strong> Customer email response, support ticket reply, status update to client.
+
+<strong>Step Sequence:</strong>
+<li class="num">Understand the customer's issue/question</li>
+<li class="num">Research answer (web_search if needed, search_memory for customer history)</li>
+<li class="num">Draft response: Acknowledge → Answer → Next steps → Closing</li>
+<li class="num">Send via appropriate channel (send_email, whatsapp)</li>
+<li class="num">Log interaction in memory</li>
+
+<strong>Deliverables:</strong>
+<li>Customer communication (sent)</li>
+<li>Interaction logged in memory</li>
+<li>Follow-up scheduled if needed</li>
+
+<hr>
+
+<h3>CS-03: Customer Feedback Analysis</h3>
+
+<strong>When to use:</strong> Analyze customer feedback, NPS results, review themes, complaint patterns.
+
+<strong>Step Sequence:</strong>
+<li class="num">Collect feedback data</li>
+<li class="num">Categorize: Feature requests, bugs, praise, complaints</li>
+<li class="num">Identify patterns and top themes</li>
+<li class="num">Prioritize: What to address first based on frequency and severity</li>
+<li class="num">Generate report with recommendations</li>
+
+<strong>Deliverables:</strong>
+<li>Feedback analysis report</li>
+<li>Theme categorization</li>
+<li>Priority action items</li>
+<li>Trend charts (if historical data available)</li>
+
+<hr>
+
+<h1>4. CROSS-DEPARTMENT WORKFLOWS — Multi-Agent Orchestration Patterns</h1>
+
+<p>These are pre-built orchestration plans for work that requires multiple departments working together. Felix uses the <code>orchestrate</code> tool with these patterns.</p>
+
+<hr>
+
+<h2>CROSS-01: New Product Launch</h2>
+
+<strong>Involved:</strong> Radar → Cassandra → Scribe → Teagan → Apollo → Luna → Felix
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1 (parallel):</p>
+<p>  - Radar (9): Market research — competitive landscape, target audience, positioning</p>
+<p>  - Cassandra (13): Financial model — pricing, revenue projections, break-even analysis</p>
+<p>  - Luna (14): Legal review — any regulatory requirements, IP considerations</p>
+
+<p>Step 2 (after Step 1):</p>
+<p>  - Scribe (7): Write launch materials — landing page copy, product description, press release</p>
+<p>  - Apollo (11): Create sales materials — pitch deck, outreach templates, pricing sheet</p>
+
+<p>Step 3 (after Step 2):</p>
+<p>  - Teagan (4): Create social media campaign — launch posts, content calendar, visual assets</p>
+<p>  - Proof (8): Review all materials for quality and consistency</p>
+
+<p>Step 4 (after Step 3):</p>
+<p>  - Felix: Synthesize all deliverables, create launch timeline, present to user</p>
+</code></pre>
+
+<hr>
+
+<h2>CROSS-02: Client Onboarding Package</h2>
+
+<strong>Involved:</strong> Apollo → Scribe → Luna → Cassandra → Chief of Staff
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1 (parallel):</p>
+<p>  - Apollo (11): Prepare welcome email and kickoff agenda</p>
+<p>  - Luna (14): Generate contract / SOW for signature</p>
+<p>  - Cassandra (13): Set up invoicing / payment schedule</p>
+
+<p>Step 2 (after Step 1):</p>
+<p>  - Scribe (7): Write onboarding guide and project documentation</p>
+<p>  - Chief of Staff (6): Set up project folder, communication channels</p>
+
+<p>Step 3 (after Step 2):</p>
+<p>  - Felix: Package all deliverables, deliver to client</p>
+</code></pre>
+
+<hr>
+
+<h2>CROSS-03: Quarterly Business Review (QBR)</h2>
+
+<strong>Involved:</strong> Atlas → Cassandra → Radar → Teagan → Scribe → Felix
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1 (parallel):</p>
+<p>  - Atlas (12): Compile all KPIs and metrics for the quarter</p>
+<p>  - Cassandra (13): Financial summary — P&L, cash position, budget vs. actual</p>
+<p>  - Radar (9): Market/competitive update — what changed this quarter</p>
+
+<p>Step 2 (after Step 1):</p>
+<p>  - Scribe (7): Write QBR narrative — executive summary, department highlights, lessons learned</p>
+<p>  - Teagan (4): Marketing performance summary</p>
+
+<p>Step 3 (after Step 2):</p>
+<p>  - Felix: Synthesize into QBR presentation, set next quarter OKRs</p>
+</code></pre>
+
+<hr>
+
+<h2>CROSS-04: Content-to-Revenue Pipeline</h2>
+
+<strong>Involved:</strong> Radar → Scribe → Proof → Teagan → Neptune → Apollo
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1:</p>
+<p>  - Radar (9): Identify trending topic with business relevance</p>
+
+<p>Step 2:</p>
+<p>  - Scribe (7): Write thought leadership article</p>
+
+<p>Step 3 (parallel):</p>
+<p>  - Proof (8): Quality review</p>
+<p>  - Neptune (10): Produce audio/video version</p>
+
+<p>Step 4:</p>
+<p>  - Teagan (4): Distribute across social channels</p>
+
+<p>Step 5:</p>
+<p>  - Apollo (11): Outreach to prospects who engage with content</p>
+</code></pre>
+
+<hr>
+
+<h2>CROSS-05: Financial Audit & Compliance Review</h2>
+
+<strong>Involved:</strong> Cassandra → Luna → Atlas → Chief of Staff → Felix
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1 (parallel):</p>
+<p>  - Cassandra (13): Full financial reconciliation — all transactions, categories, discrepancies</p>
+<p>  - Luna (14): Compliance checklist — regulatory requirements, filing deadlines</p>
+
+<p>Step 2:</p>
+<p>  - Atlas (12): Generate audit visualizations and anomaly detection</p>
+
+<p>Step 3:</p>
+<p>  - Chief of Staff (6): Document findings, create action items</p>
+
+<p>Step 4:</p>
+<p>  - Felix: Executive audit summary with recommendations</p>
+</code></pre>
+
+<hr>
+
+<h2>CROSS-06: Rebranding / Brand Refresh</h2>
+
+<strong>Involved:</strong> Radar → Scribe → Teagan → Apollo → Luna → Felix
+
+<strong>Orchestration Plan:</strong>
+<pre><code>
+<p>Step 1:</p>
+<p>  - Radar (9): Brand perception research — current sentiment, competitor brands, market expectations</p>
+
+<p>Step 2 (parallel):</p>
+<p>  - Scribe (7): New brand messaging — mission, vision, taglines, voice guide</p>
+<p>  - Apollo (11): Visual direction recommendations</p>
+
+<p>Step 3:</p>
+<p>  - Teagan (4): Update all social profiles and content templates</p>
+<p>  - Luna (14): Review trademark/IP implications</p>
+
+<p>Step 4:</p>
+<p>  - Felix: Approve and roll out new brand across all materials</p>
+</code></pre>
+
+<hr>
+
+<h1>5. PROJECT LIFECYCLE FRAMEWORK — From Intake to Delivery</h1>
+
+<p>Every piece of work flows through this standard lifecycle. All agents follow these phases.</p>
+
+<h2>Phase 1: INTAKE</h2>
+<pre><code>
+<p>Trigger: User request arrives at Felix</p>
+<p>Actions:</p>
+<p>  1. Felix classifies: Department + Operation Type</p>
+<p>  2. Felix checks: Is there an existing project? (project: search)</p>
+<p>  3. If no project: Create one (project: create)</p>
+<p>  4. Felix selects scaffold and assigns to agent(s)</p>
+<p>  5. Felix delegates with scaffold injected</p>
+</code></pre>
+
+<h2>Phase 2: RESEARCH</h2>
+<pre><code>
+<p>Trigger: Agent receives delegated task with scaffold</p>
+<p>Actions:</p>
+<p>  1. Agent checks memory for relevant context (search_memory, recall_context)</p>
+<p>  2. Agent researches as needed per scaffold (web_search, deep_research)</p>
+<p>  3. Agent gathers all required inputs</p>
+<p>  4. Agent confirms: Do I have everything I need to proceed?</p>
+<p>  5. If missing inputs → report to Felix what's needed</p>
+</code></pre>
+
+<h2>Phase 3: EXECUTION</h2>
+<pre><code>
+<p>Trigger: Agent has all inputs</p>
+<p>Actions:</p>
+<p>  1. Agent follows scaffold step sequence</p>
+<p>  2. Agent uses prescribed tool chain</p>
+<p>  3. Agent produces deliverables per scaffold spec</p>
+<p>  4. Agent saves all files (Google Drive preferred)</p>
+<p>  5. Agent registers files in project (project: add_file)</p>
+</code></pre>
+
+<h2>Phase 4: QUALITY</h2>
+<pre><code>
+<p>Trigger: Deliverables produced</p>
+<p>Actions:</p>
+<p>  1. If high-stakes: Route to Proof (8) for review</p>
+<p>  2. If financial: Cassandra (13) verifies numbers</p>
+<p>  3. If legal: Luna (14) reviews compliance</p>
+<p>  4. If technical: Forge (3) reviews code</p>
+<p>  5. Quality reviewer rates: Ship / Minor Edits / Rewrite</p>
+<p>  6. If Rewrite: Return to Phase 3 with specific feedback</p>
+</code></pre>
+
+<h2>Phase 5: DELIVERY</h2>
+<pre><code>
+<p>Trigger: Deliverables pass quality gate</p>
+<p>Actions:</p>
+<p>  1. Agent reports to Felix: What was done, specific deliverables, file links</p>
+<p>  2. Felix synthesizes across all agents (for multi-agent work)</p>
+<p>  3. Felix presents to user: Executive summary + deliverables + file links</p>
+<p>  4. Felix logs completion in project (project: add_note)</p>
+<p>  5. Felix stores key outcomes in memory (create_memory)</p>
+</code></pre>
+
+<h2>Phase 6: FOLLOW-UP</h2>
+<pre><code>
+<p>Trigger: Delivery complete</p>
+<p>Actions:</p>
+<p>  1. Track outcomes if applicable (track_outcome)</p>
+<p>  2. Schedule follow-up tasks if needed</p>
+<p>  3. Update project status</p>
+<p>  4. Emit events for other departments if relevant (emit_event)</p>
+</code></pre>
+
+<hr>
+
+<h1>6. DELIVERABLE STANDARDS — Quality Gates & Output Specs</h1>
+
+<h2>Universal File Naming Convention</h2>
+<pre><code>
+<p>[ProjectName]_[DeliverableType]_[Version]_[Date].[ext]</p>
+
+<p>Examples:</p>
+<p>  HVAC_DiagnostiQ_BusinessPlan_v1_2026-03-26.pdf</p>
+<p>  ClientName_Proposal_v2_2026-03-26.pdf</p>
+<p>  WeeklyMetrics_Scorecard_2026-W13.pdf</p>
+<p>  QBR_Q1_2026_ExecutiveSummary.pdf</p>
+</code></pre>
+
+<h2>Universal Deliverable Structure</h2>
+
+<p>Every deliverable (report, analysis, document) follows this skeleton:</p>
+
+<li class="num"><strong>Executive Summary</strong> — Bottom line first (2-3 sentences)</li>
+<li class="num"><strong>Context</strong> — Why this was done, what question it answers</li>
+<li class="num"><strong>Key Findings / Content</strong> — The meat of the deliverable</li>
+<li class="num"><strong>Recommendations / Next Steps</strong> — What to do with this information</li>
+<li class="num"><strong>Appendix</strong> (if needed) — Supporting data, sources, methodology</li>
+
+<h2>Quality Ratings</h2>
+
+<p>All deliverables are rated before presentation to user:</p>
+
+<tr><td>Rating</td><td>Meaning</td><td>Action</td></tr>
+
+<tr><td>✅ Ship</td><td>Ready for user/client</td><td>Deliver immediately</td></tr>
+<tr><td>⚠️ Minor Edits</td><td>Small fixes needed</td><td>Fix and deliver (no re-review needed)</td></tr>
+<tr><td>🔄 Revision</td><td>Significant issues</td><td>Return to author with specific feedback</td></tr>
+<tr><td>❌ Rewrite</td><td>Fundamentally off-target</td><td>Re-scope and restart</td></tr>
+
+<h2>Department-Specific Standards</h2>
+
+<h3>Content Standards (Scribe)</h3>
+<li>Blog posts: 800-2000 words with SEO structure</li>
+<li>Scripts: Timed at 150 WPM with visual cues</li>
+<li>Email copy: Subject < 50 chars, body < 200 words, single CTA</li>
+<li>All content: Checked against brand voice, no plagiarism</li>
+
+<h3>Financial Standards (Cassandra)</h3>
+<li>All numbers precise (no rounding unless noted)</li>
+<li>Assumptions explicitly listed</li>
+<li>Three scenarios minimum for projections (best/expected/worst)</li>
+<li>Sources cited for all market data</li>
+<li>Currency and time period always specified</li>
+
+<h3>Legal Standards (Luna)</h3>
+<li>Risks rated by severity (Critical/High/Medium/Low)</li>
+<li>Specific fix language provided, not just identification</li>
+<li>Attorney referral recommended for critical matters</li>
+<li>Regulatory citations included</li>
+<li>Jurisdiction specified</li>
+
+<h3>Engineering Standards (Forge)</h3>
+<li>Code executes without errors</li>
+<li>Edge cases handled</li>
+<li>Dependencies documented</li>
+<li>README included for any significant code</li>
+<li>Security considerations noted</li>
+
+<h3>Research Standards (Radar/Neptune)</h3>
+<li>Multiple sources cross-referenced (minimum 3 for any claim)</li>
+<li>Source recency noted</li>
+<li>Confidence levels stated</li>
+<li>Facts vs. analysis vs. speculation distinguished</li>
+<li>All sources cited with URLs</li>
+
+<h3>Analytics Standards (Atlas)</h3>
+<li>Every metric has context ("so what?")</li>
+<li>Trends shown, not just point-in-time</li>
+<li>Benchmarks included where available</li>
+<li>Data quality issues noted</li>
+<li>Methodology transparent</li>
+
+<hr>
+
+<h1>7. ESCALATION & EXCEPTION HANDLING</h1>
+
+<h2>When an Agent Can't Complete the Work</h2>
+
+<p>If a subagent hits a blocker, here's the escalation path:</p>
+
+<h3>Level 1: Tool Failure</h3>
+<pre><code>
+<p>Agent tries the tool → tool fails or returns error</p>
+<p>Action: Try alternate tool from the same category</p>
+<p>Example: web_search fails → try firecrawl_search</p>
+<p>Report to Felix ONLY if all alternates fail</p>
+</code></pre>
+
+<h3>Level 2: Missing Information</h3>
+<pre><code>
+<p>Agent needs info that wasn't provided and can't be found</p>
+<p>Action: Return to Felix with SPECIFIC questions:</p>
+<p>  "I need [X], [Y], and [Z] to complete this. Can you provide or should I proceed with assumptions?"</p>
+<p>  NEVER return with vague "I need more info"</p>
+</code></pre>
+
+<h3>Level 3: Out of Scope</h3>
+<pre><code>
+<p>Agent receives work that belongs to another persona</p>
+<p>Action: Return to Felix immediately:</p>
+<p>  "This is [engineering/legal/financial] work — suggest delegating to [Persona Name]"</p>
+<p>  DO NOT attempt work outside your domain</p>
+</code></pre>
+
+<h3>Level 4: Quality Failure</h3>
+<pre><code>
+<p>Proof (8) rates deliverable as Rewrite</p>
+<p>Action: Return to original author with SPECIFIC feedback:</p>
+<p>  "Rewrite needed. Issues: [1], [2], [3]. Fix by: [specific instructions]"</p>
+<p>  NOT: "This isn't good enough, try again"</p>
+</code></pre>
+
+<h3>Level 5: Critical/Emergency</h3>
+<pre><code>
+<p>Security issue, data loss, compliance violation, or user safety concern</p>
+<p>Action: Flag to Felix AND Chief of Staff IMMEDIATELY</p>
+<p>  Use post_to_channel for visibility</p>
+<p>  Stop all related work until resolved</p>
+</code></pre>
+
+<h2>Exception Patterns</h2>
+
+<h3>"I don't know which tool to use"</h3>
+<pre><code>
+<li class="num">Check the scaffold — it lists the tool chain</li>
+<li class="num">If scaffold doesn't cover it, check the Platform Reference (Part 2) for tool categories</li>
+<li class="num">If still unclear, try the most likely tool — report what happened</li>
+<li class="num">NEVER say "I don't have the right tool" without trying</li>
+</code></pre>
+
+<h3>"The user asked for something we've never done before"</h3>
+<pre><code>
+<li class="num">Felix classifies to nearest operation type</li>
+<li class="num">If no match: Adapt the closest scaffold</li>
+<li class="num">If truly novel: Felix creates an ad-hoc plan using orchestrate or plan_and_execute</li>
+<li class="num">After completion: Document the new pattern for future use (manage_skills: create)</li>
+</code></pre>
+
+<h3>"Multiple departments need to coordinate"</h3>
+<pre><code>
+<li class="num">Felix uses orchestrate tool with DAG execution plan</li>
+<li class="num">Identify parallel vs. sequential steps</li>
+<li class="num">Assign each step to the right persona</li>
+<li class="num">Use Cross-Department Workflows (Section 4) if a pattern exists</li>
+<li class="num">If new pattern: Document for future use</li>
+</code></pre>
+
+<hr>
+
+<h1>8. SMART TOOL ROUTER ENHANCEMENT — Context-Aware Tool Selection</h1>
+
+<h2>The Problem Within the Problem</h2>
+
+<p>Even with scaffolds, agents face 85+ tools. The Smart Tool Router narrows this down per conversation, but we can improve it further by mapping tools to operation types.</p>
+
+<h2>Operation → Tool Map</h2>
+
+<p>Each operation scaffold includes a specific tool chain. But here's the master reference for when agents need to improvise:</p>
+
+<h3>RESEARCH TOOLS (by depth)</h3>
+<pre><code>
+<p>Quick fact check      → web_search</p>
+<p>Read a specific page  → web_fetch</p>
+<p>Deep page scraping    → firecrawl_scrape</p>
+<p>Multi-source research → deep_research</p>
+<p>Full site indexing    → firecrawl_crawl</p>
+<p>Past research recall  → scraped_pages_query</p>
+<p>Document search       → doc_search</p>
+</code></pre>
+
+<h3>FILE TOOLS (by output type)</h3>
+<pre><code>
+<p>PDF creation          → create_pdf</p>
+<p>PDF reading           → analyze_pdf</p>
+<p>PDF editing           → edit_pdf / fill_pdf</p>
+<p>File storage          → google_drive (upload)</p>
+<p>File retrieval        → google_drive (download/list)</p>
+<p>Local file reading    → read_file / list_uploads</p>
+<p>Google Docs/Sheets    → google_workspace</p>
+</code></pre>
+
+<h3>COMMUNICATION TOOLS (by channel)</h3>
+<pre><code>
+<p>Corporate email       → send_email</p>
+<p>Personal email        → google_workspace (Gmail)</p>
+<p>WhatsApp              → whatsapp</p>
+<p>Internal channels     → post_to_channel / read_channels</p>
+<p>Calendar              → google_workspace (Calendar)</p>
+</code></pre>
+
+<h3>ANALYSIS TOOLS (by type)</h3>
+<pre><code>
+<p>Code/calculations     → execute_code</p>
+<p>Simple charts         → generate_chart</p>
+<p>Complex dashboards    → generate_dashboard</p>
+<p>LLM sub-tasks         → llm_task</p>
+</code></pre>
+
+<h3>DELEGATION TOOLS (by pattern)</h3>
+<pre><code>
+<p>One-shot specialist   → delegate_task (schedule="once")</p>
+<p>Multi-step plan       → orchestrate</p>
+<p>Background async      → sessions_spawn</p>
+<p>Inter-agent message   → sessions_send</p>
+<p>Quality check         → critique_response</p>
+<p>Multi-perspective     → debate</p>
+<p>Reasoning exploration → tree_of_thought</p>
+<p>Cost estimate         → estimate_cost</p>
+</code></pre>
+
+<h3>MEMORY TOOLS (by purpose)</h3>
+<pre><code>
+<p>Store a fact          → create_memory</p>
+<p>Find a fact           → search_memory</p>
+<p>Update a fact         → update_memory</p>
+<p>Log an event          → write_daily_note</p>
+<p>Recall past events    → get_daily_notes</p>
+<p>Conversation context  → recall_context</p>
+<p>Reference knowledge   → search_knowledge / create_knowledge</p>
+</code></pre>
+
+<h3>SOCIAL MEDIA TOOLS (by workflow stage)</h3>
+<pre><code>
+<p>Draft post text       → draft_social_post</p>
+<p>Draft + image         → compose_social_post</p>
+<p>Publish               → publish_social_post</p>
+<p>Generate image        → generate_social_image</p>
+<p>Schedule              → manage_content_calendar</p>
+<p>Track performance     → marketing_analytics</p>
+<p>A/B test              → marketing_experiment</p>
+<p>Account management    → manage_social_accounts</p>
+</code></pre>
+
+<h3>MEDIA PRODUCTION TOOLS (by output)</h3>
+<pre><code>
+<p>Audio narration       → generate_audio</p>
+<p>Video assembly        → create_slideshow_video</p>
+<p>Image generation      → generate_social_image</p>
+</code></pre>
+
+<hr>
+
+<h1>APPENDIX A: SCAFFOLD INJECTION TEMPLATE</h1>
+
+<p>When Felix delegates a task, the prompt should include this structure:</p>
+
+<pre><code>
+<p>=== OPERATION SCAFFOLD ===</p>
+<p>Operation: [EXEC-01, ENG-03, CONTENT-01, etc.]</p>
+<p>Department: [Executive, Engineering, Content, etc.]</p>
+<p>You are: [Persona name and role]</p>
+
+<p>CONTEXT:</p>
+<p>[User's original request]</p>
+
+<p>YOUR MISSION:</p>
+<p>[Specific task for this agent]</p>
+
+<p>STEP SEQUENCE:</p>
+<li class="num">[Step 1]</li>
+<li class="num">[Step 2]</li>
+<p>...</p>
+
+<p>TOOL CHAIN:</p>
+<p>[Ordered list of tools to use]</p>
+
+<p>DELIVERABLES EXPECTED:</p>
+<li>[Deliverable 1]</li>
+<li>[Deliverable 2]</li>
+<p>...</p>
+
+<p>QUALITY STANDARDS:</p>
+<p>[Standards for this department]</p>
+
+<p>HANDOFF INSTRUCTIONS:</p>
+<p>When complete, return to Felix with:</p>
+<li>Summary of what was done</li>
+<li>List of files created (with Google Drive links)</li>
+<li>Any issues or items needing attention</li>
+<li>Recommendations or next steps</li>
+<p>=========================</p>
+</code></pre>
+
+<hr>
+
+<h1>APPENDIX B: QUICK REFERENCE — FELIX'S DECISION MATRIX</h1>
+
+<pre><code>
+<p>User says...                    → Department    → Operation    → Primary Agent</p>
+<p>─────────────────────────────────────────────────────────────────────────────</p>
+<p>"Write a blog post about..."    → Content       → CONTENT-01   → Scribe (7)</p>
+<p>"Build me an app that..."       → Engineering   → ENG-01       → Forge (3)</p>
+<p>"Research the market for..."    → Research      → RESEARCH-01  → Radar (9)</p>
+<p>"Create a social media post..." → Marketing     → MKT-01       → Teagan (4)</p>
+<p>"How much revenue did we..."    → Finance       → FIN-03       → Cassandra (13)</p>
+<p>"Show me our metrics..."        → Data          → DATA-01      → Atlas (12)</p>
+<p>"Review this contract..."       → Legal         → LEGAL-01     → Luna (14)</p>
+<p>"Is everything working?"        → Operations    → OPS-01       → Chief of Staff (6)</p>
+<p>"Reach out to this prospect..." → Sales         → SALES-01     → Apollo (11)</p>
+<p>"Plan our Q2 strategy..."       → Executive     → EXEC-01      → Felix (self)</p>
+<p>"Create a job posting for..."   → HR            → HR-01        → Scribe (7)</p>
+<p>"Help the customer with..."     → Customer Svc  → CS-02        → Chief of Staff (6)</p>
+<p>"Launch our new product..."     → Cross-Dept    → CROSS-01     → Felix (orchestrate)</p>
+<p>"Do a quarterly review..."      → Cross-Dept    → CROSS-03     → Felix (orchestrate)</p>
+<p>"Record a video about..."       → Content       → CONTENT-08   → Neptune (10)</p>
+<p>"Send a proposal to..."         → Sales         → SALES-02     → Apollo (11)</p>
+<p>"Check our compliance..."       → Legal         → LEGAL-04     → Luna (14)</p>
+<p>"Update our privacy policy..."  → Legal         → LEGAL-02     → Luna (14)</p>
+<p>"Create a dashboard of..."      → Data          → DATA-04      → Atlas (12)</p>
+<p>"Deliver the product to..."     → Sales         → SALES-06     → Apollo (11)</p>
+</code></pre>
+
+<hr>
+
+<h1>APPENDIX C: PERSONA CAPABILITY MAP</h1>
+
+<tr><td>Persona</td><td>Creates</td><td>Analyzes</td><td>Communicates</td><td>Manages</td></tr>
+
+<tr><td>Felix (CEO)</td><td>Strategy docs, OKRs</td><td>All (via delegation)</td><td>Executive comms</td><td>Projects, priorities</td></tr>
+<tr><td>Forge (Engineer)</td><td>Code, scripts, integrations</td><td>Technical architecture</td><td>Technical docs</td><td>Build queues</td></tr>
+<tr><td>Teagan (Marketing)</td><td>Social posts, campaigns</td><td>Marketing performance</td><td>Brand content</td><td>Content calendar</td></tr>
+<tr><td>Agent Blueprint</td><td>Skills, tools, configs</td><td>System performance</td><td>Platform reports</td><td>Agent optimization</td></tr>
+<tr><td>Chief of Staff</td><td>Operational reports</td><td>System health</td><td>Status updates, alerts</td><td>Schedules, admin</td></tr>
+<tr><td>Scribe (Content)</td><td>Articles, scripts, docs</td><td>Content quality</td><td>Written deliverables</td><td>Content pipeline</td></tr>
+<tr><td>Proof (QA)</td><td>Review reports</td><td>Quality assessment</td><td>Feedback to authors</td><td>Quality standards</td></tr>
+<tr><td>Radar (Intel)</td><td>Research reports</td><td>Market/competitive data</td><td>Intel briefs</td><td>Research databases</td></tr>
+<tr><td>Neptune (Media)</td><td>Audio, video, deep reports</td><td>Multi-source synthesis</td><td>Media deliverables</td><td>Production pipeline</td></tr>
+<tr><td>Apollo (Sales)</td><td>Proposals, outreach</td><td>Pipeline, prospects</td><td>Client emails</td><td>Deals, pipeline</td></tr>
+<tr><td>Atlas (Analytics)</td><td>Charts, dashboards</td><td>Data patterns</td><td>Metrics reports</td><td>KPI tracking</td></tr>
+<tr><td>Cassandra (CFO)</td><td>Financial models</td><td>Revenue, costs, margins</td><td>Financial reports</td><td>Budget, forecasts</td></tr>
+<tr><td>Luna (Legal)</td><td>Contracts, policies</td><td>Legal risk</td><td>Legal advisories</td><td>Compliance tracking</td></tr>
+
+<hr>
+
+<p>*END OF CORPORATE OPERATIONS SCAFFOLDING SYSTEM v1.0*</p>
+<p>*VisionClaw Agent Platform — AI Buddy LLC*</p>
+</body></html>

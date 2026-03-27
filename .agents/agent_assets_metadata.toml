@@ -1,0 +1,38 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "eJYoJk6kkzhhszcCb4KX3"
+uri = "file://.local/replit-outreach-email.md"
+type = "text"
+title = "Replit Outreach Email Draft"
+
+[[outputs]]
+id = "ndJPoS2bIIRxycruCYaWq"
+uri = "file://VisionClaw-Agent-Features.md"
+type = "text"
+title = "VisionClaw Agent — Complete Feature Highlights"
+
+[[outputs]]
+id = "GQk4A7TIczqkXwACoYCoS"
+uri = "file://VisionClaw-Replit-Pitch.md"
+type = "text"
+title = "VisionClaw - Replit Pitch & Outreach Drafts"
+
+[[outputs]]
+id = "howBhUBVHntsAtmaBJbTG"
+uri = "file://VisionClaw-Replit-Pitch.docx"
+type = "word_document"
+title = "VisionClaw Replit Pitch - Word Document"
+
+[[outputs]]
+id = "J-qY2p6SJvRVALuicxiic"
+uri = "file://FORK_SETUP.md"
+type = "text"
+title = "VisionClaw Fork Setup Guide"
+
+[[outputs]]
+id = "dhjaIrlINNjImb319ax83"
+uri = "file://VisionClaw_Platform_Reference.md"
+type = "text"
+title = "VisionClaw Platform Reference — All 14 Personas + 85 Tools"

@@ -1,0 +1,8 @@
+{
+  "provider": "legacy",
+  "perplexity": {
+    "apiKey": "",
+    "baseUrl": "",
+    "model": "sonar-pro"
+  }
+}

@@ -1,0 +1,985 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  FlaskConical, Plus, Play, Square, Trash2, Eye, CheckCircle2,
+  XCircle, AlertTriangle, Moon, Loader2, BarChart3, Clock, Beaker,
+  TrendingUp, ArrowRight, PlayCircle, Calendar, Settings2, Pencil,
+} from "lucide-react";
+
+const COST_MODELS = [
+  { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2 (Fast/Cheap)", cost: "$" },
+  { id: "qwen/qwen3.5-flash-02-23", label: "Qwen 3.5 Flash (Fastest)", cost: "$" },
+  { id: "deepseek/deepseek-r1", label: "DeepSeek R1 (Reasoning)", cost: "$$" },
+  { id: "mistralai/mistral-large-2512", label: "Mistral Large (Quality)", cost: "$$" },
+];
+
+const STRATEGIES = [
+  { id: "conservative", label: "Conservative", desc: "Small, incremental changes" },
+  { id: "balanced", label: "Balanced", desc: "Mix of incremental and bold" },
+  { id: "aggressive", label: "Aggressive", desc: "Bold, creative experiments" },
+];
+
+const SCHEDULE_PRESETS = [
+  { id: "0 2 * * *", label: "Nightly at 2:00 AM" },
+  { id: "0 0 * * *", label: "Nightly at Midnight" },
+  { id: "0 3 * * *", label: "Nightly at 3:00 AM" },
+  { id: "0 6 * * *", label: "Every Morning at 6:00 AM" },
+  { id: "0 22 * * *", label: "Every Evening at 10:00 PM" },
+  { id: "0 2 * * 1", label: "Weekly Monday at 2:00 AM" },
+  { id: "0 2 * * 1,4", label: "Mon & Thu at 2:00 AM" },
+  { id: "0 */6 * * *", label: "Every 6 Hours" },
+  { id: "0 */12 * * *", label: "Every 12 Hours" },
+];
+
+const TIMEZONES = [
+  { id: "America/Chicago", label: "Central (Chicago)" },
+  { id: "America/New_York", label: "Eastern (New York)" },
+  { id: "America/Denver", label: "Mountain (Denver)" },
+  { id: "America/Los_Angeles", label: "Pacific (Los Angeles)" },
+  { id: "UTC", label: "UTC" },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any; label: string }> = {
+    keep: { variant: "default", icon: CheckCircle2, label: "Keep" },
+    discard: { variant: "secondary", icon: XCircle, label: "Discard" },
+    crash: { variant: "destructive", icon: AlertTriangle, label: "Crash" },
+    running: { variant: "outline", icon: Loader2, label: "Running" },
+    completed: { variant: "default", icon: CheckCircle2, label: "Completed" },
+    stopped_manually: { variant: "secondary", icon: Square, label: "Stopped" },
+    stopped_failures: { variant: "destructive", icon: AlertTriangle, label: "Failed" },
+  };
+  const c = config[status] || { variant: "outline" as const, icon: Clock, label: status };
+  const Icon = c.icon;
+  return (
+    <Badge variant={c.variant} className="gap-1" data-testid={`badge-status-${status}`}>
+      <Icon className={`w-3 h-3 ${status === "running" ? "animate-spin" : ""}`} />
+      {c.label}
+    </Badge>
+  );
+}
+
+function StatsCards({ stats }: { stats: any }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Card data-testid="card-stat-programs">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+            <Beaker className="w-3.5 h-3.5" /> Programs
+          </div>
+          <div className="text-2xl font-bold">{stats.programs}</div>
+        </CardContent>
+      </Card>
+      <Card data-testid="card-stat-sessions">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+            <Moon className="w-3.5 h-3.5" /> Sessions
+          </div>
+          <div className="text-2xl font-bold">{stats.totalSessions}</div>
+          {stats.activeSessions > 0 && (
+            <div className="text-xs text-green-500 flex items-center gap-1 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              {stats.activeSessions} active
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <Card data-testid="card-stat-experiments">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+            <FlaskConical className="w-3.5 h-3.5" /> Experiments
+          </div>
+          <div className="text-2xl font-bold">{stats.totalExperiments}</div>
+        </CardContent>
+      </Card>
+      <Card data-testid="card-stat-keeprate">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+            <TrendingUp className="w-3.5 h-3.5" /> Keep Rate
+          </div>
+          <div className="text-2xl font-bold">
+            {stats.totalExperiments > 0
+              ? `${Math.round((stats.experimentsKept / stats.totalExperiments) * 100)}%`
+              : "—"}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProgramForm({
+  initial, onSubmit, onCancel, personas,
+}: {
+  initial?: any;
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+  personas: any[];
+}) {
+  const [name, setName] = useState(initial?.name || "");
+  const [objective, setObjective] = useState(initial?.objective || "");
+  const [constraints, setConstraints] = useState(initial?.constraints || "");
+  const [metrics, setMetrics] = useState(initial?.metrics || "");
+  const [strategy, setStrategy] = useState(initial?.exploration_strategy || "balanced");
+  const [model, setModel] = useState(initial?.model || "deepseek/deepseek-v3.2");
+  const [maxExp, setMaxExp] = useState(String(initial?.max_experiments_per_session || 20));
+  const [personaId, setPersonaId] = useState(String(initial?.persona_id || ""));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Program Name</label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., Market Analysis Deep Dive"
+          data-testid="input-program-name"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Research Objective</label>
+        <Textarea
+          value={objective}
+          onChange={(e) => setObjective(e.target.value)}
+          placeholder="What should this research program investigate? Be specific about the goal..."
+          rows={3}
+          data-testid="input-program-objective"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Constraints</label>
+        <Textarea
+          value={constraints}
+          onChange={(e) => setConstraints(e.target.value)}
+          placeholder="Any boundaries or rules the experiments must follow..."
+          rows={2}
+          data-testid="input-program-constraints"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">Success Metrics</label>
+        <Input
+          value={metrics}
+          onChange={(e) => setMetrics(e.target.value)}
+          placeholder="How should experiment quality be evaluated?"
+          data-testid="input-program-metrics"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Exploration Strategy</label>
+          <Select value={strategy} onValueChange={setStrategy}>
+            <SelectTrigger data-testid="select-strategy">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STRATEGIES.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label} — {s.desc}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium">Model</label>
+          <Select value={model} onValueChange={setModel}>
+            <SelectTrigger data-testid="select-model">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COST_MODELS.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.label} ({m.cost})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Max Experiments Per Session</label>
+          <Input
+            type="number"
+            value={maxExp}
+            onChange={(e) => setMaxExp(e.target.value)}
+            min={1}
+            max={100}
+            data-testid="input-max-experiments"
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Assigned Persona</label>
+          <Select value={personaId} onValueChange={setPersonaId}>
+            <SelectTrigger data-testid="select-persona">
+              <SelectValue placeholder="None (general)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None (general research)</SelectItem>
+              {personas.map((p: any) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.name} — {p.role}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-program">
+          Cancel
+        </Button>
+        <Button
+          onClick={() =>
+            onSubmit({
+              name, objective, constraints, metrics,
+              explorationStrategy: strategy, model,
+              maxExperimentsPerSession: parseInt(maxExp) || 20,
+              personaId: personaId && personaId !== "none" ? parseInt(personaId) : null,
+            })
+          }
+          disabled={!name.trim() || !objective.trim()}
+          data-testid="button-save-program"
+        >
+          {initial ? "Update" : "Create"} Program
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function ScheduleForm({
+  initial, programs, onSubmit, onCancel,
+}: {
+  initial?: any;
+  programs: any[];
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.name || "");
+  const [cronExpression, setCronExpression] = useState(initial?.cron_expression || "0 2 * * *");
+  const [timezone, setTimezone] = useState(initial?.timezone || "America/Chicago");
+  const [runAll, setRunAll] = useState(initial?.run_all ?? true);
+  const [programId, setProgramId] = useState(String(initial?.program_id || ""));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Schedule Name</label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., Nightly Research Run"
+          data-testid="input-schedule-name"
+        />
+      </div>
+      <div>
+        <label className="text-sm font-medium">When to Run</label>
+        <Select value={cronExpression} onValueChange={setCronExpression}>
+          <SelectTrigger data-testid="select-schedule-time">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCHEDULE_PRESETS.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">Cron: {cronExpression}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Timezone</label>
+        <Select value={timezone} onValueChange={setTimezone}>
+          <SelectTrigger data-testid="select-timezone">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMEZONES.map((tz) => (
+              <SelectItem key={tz.id} value={tz.id}>{tz.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-sm font-medium">What to Run</label>
+        <div className="flex items-center gap-3 mt-2">
+          <Switch
+            checked={runAll}
+            onCheckedChange={setRunAll}
+            data-testid="switch-run-all"
+          />
+          <span className="text-sm">{runAll ? "Run All Programs" : "Run Specific Program"}</span>
+        </div>
+      </div>
+      {!runAll && (
+        <div>
+          <label className="text-sm font-medium">Select Program</label>
+          <Select value={programId} onValueChange={setProgramId}>
+            <SelectTrigger data-testid="select-schedule-program">
+              <SelectValue placeholder="Choose a program..." />
+            </SelectTrigger>
+            <SelectContent>
+              {programs.map((p: any) => (
+                <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-schedule">Cancel</Button>
+        <Button
+          onClick={() => onSubmit({
+            name,
+            cronExpression,
+            timezone,
+            runAll,
+            programId: runAll ? null : (programId ? parseInt(programId) : null),
+          })}
+          disabled={!name.trim() || (!runAll && !programId)}
+          data-testid="button-save-schedule"
+        >
+          {initial ? "Update" : "Create"} Schedule
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function ExperimentRow({ exp }: { exp: any }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer"
+      onClick={() => setExpanded(!expanded)}
+      data-testid={`card-experiment-${exp.id}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{exp.hypothesis}</p>
+          <p className="text-xs text-muted-foreground">
+            {exp.program_name && <span className="mr-2">{exp.program_name}</span>}
+            {exp.model && <span className="text-xs opacity-60">{exp.model}</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {exp.metric_value && (
+            <span className="text-sm font-mono font-bold">{exp.metric_value}/10</span>
+          )}
+          <StatusBadge status={exp.status} />
+        </div>
+      </div>
+      {expanded && exp.result && (
+        <div className="mt-3 pt-3 border-t">
+          {exp.approach && (
+            <div className="mb-2">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Approach</p>
+              <p className="text-sm">{exp.approach}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Result</p>
+            <p className="text-sm whitespace-pre-wrap">{exp.result}</p>
+          </div>
+          {exp.duration_ms && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Duration: {(exp.duration_ms / 1000).toFixed(1)}s
+              {exp.tokens_used ? ` | Tokens: ${exp.tokens_used.toLocaleString()}` : ""}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SessionCard({
+  session, onStop,
+}: {
+  session: any;
+  onStop: (id: number) => void;
+}) {
+  const [showDetail, setShowDetail] = useState(false);
+
+  const detailQuery = useQuery({
+    queryKey: ["/api/research/sessions", session.id],
+    enabled: showDetail,
+    refetchInterval: session.isLive ? 5000 : false,
+  });
+
+  const detail = detailQuery.data as any;
+
+  return (
+    <Card data-testid={`card-session-${session.id}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">{session.program_name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={session.status} />
+            {session.isLive && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => onStop(session.id)}
+                data-testid={`button-stop-session-${session.id}`}
+              >
+                <Square className="w-3 h-3 mr-1" /> Stop
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-4 text-sm text-muted-foreground mb-2">
+          <span className="flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+            {session.experiments_kept || 0} kept
+          </span>
+          <span className="flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
+            {session.experiments_discarded || 0} discarded
+          </span>
+          <span className="flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+            {session.experiments_crashed || 0} crashed
+          </span>
+          <span className="text-xs opacity-60">{session.model}</span>
+        </div>
+        {session.summary && !showDetail && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{session.summary}</p>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs"
+          onClick={() => setShowDetail(!showDetail)}
+          data-testid={`button-detail-session-${session.id}`}
+        >
+          <Eye className="w-3 h-3 mr-1" /> {showDetail ? "Hide" : "View"} Details
+        </Button>
+        {showDetail && detail && (
+          <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
+            {detail.session?.summary && (
+              <div className="p-3 bg-muted/50 rounded-lg text-sm whitespace-pre-wrap mb-3">
+                {detail.session.summary}
+              </div>
+            )}
+            {(detail.experiments || []).map((exp: any) => (
+              <ExperimentRow key={exp.id} exp={exp} />
+            ))}
+            {(!detail.experiments || detail.experiments.length === 0) && (
+              <p className="text-sm text-muted-foreground text-center py-4">No experiments yet</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScheduleCard({
+  schedule, onToggle, onEdit, onDelete,
+}: {
+  schedule: any;
+  onToggle: (id: number, enabled: boolean) => void;
+  onEdit: (schedule: any) => void;
+  onDelete: (id: number) => void;
+}) {
+  const presetLabel = SCHEDULE_PRESETS.find(p => p.id === schedule.cron_expression)?.label || schedule.cron_expression;
+  const tzLabel = TIMEZONES.find(t => t.id === schedule.timezone)?.label || schedule.timezone;
+
+  return (
+    <Card className={!schedule.is_enabled ? "opacity-60" : ""} data-testid={`card-schedule-${schedule.id}`}>
+      <CardContent className="pt-4 pb-3 px-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-violet-500" />
+            <span className="font-medium text-sm">{schedule.name}</span>
+            {schedule.run_all ? (
+              <Badge variant="default" className="text-xs">All Programs</Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">{schedule.program_name || "Specific"}</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={schedule.is_enabled}
+              onCheckedChange={(checked) => onToggle(schedule.id, checked)}
+              data-testid={`switch-enable-schedule-${schedule.id}`}
+            />
+            <Button size="sm" variant="ghost" onClick={() => onEdit(schedule)} data-testid={`button-edit-schedule-${schedule.id}`}>
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onDelete(schedule.id)} data-testid={`button-delete-schedule-${schedule.id}`}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" /> {presetLabel}
+          </span>
+          <span>{tzLabel}</span>
+          {schedule.last_run_at && (
+            <span>Last: {new Date(schedule.last_run_at).toLocaleString()}</span>
+          )}
+          {schedule.next_run_at && schedule.is_enabled && (
+            <span className="text-green-500">Next: {new Date(schedule.next_run_at).toLocaleString()}</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ResearchPage() {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editProgram, setEditProgram] = useState<any>(null);
+  const [createScheduleOpen, setCreateScheduleOpen] = useState(false);
+  const [editSchedule, setEditSchedule] = useState<any>(null);
+  const [tab, setTab] = useState("programs");
+
+  const statsQuery = useQuery({ queryKey: ["/api/research/stats"], refetchInterval: 10000 });
+  const programsQuery = useQuery({ queryKey: ["/api/research/programs"] });
+  const sessionsQuery = useQuery({ queryKey: ["/api/research/sessions"], refetchInterval: 10000 });
+  const experimentsQuery = useQuery({ queryKey: ["/api/research/experiments"] });
+  const personasQuery = useQuery({ queryKey: ["/api/personas"] });
+  const schedulesQuery = useQuery({ queryKey: ["/api/research/schedules"] });
+
+  const stats = (statsQuery.data || { programs: 0, totalSessions: 0, activeSessions: 0, totalExperiments: 0, experimentsKept: 0, experimentsDiscarded: 0 }) as any;
+  const programs = (programsQuery.data || []) as any[];
+  const sessions = (sessionsQuery.data || []) as any[];
+  const experiments = (experimentsQuery.data || []) as any[];
+  const personas = (personasQuery.data || []) as any[];
+  const schedules = (schedulesQuery.data || []) as any[];
+
+  const createProgram = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/research/programs", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/programs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/research/stats"] });
+      setCreateOpen(false);
+      toast({ title: "Research program created" });
+    },
+  });
+
+  const updateProgram = useMutation({
+    mutationFn: (data: any) => apiRequest("PUT", `/api/research/programs/${data.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/programs"] });
+      setEditProgram(null);
+      toast({ title: "Program updated" });
+    },
+  });
+
+  const deleteProgram = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/research/programs/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/programs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/research/stats"] });
+      toast({ title: "Program deleted" });
+    },
+  });
+
+  const startSession = useMutation({
+    mutationFn: (programId: number) => apiRequest("POST", "/api/research/sessions/start", { programId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/research/stats"] });
+      toast({ title: "Research session started", description: "The autonomous loop is now running experiments." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to start session", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const startAll = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/research/sessions/start-all"),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/research/stats"] });
+      toast({
+        title: "Batch research started",
+        description: `Started ${data.started} session(s)${data.failed ? `, ${data.failed} failed` : ""}`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to start batch", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const stopSession = useMutation({
+    mutationFn: (sessionId: number) => apiRequest("POST", `/api/research/sessions/${sessionId}/stop`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/research/stats"] });
+      toast({ title: "Session stopped" });
+    },
+  });
+
+  const createSchedule = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/research/schedules", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/schedules"] });
+      setCreateScheduleOpen(false);
+      toast({ title: "Schedule created" });
+    },
+  });
+
+  const updateSchedule = useMutation({
+    mutationFn: (data: any) => apiRequest("PUT", `/api/research/schedules/${data.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/schedules"] });
+      setEditSchedule(null);
+      toast({ title: "Schedule updated" });
+    },
+  });
+
+  const toggleSchedule = useMutation({
+    mutationFn: ({ id, isEnabled }: { id: number; isEnabled: boolean }) =>
+      apiRequest("PUT", `/api/research/schedules/${id}`, { isEnabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/schedules"] });
+    },
+  });
+
+  const deleteSchedule = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/research/schedules/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/schedules"] });
+      toast({ title: "Schedule deleted" });
+    },
+  });
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <FlaskConical className="w-5 h-5 text-violet-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">Deep Research</h1>
+              <p className="text-sm text-muted-foreground">
+                Autonomous experiment loops — define a research program, let the AI run overnight
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {stats.activeSessions > 0 && (
+              <Badge variant="outline" className="gap-1.5 py-1.5 px-3 text-green-500 border-green-500/30">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                {stats.activeSessions} session{stats.activeSessions > 1 ? "s" : ""} running
+              </Badge>
+            )}
+            {programs.length > 0 && (
+              <Button
+                onClick={() => startAll.mutate()}
+                disabled={startAll.isPending || programs.length === 0}
+                className="bg-violet-600 hover:bg-violet-700"
+                data-testid="button-run-all"
+              >
+                {startAll.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <PlayCircle className="w-4 h-4 mr-1" />
+                )}
+                Run All Programs
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <StatsCards stats={stats} />
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList data-testid="tabs-research">
+            <TabsTrigger value="programs" data-testid="tab-programs">
+              <Beaker className="w-4 h-4 mr-1" /> Programs
+            </TabsTrigger>
+            <TabsTrigger value="sessions" data-testid="tab-sessions">
+              <Moon className="w-4 h-4 mr-1" /> Sessions
+            </TabsTrigger>
+            <TabsTrigger value="experiments" data-testid="tab-experiments">
+              <FlaskConical className="w-4 h-4 mr-1" /> All Experiments
+            </TabsTrigger>
+            <TabsTrigger value="schedules" data-testid="tab-schedules">
+              <Calendar className="w-4 h-4 mr-1" /> Schedules
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="programs" className="space-y-4 mt-4">
+            <div className="flex justify-end">
+              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-create-program">
+                    <Plus className="w-4 h-4 mr-1" /> New Research Program
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Create Research Program</DialogTitle>
+                  </DialogHeader>
+                  <ProgramForm
+                    personas={personas}
+                    onSubmit={(data) => createProgram.mutate(data)}
+                    onCancel={() => setCreateOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {programsQuery.isLoading && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {programs.length === 0 && !programsQuery.isLoading && (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <FlaskConical className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                  <h3 className="font-medium mb-1">No research programs yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create a program to define what your AI agents should investigate autonomously.
+                  </p>
+                  <Button onClick={() => setCreateOpen(true)} data-testid="button-create-first-program">
+                    <Plus className="w-4 h-4 mr-1" /> Create Your First Program
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid gap-4">
+              {programs.map((prog: any) => (
+                <Card key={prog.id} data-testid={`card-program-${prog.id}`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base">{prog.name}</CardTitle>
+                        {prog.persona_name && (
+                          <Badge variant="outline" className="text-xs">{prog.persona_name}</Badge>
+                        )}
+                        {!prog.is_active && <Badge variant="secondary">Inactive</Badge>}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => startSession.mutate(prog.id)}
+                          disabled={startSession.isPending}
+                          data-testid={`button-start-session-${prog.id}`}
+                        >
+                          <Play className="w-3 h-3 mr-1" /> Run
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditProgram(prog)}
+                          data-testid={`button-edit-program-${prog.id}`}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteProgram.mutate(prog.id)}
+                          data-testid={`button-delete-program-${prog.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-2">{prog.objective}</p>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs">
+                        {STRATEGIES.find((s) => s.id === prog.exploration_strategy)?.label || prog.exploration_strategy}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {COST_MODELS.find((m) => m.id === prog.model)?.label?.split("(")[0]?.trim() || prog.model}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Max {prog.max_experiments_per_session} experiments
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Dialog open={!!editProgram} onOpenChange={(o) => !o && setEditProgram(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Edit Research Program</DialogTitle>
+                </DialogHeader>
+                {editProgram && (
+                  <ProgramForm
+                    initial={editProgram}
+                    personas={personas}
+                    onSubmit={(data) => updateProgram.mutate({ ...data, id: editProgram.id })}
+                    onCancel={() => setEditProgram(null)}
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          <TabsContent value="sessions" className="space-y-4 mt-4">
+            {sessionsQuery.isLoading && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {sessions.length === 0 && !sessionsQuery.isLoading && (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <Moon className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                  <h3 className="font-medium mb-1">No sessions yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Start a research program to begin an autonomous experiment session.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {sessions.map((s: any) => (
+              <SessionCard
+                key={s.id}
+                session={s}
+                onStop={(id) => stopSession.mutate(id)}
+              />
+            ))}
+          </TabsContent>
+
+          <TabsContent value="experiments" className="space-y-3 mt-4">
+            {experimentsQuery.isLoading && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {experiments.length === 0 && !experimentsQuery.isLoading && (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <FlaskConical className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                  <h3 className="font-medium mb-1">No experiments yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Experiments appear here as sessions run.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            <div className="flex gap-2 mb-2">
+              <Badge variant="outline" className="text-xs">
+                <CheckCircle2 className="w-3 h-3 mr-1 text-green-500" />
+                {experiments.filter((e: any) => e.status === "keep").length} Kept
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <XCircle className="w-3 h-3 mr-1" />
+                {experiments.filter((e: any) => e.status === "discard").length} Discarded
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <AlertTriangle className="w-3 h-3 mr-1 text-destructive" />
+                {experiments.filter((e: any) => e.status === "crash").length} Crashed
+              </Badge>
+            </div>
+            {experiments.map((exp: any) => (
+              <ExperimentRow key={exp.id} exp={exp} />
+            ))}
+          </TabsContent>
+
+          <TabsContent value="schedules" className="space-y-4 mt-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Set up automated schedules to run research programs on a recurring basis.
+                  The system checks every minute and starts sessions when they're due.
+                </p>
+              </div>
+              <Dialog open={createScheduleOpen} onOpenChange={setCreateScheduleOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-create-schedule">
+                    <Plus className="w-4 h-4 mr-1" /> New Schedule
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Create Research Schedule</DialogTitle>
+                  </DialogHeader>
+                  <ScheduleForm
+                    programs={programs}
+                    onSubmit={(data) => createSchedule.mutate(data)}
+                    onCancel={() => setCreateScheduleOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {schedulesQuery.isLoading && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {schedules.length === 0 && !schedulesQuery.isLoading && (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                  <h3 className="font-medium mb-1">No schedules yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create a schedule to automatically run research programs at set times — like a nightly batch.
+                  </p>
+                  <Button onClick={() => setCreateScheduleOpen(true)} data-testid="button-create-first-schedule">
+                    <Plus className="w-4 h-4 mr-1" /> Create Your First Schedule
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid gap-3">
+              {schedules.map((sched: any) => (
+                <ScheduleCard
+                  key={sched.id}
+                  schedule={sched}
+                  onToggle={(id, enabled) => toggleSchedule.mutate({ id, isEnabled: enabled })}
+                  onEdit={(s) => setEditSchedule(s)}
+                  onDelete={(id) => deleteSchedule.mutate(id)}
+                />
+              ))}
+            </div>
+
+            <Dialog open={!!editSchedule} onOpenChange={(o) => !o && setEditSchedule(null)}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Edit Schedule</DialogTitle>
+                </DialogHeader>
+                {editSchedule && (
+                  <ScheduleForm
+                    initial={editSchedule}
+                    programs={programs}
+                    onSubmit={(data) => updateSchedule.mutate({ ...data, id: editSchedule.id })}
+                    onCancel={() => setEditSchedule(null)}
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

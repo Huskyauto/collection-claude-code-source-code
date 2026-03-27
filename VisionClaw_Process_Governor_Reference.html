@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'>
+<style>
+  @page { margin: 1in; size: Letter; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #222; max-width: 7.5in; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20pt; color: #1a1a1a; border-bottom: 3px solid #333; padding-bottom: 8px; margin-top: 30px; }
+  h2 { font-size: 15pt; color: #2a2a2a; border-bottom: 1px solid #999; padding-bottom: 4px; margin-top: 25px; }
+  h3 { font-size: 12pt; color: #333; margin-top: 15px; }
+  p { margin: 4px 0; }
+  ul { margin: 6px 0 6px 20px; }
+  li { margin: 3px 0; }
+  strong { color: #111; }
+  hr { border: none; border-top: 2px solid #ccc; margin: 20px 0; }
+</style></head><body>
+<h1>VisionClaw Process Governor - Complete Governance Reference</h1>
+<h2>AI Buddy LLC (Illinois)</h2>
+
+<hr>
+
+<h1>OVERVIEW</h1>
+
+<p>The Process Governor is VisionClaw's autonomous governance engine that enforces rules, compliance, and operational discipline across all 14 AI agent personas. It operates continuously, evaluating conditions against real-time system state and taking automated corrective actions when rules are triggered.</p>
+
+<p><strong>Architecture:</strong></p>
+<ul><li>31 governance rules across 6 categories</li>
+<li>22 condition evaluators (real-time system checks)</li>
+<li>10 automated action types</li>
+<li>3 compliance frameworks (NIST, OWASP, Singapore IMDA)</li>
+<li>Emergency Kill Switch for critical failures</li>
+<li>Human-in-the-Loop (HITL) escalation gates</li>
+<li>Per-agent autonomy rules</li>
+</ul>
+<hr>
+
+<h1>PART 1: GOVERNANCE FRAMEWORKS</h1>
+
+<h2>NIST AI Agent Standards Initiative</h2>
+<p><strong>Organization:</strong> National Institute of Standards and Technology (NIST)</p>
+<p><strong>Version:</strong> February 2026</p>
+<p><strong>Category:</strong> government_standard</p>
+<p><strong>Status:</strong> active</p>
+<p><strong>Source:</strong> https://www.nist.gov/artificial-intelligence/ai-agent-standards</p>
+
+<p><strong>Description:</strong> First U.S. government standards specifically for autonomous AI agents. Establishes identity management, action boundaries, audit requirements, and human oversight models for AI agents operating in enterprise environments. Part of NIST AI 600-series publications.</p>
+
+<p><strong>Key Principles:</strong></p>
+<ul><li>Agent identity and authorization — every agent must have verifiable identity and bounded permissions</li>
+<li>Action boundary enforcement — agents must not exceed their defined operational scope</li>
+<li>Audit log retention — all agent actions must be logged with minimum 10-year retention for EU AI Act compliance</li>
+<li>Human oversight models — defines graduated autonomy levels from full human control to full agent autonomy</li>
+<li>Inter-agent communication standards — secure protocols for agent-to-agent delegation and messaging</li>
+<li>Risk categorization — agents classified by risk level determining oversight requirements</li>
+<li>Transparency requirements — agents must be able to explain their decision-making process</li>
+</ul>
+<p><strong>Rules Informed:</strong> agent_action_boundaries, audit_log_retention, purpose_binding_enforcement, delegation_chain_depth_limit, segregation_of_duties</p>
+
+<p><strong>Last Reviewed:</strong> 2026-03-22 11:29:45.971377+00</p>
+<p><strong>Next Review:</strong> 2026-09-22 11:29:45.971377+00</p>
+<p><strong>Notes:</strong> Initial adoption March 2026. NIST updates these standards annually. Check for AI 600-3 series updates.</p>
+
+<hr>
+
+<h2>OWASP Top 10 for Agentic AI Applications</h2>
+<p><strong>Organization:</strong> Open Worldwide Application Security Project (OWASP)</p>
+<p><strong>Version:</strong> Version 1.0 — December 2025</p>
+<p><strong>Category:</strong> industry_framework</p>
+<p><strong>Status:</strong> active</p>
+<p><strong>Source:</strong> https://genai.owasp.org/resource/owasp-top-10-for-agentic-ai/</p>
+
+<p><strong>Description:</strong> First industry security framework specifically for autonomous AI agents. Identifies the 10 most critical security risks in agentic AI systems. Developed by 100+ security experts. Covers ASI01 (Excessive Agency) through ASI10 (Misaligned Behaviors).</p>
+
+<p><strong>Key Principles:</strong></p>
+<ul><li>ASI01 - Excessive Agency — agents acting beyond their defined scope; mitigate with least-privilege permissions</li>
+<li>ASI02 - Uncontrolled Agentic Behavior — cascading failures from autonomous decision loops; implement circuit breakers</li>
+<li>ASI03 - Insecure Agentic Communication — agents exchanging data without verification; enforce authenticated channels</li>
+<li>ASI04 - Inadequate Delegation Controls — unbounded agent-to-agent delegation chains; cap delegation depth</li>
+<li>ASI05 - Lack of Agent Traceability — inability to trace agent decision chains; maintain complete audit logs</li>
+<li>ASI06 - Memory and State Manipulation — adversaries poisoning agent memory; monitor write rates and validate integrity</li>
+<li>ASI07 - Prompt Injection and Manipulation — indirect prompt injection via tools/data; sanitize all inputs</li>
+<li>ASI08 - Agent Supply Chain Vulnerabilities — compromised tools or models; verify tool provenance</li>
+<li>ASI09 - Insufficient Monitoring — failure to detect anomalous agent behavior; implement real-time monitoring</li>
+<li>ASI10 - Misaligned Behaviors — agents drifting from intended goals; detect purpose drift and enforce alignment</li>
+</ul>
+<p><strong>Rules Informed:</strong> cascading_failure_detection, rogue_agent_detection, delegation_chain_depth_limit, memory_integrity_check, agent_action_boundaries, purpose_binding_enforcement</p>
+
+<p><strong>Last Reviewed:</strong> 2026-03-22 11:29:45.971377+00</p>
+<p><strong>Next Review:</strong> 2026-09-22 11:29:45.971377+00</p>
+<p><strong>Notes:</strong> OWASP updates this list annually. Version 1.1 expected mid-2026 with expanded supply chain guidance. Monitor owasp.org/genai for updates.</p>
+
+<hr>
+
+<h2>Singapore IMDA Model AI Governance Framework for Agentic AI</h2>
+<p><strong>Organization:</strong> Infocomm Media Development Authority (IMDA), Singapore</p>
+<p><strong>Version:</strong> January 2026</p>
+<p><strong>Category:</strong> government_standard</p>
+<p><strong>Status:</strong> active</p>
+<p><strong>Source:</strong> https://aiverifyfoundation.sg/resources/agentic-ai-governance/</p>
+
+<p><strong>Description:</strong> World's first government framework specifically for agentic AI governance. Published by Singapore's IMDA in collaboration with AI Verify Foundation. Establishes graduated autonomy, emergency controls, and accountability chains for autonomous AI systems.</p>
+
+<p><strong>Key Principles:</strong></p>
+<ul><li>Emergency kill switch — every agentic system must have an immediately accessible mechanism to halt all agent operations</li>
+<li>Graduated autonomy levels — agents progress through autonomy tiers based on demonstrated reliability and trust</li>
+<li>Accountability chains — clear chain of responsibility from agent action to human owner must be maintained</li>
+<li>Purpose binding — agents must be constrained to their defined purpose and detected when drifting</li>
+<li>Human-in-the-loop for critical decisions — define which decision categories always require human approval</li>
+<li>Continuous monitoring — real-time oversight of agent behavior with anomaly detection</li>
+<li>Transparency and explainability — agents must be able to explain why they took specific actions</li>
+<li>Data protection — agents handling personal data must comply with PDPA (Personal Data Protection Act) principles</li>
+</ul>
+<p><strong>Rules Informed:</strong> emergency_kill_switch, purpose_binding_enforcement, workload_balancing, business_hours_scheduling, model_failover_health_monitoring, pii_handling_enforcement</p>
+
+<p><strong>Last Reviewed:</strong> 2026-03-22 11:29:45.971377+00</p>
+<p><strong>Next Review:</strong> 2026-09-22 11:29:45.971377+00</p>
+<p><strong>Notes:</strong> Singapore leads global agentic AI governance. IMDA releases updates quarterly. AI Verify Foundation publishes companion technical guides. Check aiverifyfoundation.sg regularly.</p>
+
+<hr>
+
+<h2>Corporate Governance Best Practices for AI Operations</h2>
+<p><strong>Organization:</strong> Internal — AI Buddy LLC</p>
+<p><strong>Version:</strong> March 2026</p>
+<p><strong>Category:</strong> corporate_governance</p>
+<p><strong>Status:</strong> active</p>
+<p><strong>Source:</strong> null</p>
+
+<p><strong>Description:</strong> Internal governance principles derived from traditional corporate governance adapted for AI agent operations. Covers segregation of duties, conflict of interest prevention, change management, and cost controls. Based on SOX compliance patterns, COSO framework, and COBIT IT governance.</p>
+
+<p><strong>Key Principles:</strong></p>
+<ul><li>Segregation of duties — no single agent should control an end-to-end sensitive workflow without checks</li>
+<li>Conflict of interest prevention — agents cannot approve their own work product or audit their own outputs</li>
+<li>Change management audit — all configuration changes must be logged and traceable to a source</li>
+<li>Cost control thresholds — daily and per-agent spending limits with automatic alerts at warning and critical levels</li>
+<li>Failing task termination — tasks with 100% failure rate over 7 days are automatically disabled</li>
+<li>Dead resource cleanup — unused subscriptions and stale resources are automatically identified and cleaned</li>
+<li>Business continuity — essential services (governance, backup) are protected from kill switch and cost controls</li>
+<li>Need-only-when-needed principle — agents never perform speculative work; all actions must be justified by current demand</li>
+</ul>
+<p><strong>Rules Informed:</strong> segregation_of_duties, conflict_of_interest_prevention, change_management_audit, daily_spend_warning, daily_spend_critical, per_agent_token_budget, terminate_failing_tasks, dead_subscription_cleanup</p>
+
+<p><strong>Last Reviewed:</strong> 2026-03-22 11:29:45.971377+00</p>
+<p><strong>Next Review:</strong> 2026-06-22 11:29:45.971377+00</p>
+<p><strong>Notes:</strong> Internal framework. Review quarterly as operational patterns emerge. Update when new agent capabilities are added.</p>
+
+<hr>
+
+<h1>PART 2: ALL GOVERNANCE RULES (31 Rules)</h1>
+
+<h2>Category: COMPLIANCE (9 rules)</h2>
+<p>Rules ensuring agents follow internal policies, review chains, and segregation of duties.</p>
+
+<h3>Rule #14: autonomy-override-escalate</h3>
+<p><strong>Priority:</strong> 9/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Escalate when an agent attempts an action that is explicitly blocked by autonomy rules</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: autonomy_violation</li>
+<li>Metric: blocked_attempts</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 3</li>
+<li>Window: 24 hours</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "An agent has repeatedly attempted a blocked action. Review autonomy rules."</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Repeated autonomy rule violations by an agent</p>
+
+<h3>Rule #24: pii-handling-enforcement</h3>
+<p><strong>Priority:</strong> 9/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Monitor agent outputs for potential PII exposure (email addresses, phone numbers, SSNs, credit card numbers). If detected in external-facing outputs, block and alert.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: pii_exposure</li>
+<li>Metric: pii_in_output</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+<li>Context: external</li>
+</ul>
+<p><strong>Action:</strong> block_delegation</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>scan_outputs: true</li>
+<li>block_external: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #23: conflict-of-interest-prevention</h3>
+<p><strong>Priority:</strong> 8/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Agents cannot approve or review their own work. If an agent creates content, a different agent must review it. If an agent proposes a task, a different agent must validate it.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: self_approval</li>
+<li>Metric: self_approved_actions</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> block_delegation</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>enforce_different_reviewer: true</li>
+</ul>
+
+<h3>Rule #13: content-review-enforcement</h3>
+<p><strong>Priority:</strong> 8/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Ensure all Scribe content goes through Proof before publishing</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: content_pipeline</li>
+<li>Metric: unreviewed_content</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+<li>Source Persona: Scribe</li>
+</ul>
+<p><strong>Action:</strong> enforce_review</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>block_publish: true</li>
+<li>require_persona: "Proof"</li>
+</ul>
+
+<h3>Rule #19: agent-action-boundaries</h3>
+<p><strong>Priority:</strong> 8/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Enforce that agents only use tools explicitly assigned to their persona. If an agent attempts to use a tool outside its defined toolset 3+ times, flag and restrict.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: tool_boundary_violations</li>
+<li>Metric: unauthorized_tool_attempts</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 3</li>
+<li>Window: 24 hours</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Agent Blueprint"</li>
+<li>restrict_tools: true</li>
+</ul>
+
+<h3>Rule #22: segregation-of-duties</h3>
+<p><strong>Priority:</strong> 8/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> No single agent should control an end-to-end sensitive workflow (create + approve + execute). Financial actions, content publishing, and external communications require at least 2 different agents in the chain.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: duty_segregation</li>
+<li>Metric: single_agent_sensitive_workflows</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> block_delegation</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>sensitive_actions: ["payment_action","publish_content","send_email","execute_shell"]</li>
+<li>require_different_agent: true</li>
+</ul>
+
+<h3>Rule #21: purpose-binding-enforcement</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Ensure agents stay within their documented purpose and focus area. Monitor for persona drift where an agent consistently works on topics unrelated to its defined specialization.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: purpose_drift</li>
+<li>Metric: off_topic_ratio</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0.5</li>
+<li>Window: 48 hours</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Chief of Staff"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #26: audit-log-retention</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Ensure governance action logs and autonomy logs are retained and not pruned below minimum thresholds. EU AI Act requires 10-year retention for high-risk systems. Alert if log tables are approaching size limits or if entries are being deleted.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: log_retention</li>
+<li>Metric: oldest_log_days</li>
+<li>Operator: less_than</li>
+<li>Threshold: 365</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Agent Blueprint"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #31: governance_framework_review</h3>
+<p><strong>Priority:</strong> 3/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Automatically review governance frameworks when their review date has passed. Uses AI to check for framework updates, new principles, and suggested rule changes. Reviews are logged and next review dates are reset.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: framework_review_due</li>
+<li>Metric: N/A</li>
+<li>Operator: N/A</li>
+<li>Threshold: N/A</li>
+</ul>
+<p><strong>Action:</strong> review_frameworks</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h2>Category: COST_CONTROL (3 rules)</h2>
+
+
+<h3>Rule #6: daily-token-budget-critical</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Escalate to human when daily AI token spend exceeds 200% of budget</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: daily_spend</li>
+<li>Metric: spend_percent</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 200</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "Daily AI spend has exceeded 2x the configured budget. Non-essential tasks have been paused."</li>
+<li>pause_non_essential: true</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Runaway AI spend detected — exceeds 2x daily budget</p>
+
+<h3>Rule #5: daily-token-budget-warning</h3>
+<p><strong>Priority:</strong> 7/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Throttle non-essential tasks when daily AI token spend exceeds 80% of budget</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: daily_spend</li>
+<li>Metric: spend_percent</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 80</li>
+</ul>
+<p><strong>Action:</strong> throttle_tasks</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>keep_types: ["delegation","process_governance","agentic_engine"]</li>
+<li>throttle_types: ["reflection","self_improvement","content"]</li>
+</ul>
+
+<h3>Rule #27: per-agent-token-budget</h3>
+<p><strong>Priority:</strong> 7/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Monitor individual agent token consumption. If any single agent consumes more than 30% of the daily total, throttle that specific agent to prevent one persona from monopolizing resources.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: agent_spend_ratio</li>
+<li>Metric: agent_percent_of_total</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 30</li>
+</ul>
+<p><strong>Action:</strong> throttle_tasks</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>cap_percent: 30</li>
+<li>notify_channel: "#system-alerts"</li>
+<li>throttle_agent: true</li>
+</ul>
+
+<h2>Category: OPERATIONS (5 rules)</h2>
+<p>Rules monitoring operational health - task performance, agent workloads, response times.</p>
+
+<h3>Rule #7: auto-restart-stalled-agents</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Re-enable agents whose desk status is stalled for 24+ hours with pending queue items</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: desk_status</li>
+<li>Metric: stalled_hours</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 24</li>
+</ul>
+<p><strong>Action:</strong> restart_agent</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>log_reason: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #25: change-management-audit</h3>
+<p><strong>Priority:</strong> 5/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Track and log all changes to agent configurations: persona updates, tool assignments, autonomy rule changes, and governance rule modifications. Ensures accountability for who changed what.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: config_changes</li>
+<li>Metric: unlogged_changes</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> log_change</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>track: ["persona_config","autonomy_rules","governance_rules","tool_assignments","event_subscriptions"]</li>
+</ul>
+
+<h3>Rule #29: agent-workload-balance</h3>
+<p><strong>Priority:</strong> 5/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Detect when task distribution is severely unbalanced — one agent has 5x more active tasks than the average. Route new tasks to underutilized agents to prevent burnout/delays.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: workload_balance</li>
+<li>Metric: max_vs_avg_ratio</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 5</li>
+</ul>
+<p><strong>Action:</strong> rebalance</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>strategy: "redistribute_to_underloaded"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #8: watchlist-alert-routing</h3>
+<p><strong>Priority:</strong> 5/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Auto-route watchlist alerts to the most relevant persona based on alert category</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: watchlist_alert</li>
+<li>Metric: unacknowledged</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> route_alert</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>routing: {"customer":"Apollo","industry":"Neptune","competitor":"Radar","regulation":"Cassandra","technology":"Forge"}</li>
+</ul>
+
+<h3>Rule #28: business-hours-scheduling</h3>
+<p><strong>Priority:</strong> 4/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Reduce non-essential agent activity during off-hours (10PM-6AM tenant timezone) to minimize costs. Only critical monitoring, security, and emergency tasks should run at full capacity overnight.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: time_of_day</li>
+<li>Metric: off_hours</li>
+<li>Operator: equals</li>
+<li>Threshold: true</li>
+</ul>
+<p><strong>Action:</strong> throttle_tasks</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>keep_types: ["process_governance","agentic_engine","cloud_backup"]</li>
+<li>throttle_types: ["reflection","self_improvement","content","delegation"]</li>
+<li>reduce_frequency: true</li>
+</ul>
+
+<h2>Category: PERFORMANCE (3 rules)</h2>
+
+
+<h3>Rule #12: queue-depth-warning</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Alert when any agent desk has 10+ pending queue items</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: desk_queue</li>
+<li>Metric: queue_depth</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 10</li>
+</ul>
+<p><strong>Action:</strong> rebalance</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>strategy: "redistribute"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #30: model-failover-health</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Monitor model failover rates. If more than 40% of requests in the last hour required failover to backup models, investigate the primary provider health.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: failover_rate</li>
+<li>Metric: failover_percent</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 40</li>
+<li>Window: 1 hours</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Agent Blueprint"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #11: slow-response-detection</h3>
+<p><strong>Priority:</strong> 5/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Log and investigate when average agent response time exceeds 30 seconds over 1 hour</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: response_time</li>
+<li>Metric: avg_duration_ms</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 30000</li>
+<li>Window: 1 hours</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Agent Blueprint"</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h2>Category: RESOURCE_MANAGEMENT (4 rules)</h2>
+
+
+<h3>Rule #4: block-task-cascades</h3>
+<p><strong>Priority:</strong> 9/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Block any agent-created task that attempts to spawn more tasks from within a heartbeat context</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: delegation_source</li>
+<li>Metric: source_type</li>
+<li>Operator: in</li>
+<li>Threshold: persona_heartbeat,task_heartbeat</li>
+</ul>
+<p><strong>Action:</strong> block_delegation</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>log_reason: true</li>
+</ul>
+
+<h3>Rule #3: kill-failing-tasks</h3>
+<p><strong>Priority:</strong> 8/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Auto-disable heartbeat tasks with 100% failure rate over 7 days (5+ attempts)</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: task_failure_rate</li>
+<li>Metric: failure_rate</li>
+<li>Operator: equals</li>
+<li>Threshold: 1</li>
+<li>Min Attempts: 5</li>
+</ul>
+<p><strong>Action:</strong> disable_task</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>log_reason: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #2: enable-justified-subscriptions</h3>
+<p><strong>Priority:</strong> 7/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Auto-enable subscriptions when real business activity is detected</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: subscription_activity</li>
+<li>Metric: activity_count</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> enable_subscription</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>log_reason: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #1: disable-dead-subscriptions</h3>
+<p><strong>Priority:</strong> 6/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Auto-disable event subscriptions with zero matching activity for 30+ days</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: subscription_activity</li>
+<li>Metric: activity_count</li>
+<li>Operator: equals</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> disable_subscription</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>log_reason: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h2>Category: SECURITY (7 rules)</h2>
+<p>Rules protecting against security threats - delegation chains, memory poisoning, scope violations.</p>
+
+<h3>Rule #16: rogue-agent-detection</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Detect when an agent repeatedly attempts actions outside its defined focus area or tool scope. Triggers if an agent accumulates 5+ out-of-scope actions in 24 hours.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: agent_scope_violations</li>
+<li>Metric: out_of_scope_actions</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 5</li>
+<li>Window: 24 hours</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "Possible rogue agent behavior: repeated out-of-scope actions detected."</li>
+<li>disable_agent: true</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Agent operating outside defined boundaries — possible compromise or misalignment</p>
+
+<h3>Rule #10: auth-anomaly-detection</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Escalate on 10+ failed login attempts in 1 hour from same source</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: auth_failures</li>
+<li>Metric: failed_attempts</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 10</li>
+<li>Window: 1 hours</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>action: "block_source"</li>
+<li>message: "Potential brute-force login attempt detected."</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Possible security breach — brute-force login detected</p>
+
+<h3>Rule #9: provider-key-failure-escalate</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Escalate when all provider keys for a model tier fail simultaneously</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: provider_health</li>
+<li>Metric: tier_available</li>
+<li>Operator: equals</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "All AI provider keys for a model tier have failed. The system cannot route to any available model."</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Complete AI provider tier failure — no models available</p>
+
+<h3>Rule #20: emergency-kill-switch</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Immediately disable all non-essential agent operations if system enters critical state: all providers down, database unreachable, or manual trigger. Protected agents (Blueprint, Chief of Staff) continue for diagnostics.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: system_critical_state</li>
+<li>Metric: critical_failures</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 0</li>
+</ul>
+<p><strong>Action:</strong> kill_switch</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "Emergency kill switch activated — all non-essential agent operations halted."</li>
+<li>protected_personas: [5,6]</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> System in critical state — emergency shutdown of non-essential agents</p>
+
+<h3>Rule #15: cascading-failure-detection</h3>
+<p><strong>Priority:</strong> 10/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Detect when multiple agents fail in sequence within a short window, indicating a cascading failure. If 3+ different agents fail within 30 minutes, halt non-essential tasks and escalate.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: cascading_failures</li>
+<li>Metric: distinct_failing_agents</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 2</li>
+</ul>
+<p><strong>Action:</strong> escalate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>message: "Cascading failure detected: 3+ agents failing in sequence. Non-essential tasks paused pending investigation."</li>
+<li>pause_non_essential: true</li>
+</ul>
+<p><strong>ESCALATES TO HUMAN:</strong> Yes</p>
+<p><strong>Escalation Reason:</strong> Cascading multi-agent failure — system stability at risk</p>
+
+<h3>Rule #17: delegation-chain-depth-limit</h3>
+<p><strong>Priority:</strong> 9/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Prevent delegation chains deeper than 2 levels. If Agent A delegates to B who delegates to C, block further delegation. Prevents privilege escalation through recursive delegation.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: delegation_depth</li>
+<li>Metric: max_chain_depth</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 2</li>
+</ul>
+<p><strong>Action:</strong> block_delegation</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>max_depth: 2</li>
+<li>log_reason: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<h3>Rule #18: memory-integrity-check</h3>
+<p><strong>Priority:</strong> 7/10 | <strong>Enabled:</strong> Yes | <strong>Trigger Count:</strong> 0</p>
+
+<p><strong>Description:</strong> Detect anomalous memory writes — if an agent writes 20+ memory entries in a single session, flag for review. Protects against memory poisoning where an agent floods its own context.</p>
+
+<p><strong>Condition:</strong></p>
+<ul><li>Check: memory_write_rate</li>
+<li>Metric: writes_per_session</li>
+<li>Operator: greater_than</li>
+<li>Threshold: 20</li>
+<li>Window: 1 hours</li>
+</ul>
+<p><strong>Action:</strong> investigate</p>
+<p><strong>Action Configuration:</strong></p>
+<ul><li>assign_to: "Agent Blueprint"</li>
+<li>cap_writes: true</li>
+<li>notify_channel: "#system-alerts"</li>
+</ul>
+
+<hr>
+
+<h1>PART 3: CONDITION EVALUATORS</h1>
+
+<p>These are the 22 real-time system checks the Process Governor uses to evaluate rules:</p>
+
+<p><strong>subscription_activity:</strong> Checks event subscriptions for business justification. Identifies dead subscriptions with zero events in 30 days and subscriptions without business activity.</p>
+
+<p><strong>task_failure_rate:</strong> Monitors heartbeat tasks for 100% failure rates. Checks success vs failure counts over 7 days with minimum attempt threshold.</p>
+
+<p><strong>delegation_source:</strong> Guards against unauthorized delegation paths. Prevents heartbeat tasks from creating new heartbeat tasks (handled inline).</p>
+
+<p><strong>daily_spend:</strong> Tracks daily AI token spending against budget limits. (Standing by for token tracking implementation)</p>
+
+<p><strong>desk_status:</strong> Detects stalled agent desks - agents with pending work whose desk has not been updated in 24+ hours.</p>
+
+<p><strong>watchlist_alert:</strong> Counts unacknowledged watchlist alerts that need routing to appropriate personas.</p>
+
+<p><strong>provider_health:</strong> Checks AI provider key availability. Triggers if no active provider keys are configured.</p>
+
+<p><strong>auth_failures:</strong> Monitors authentication failure patterns. (Evaluated at login time)</p>
+
+<p><strong>response_time:</strong> Monitors average response time from heartbeat logs. Triggers when average exceeds threshold (default 30s).</p>
+
+<p><strong>desk_queue:</strong> Monitors desk queue depth for overloaded agents. (Handled by desk system)</p>
+
+<p><strong>content_pipeline:</strong> Ensures Scribe content goes through Proof review before publishing. (Handled inline)</p>
+
+<p><strong>autonomy_violation:</strong> Counts blocked autonomy actions in the last 24 hours. Triggers when agents repeatedly attempt blocked actions (>3).</p>
+
+<p><strong>cascading_failures:</strong> Detects cascading failure patterns - multiple distinct agents failing within 30 minutes.</p>
+
+<p><strong>agent_scope_violations:</strong> Detects agents operating outside their defined scope by monitoring blocked actions (>5 in 24h).</p>
+
+<p><strong>delegation_depth:</strong> Prevents delegation chains deeper than 2 levels (A>B>C). Blocks recursive delegation to prevent privilege escalation.</p>
+
+<p><strong>memory_write_rate:</strong> Detects memory flooding - agents writing 20+ memory entries per hour. Protects against memory poisoning.</p>
+
+<p><strong>tool_boundary_violations:</strong> Enforces that agents only use tools assigned to their persona. (Handled by tool router)</p>
+
+<p><strong>system_critical_state:</strong> Checks for critical system failures - database connectivity and provider key availability.</p>
+
+<p><strong>purpose_drift:</strong> Detects when agent task outputs drift from intended goals. (Requires content analysis implementation)</p>
+
+<p><strong>duty_segregation:</strong> Enforces separation of duties - no single agent controls create+approve+execute for sensitive workflows.</p>
+
+<p><strong>self_approval:</strong> Prevents agents from approving their own work. (Enforced inline)</p>
+
+<p><strong>pii_exposure:</strong> Monitors agent outputs for PII (emails, phone numbers, SSNs, credit cards). (Standing by for implementation)</p>
+
+<p><strong>config_changes:</strong> Tracks governance action volume in last 24 hours for audit purposes.</p>
+
+<p><strong>log_retention:</strong> Checks governance log retention age to ensure compliance with retention requirements.</p>
+
+<p><strong>agent_spend_ratio:</strong> Tracks per-agent token spending ratios. (Standing by for implementation)</p>
+
+<p><strong>time_of_day:</strong> Detects off-hours periods (10PM-6AM) for applying restricted operation rules.</p>
+
+<p><strong>workload_balance:</strong> Detects workload imbalance - when one agent has 5x+ more tasks than average.</p>
+
+<p><strong>failover_rate:</strong> Tracks model failover frequency. (Standing by for implementation)</p>
+
+<p><strong>framework_review_due:</strong> Checks governance frameworks for overdue reviews and upcoming review dates (within 14 days).</p>
+
+<hr>
+
+<h1>PART 4: AUTOMATED ACTIONS</h1>
+
+<p>Actions the Process Governor can take when rules are triggered:</p>
+
+<p><strong>disable_subscription:</strong> Automatically disables event subscriptions that have no business activity. Posts notification to #system-alerts channel.</p>
+
+<p><strong>enable_subscription:</strong> Re-enables previously disabled subscriptions when business activity is detected.</p>
+
+<p><strong>disable_task:</strong> Auto-disables heartbeat tasks with 100% failure rate (0 successes, 5+ attempts in 7 days). Logs and notifies.</p>
+
+<p><strong>block_delegation:</strong> Prevents delegation chains, blocks heartbeat-spawned delegations, enforces segregation of duties.</p>
+
+<p><strong>throttle_tasks:</strong> Reduces non-essential task execution when token budget is exceeded. (Standing by)</p>
+
+<p><strong>restart_agent:</strong> Resets stalled agent desks (inactive 24h+) and posts recovery notification.</p>
+
+<p><strong>route_alert:</strong> Routes unacknowledged watchlist alerts to the appropriate specialist persona based on category.</p>
+
+<p><strong>kill_switch:</strong> EMERGENCY: Disables all non-essential heartbeat tasks, keeps only protected personas (Blueprint, Chief of Staff) active. Posts critical alert and escalates to human.</p>
+
+<p><strong>escalate:</strong> Raises an issue to human attention with detailed context and recommended action.</p>
+
+<p><strong>investigate:</strong> Assigns the issue to a specific persona (usually Agent Blueprint) for investigation.</p>
+
+<p><strong>enforce_review:</strong> Blocks content publishing until required review persona (e.g., Proof) has reviewed.</p>
+
+<p><strong>restrict_scope:</strong> Limits an agent to off-hours safe operations only (no emails, no external communications).</p>
+
+<hr>
+
+<h1>PART 5: AUTONOMY RULES</h1>
+
+<p>Per-agent autonomy levels controlling what actions are auto-approved vs. gated:</p>
+
+<p><strong>Autonomy Levels:</strong></p>
+<ul><li><strong>full_auto:</strong> Agent can perform this action without any approval</li>
+<li><strong>approve_before:</strong> Action requires human approval before execution</li>
+<li><strong>notify_after:</strong> Action executes automatically but human is notified afterward</li>
+<li><strong>blocked:</strong> Action is completely prohibited for this agent</li>
+</ul>
+<p><strong>Felix - delegate_task:</strong> full_auto - Felix can delegate tasks freely</p>
+<p><strong>Felix - send_email:</strong> notify_after - Felix auto-sends emails, notifies after</p>
+<p><strong>Forge - execute_code:</strong> full_auto - Forge can execute code in sandbox</p>
+<p><strong>Forge - execute_shell:</strong> approve_before (escalates to: human) - Forge shell commands need approval</p>
+<p><strong>Scribe - publish_content:</strong> approve_before (escalates to: proof) - Scribe content needs Proof review</p>
+<p><strong>Apollo - send_email:</strong> full_auto - Apollo can send outreach emails</p>
+<p><strong>ALL AGENTS - browser_form_submit:</strong> approve_before (escalates to: human) - Form submissions need approval</p>
+<p><strong>ALL AGENTS - browser_navigate:</strong> full_auto - All agents can navigate freely</p>
+<p><strong>ALL AGENTS - payment_action:</strong> approve_before (escalates to: human) - Payment actions always need approval</p>
+
+<hr>
+
+<h1>PART 6: HUMAN-IN-THE-LOOP (HITL) CONFIRMATION GATE</h1>
+
+<p>The HITL system intercepts high-risk tool calls and requires user confirmation before execution.</p>
+
+<p><strong>Risk Levels:</strong></p>
+<ul><li><strong>low:</strong> Auto-approved, no user interaction</li>
+<li><strong>medium:</strong> Logged for audit, auto-approved</li>
+<li><strong>high:</strong> Requires explicit user confirmation (Yes/No prompt in chat)</li>
+<li><strong>critical:</strong> Blocked entirely, human must take action manually</li>
+</ul>
+<p><strong>Tools Requiring Confirmation:</strong></p>
+<ul><li>send_email (high) - External communication</li>
+<li>publish_social_post (high) - Public-facing content</li>
+<li>payment_action (critical) - Financial transactions</li>
+<li>browser form_submit (high) - Web form submissions</li>
+<li>scraped_pages_delete (medium) - Data deletion</li>
+<li>delete operations generally (medium-high) - Data loss risk</li>
+</ul>
+<hr>
+
+<h1>PART 7: VALUES PLATFORM</h1>
+
+<p>Core values that inform all governance decisions:</p>
+
+<li><strong>Transparency</strong> - All agent decisions are logged, traceable, and explainable</li>
+<li><strong>Accountability</strong> - Every action has an owner (persona) and an audit trail</li>
+<li><strong>Safety First</strong> - Kill switch, circuit breakers, and escalation paths always available</li>
+<li><strong>Human Sovereignty</strong> - Humans retain final authority over all consequential decisions</li>
+<li><strong>Proportional Autonomy</strong> - Agent independence scales with trust, track record, and risk level</li>
+<li><strong>Separation of Concerns</strong> - No single agent controls end-to-end sensitive workflows</li>
+<li><strong>Continuous Improvement</strong> - Self-improvement engine with guardrails, governance framework reviews</li>
+<li><strong>Privacy Protection</strong> - PII scanning, tenant data isolation, minimal data retention</li>
+<li><strong>Cost Consciousness</strong> - Token budget awareness, spend tracking, model tier optimization</li>
+<li><strong>Resilience</strong> - Graceful degradation, failover cascades, cascading failure detection</li>
+
+
+</body></html>
