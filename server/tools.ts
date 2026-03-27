@@ -1685,6 +1685,67 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "finance_news",
+      description: "Fetch real-time financial and trending news from multiple global sources. Returns ranked headlines with links. Sources include Cailian Press, WallStreetCN, Xueqiu (Snowball), Hacker News, Weibo, Baidu, and more. Use for market research, trend monitoring, competitive intelligence, or staying current on financial markets.",
+      parameters: {
+        type: "object",
+        properties: {
+          sources: {
+            type: "array",
+            items: { type: "string", enum: ["cls", "wallstreetcn", "xueqiu", "weibo", "zhihu", "baidu", "toutiao", "thepaper", "36kr", "hackernews"] },
+            description: "News sources to fetch from. Finance: cls (Cailian), wallstreetcn, xueqiu. Social: weibo, zhihu, baidu. Tech: 36kr, hackernews. Default: cls, wallstreetcn, hackernews",
+          },
+          count: { type: "number", description: "Number of headlines per source (1-20). Default: 10" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "finance_stock_price",
+      description: "Get historical stock price data (OHLCV) for A-Share and Hong Kong stocks. Returns daily open/high/low/close/volume with change percentages and a summary. Use for stock analysis, price tracking, trend identification, or financial reporting.",
+      parameters: {
+        type: "object",
+        properties: {
+          ticker: { type: "string", description: "Stock ticker code (e.g., '600519' for Kweichow Moutai, '00700' for Tencent HK). Must be a numeric code." },
+          days: { type: "number", description: "Number of days of history to retrieve (1-365). Default: 30" },
+        },
+        required: ["ticker"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "finance_stock_search",
+      description: "Search for stock tickers by company name or code. Supports A-Share (Shanghai/Shenzhen) and Hong Kong markets. Returns matching ticker codes and company names. Use when you need to find the ticker code for a company before looking up its price.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Company name or partial ticker code to search for (e.g., 'Moutai', '600519', 'Tencent')" },
+          market: { type: "string", enum: ["a", "hk"], description: "Market to search: 'a' for A-Share (default), 'hk' for Hong Kong" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "finance_market_overview",
+      description: "Get a snapshot of major market indices with current values and daily change percentages. Covers Chinese A-share market indices. Use for quick market pulse checks, daily briefings, or as context for financial analysis.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 import { TEST_MODEL_IDS } from "./providers";
@@ -4194,6 +4255,27 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         default:
           return { error: `Unknown action: ${params.action}` };
       }
+    }
+    case "finance_news": {
+      const { fetchFinanceNews } = await import("./finance-tools");
+      const sources = Array.isArray(params.sources) ? params.sources : undefined;
+      const count = Math.min(Math.max(params.count || 10, 1), 20);
+      return fetchFinanceNews(sources, count);
+    }
+    case "finance_stock_price": {
+      const { fetchStockPrice } = await import("./finance-tools");
+      if (!params.ticker) return { error: "ticker is required (e.g., '600519' for Moutai)" };
+      const days = Math.min(Math.max(params.days || 30, 1), 365);
+      return fetchStockPrice(params.ticker, days);
+    }
+    case "finance_stock_search": {
+      const { searchStocks } = await import("./finance-tools");
+      if (!params.query) return { error: "query is required (company name or ticker code)" };
+      return searchStocks(params.query, params.market || "a");
+    }
+    case "finance_market_overview": {
+      const { getMarketOverview } = await import("./finance-tools");
+      return getMarketOverview();
     }
     default: {
       if (name.startsWith("custom_")) {

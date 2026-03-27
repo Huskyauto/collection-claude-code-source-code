@@ -96,7 +96,7 @@ export const DEPARTMENTS: Department[] = [
     primaryPersonaId: 13,
     backupAgent: "Atlas",
     backupPersonaId: 12,
-    triggerKeywords: ["budget", "forecast", "P&L", "revenue", "expenses", "cash flow", "ROI", "pricing model", "tax", "invoice", "payment", "subscription", "Stripe", "financial", "accounting", "profit", "loss", "margin", "runway", "burn rate", "MRR", "ARR", "bookkeeping"],
+    triggerKeywords: ["budget", "forecast", "P&L", "revenue", "expenses", "cash flow", "ROI", "pricing model", "tax", "invoice", "payment", "subscription", "Stripe", "financial", "accounting", "profit", "loss", "margin", "runway", "burn rate", "MRR", "ARR", "bookkeeping", "stock price", "market data", "stock ticker", "A-share", "Hong Kong stock", "market overview", "finance news", "market news", "stock analysis", "trading", "OHLCV", "candlestick"],
   },
   {
     id: "legal",

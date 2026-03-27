@@ -14,7 +14,7 @@ const PERSONA_TOOL_POLICIES: Record<string, { allowed: string[]; blocked: string
     blocked: ["send_email", "whatsapp", "deliver_product", "draft_social_post"],
   },
   "finance": {
-    allowed: ["memory", "knowledge", "notes", "workspace", "pdf", "charts", "email", "files", "ai", "web"],
+    allowed: ["memory", "knowledge", "notes", "workspace", "pdf", "charts", "email", "files", "ai", "web", "finance"],
     blocked: ["exec", "shell_exec", "draft_social_post", "marketing_experiment"],
   },
   "researcher": {
@@ -59,6 +59,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   tools: ["create_tool", "list_custom_tools", "delete_custom_tool", "manage_skills"],
   experiments: ["log_experiment", "get_experiments", "run_self_improvement"],
   diff: ["show_diff"],
+  finance: ["finance_news", "finance_stock_price", "finance_stock_search", "finance_market_overview"],
 };
 
 const ALWAYS_INCLUDE = new Set(["search_memory", "create_memory", "recall_context", "orchestrate", "delegate_task", "project"]);
@@ -85,6 +86,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   tools: ["tool", "skill", "custom tool", "create tool", "manage skills"],
   experiments: ["experiment", "improve", "self-improve", "evolve", "optimize", "a/b test"],
   diff: ["diff", "compare", "difference", "changes"],
+  finance: ["stock", "stock price", "ticker", "market", "A-share", "Hong Kong stock", "finance news", "market news", "financial news", "market overview", "indices", "trading", "OHLCV", "candlestick", "market data", "stock data", "stock search", "Moutai", "Tencent", "market pulse", "market briefing"],
 };
 
 function extractUserMessage(messages: any[]): string {
