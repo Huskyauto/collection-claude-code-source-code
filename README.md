@@ -41,7 +41,7 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 |---|---|
 | AI Personas | 14 specialized roles |
 | AI Providers | 8 connected (OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter, DeepSeek, Meta Llama) |
-| Tools | 85+ (communication, research, code, browsing, agentic ops, Google Workspace, virtual browser) |
+| Tools | 87+ (communication, research, code, browsing, finance, agentic ops, Google Workspace, virtual browser) |
 | Governance Rules | 40 rules across 7 categories (including agency_expansion) |
 | Trust Score Categories | 9 categories, 40 scores across 13 agents |
 | Express Lanes | 12 approved agent-to-agent direct handoff routes |
@@ -213,9 +213,10 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - **Execution Budget Warnings** — Alerts when tool loops approach cost limits
 - **Fallback Suggestions** — Recommends alternative tools on failure
 
-### 85+ AI Tools
+### 87+ AI Tools
 - **Communication:** Email (AgentMail), WhatsApp, Discord, Telegram, channel messaging
 - **Research:** Web search, Firecrawl extraction, Jina AI reader, deep research sessions
+- **Finance:** Market news (10+ sources), stock price data (A-Share & HK), ticker search, market overview indices
 - **Documents:** PDF generation, Google Drive upload, file management, data export
 - **Code:** Code execution, debugging, architecture review
 - **Virtual Browsing:** Browserless cloud-based headless Chrome with vision-enabled screenshots
@@ -267,6 +268,33 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 - File Manager UI
 - Google Drive Integration (upload, share, organize into dated subfolders)
 - PDF Toolkit (generation, export, email delivery)
+
+### Finance Market Intelligence
+**File:** `server/finance-tools.ts`
+
+4 tools adapted from the Awesome-finance-skills repository (Apache 2.0). All use free public APIs — no API keys required.
+
+| Tool | Description | API Source |
+|---|---|---|
+| `finance_news` | Real-time headlines from 10+ sources (Cailian Press, WallStreetCN, Xueqiu, Hacker News, Weibo, Baidu) | NewsNow API |
+| `finance_stock_price` | Daily OHLCV data with summary statistics | EastMoney Direct (A-Share & HK) |
+| `finance_stock_search` | Ticker lookup by company name or code | EastMoney Direct |
+| `finance_market_overview` | Major market index snapshots with daily changes | EastMoney Direct |
+
+- **Mapped to:** Cassandra (Finance, primary) and Radar (Market Intelligence) via tool router
+- **Rate Limited:** finance_news (3/min, 15/hr), stock tools (5/min, 30/hr)
+- **5-Minute Cache:** News results cached per source to reduce upstream load
+- **Input Validation:** Ticker format (4-6 digit numeric), days range clamping, malformed row filtering
+
+### Per-Tool Rate Limiter
+**File:** `server/tool-rate-limiter.ts`
+
+Sliding-window rate limiting per tenant per tool. Prevents runaway agent loops from burning API budget.
+
+- **Expensive Tool Caps:** deep_research (1/min), produce_video (1/min), browser tools (2/min)
+- **Default Limits:** 10/min, 60/hr, 200/day for unlisted tools
+- **In-Memory Cache:** Periodic cleanup of expired windows
+- **Actionable Errors:** Blocked calls return clear messages with retry timing
 
 ### Stability and Monitoring
 - **Stability Watchdog** — Autonomous infrastructure watchdog (Chief of Staff, every 10 min)
