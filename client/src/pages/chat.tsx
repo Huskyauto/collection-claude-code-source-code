@@ -1833,7 +1833,9 @@ export default function ChatPage() {
               setStreamingContent("");
               setStreamThinking("");
               setStreamThinkingDone(false);
-              setToolCalls([]);
+              if (!hadError) {
+                setToolCalls([]);
+              }
               setBrowserLive((prev) => prev.visible ? { ...prev, visible: false, statusText: "Done", stepCount: 0 } : prev);
             }
           } catch (streamErr) {
