@@ -2174,7 +2174,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const autoProj = await checkAndAutoCreateProject(conversationId, tenantId, content);
         if (autoProj?.created && autoProj.directive) {
           apiMessages.push({ role: "system", content: autoProj.directive });
-          res.write(`data: ${JSON.stringify({ type: "auto_project", projectId: autoProj.projectId, projectName: autoProj.projectName })}\n\n`);
+          res.write(`data: ${JSON.stringify({ type: "auto_project", projectId: autoProj.projectId, projectName: autoProj.projectName, trigger: autoProj.trigger })}\n\n`);
           conv.project_id = autoProj.projectId;
         }
       } catch (apErr: any) {

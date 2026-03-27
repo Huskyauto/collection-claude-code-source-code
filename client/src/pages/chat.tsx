@@ -950,6 +950,7 @@ export default function ChatPage() {
   const [streamThinking, setStreamThinking] = useState("");
   const [streamThinkingDone, setStreamThinkingDone] = useState(false);
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
+  const [projectBanner, setProjectBanner] = useState<{ projectId: number; projectName: string; trigger: string } | null>(null);
   const [orchestrationPlan, setOrchestrationPlan] = useState<OrchestrationPlanInfo | null>(null);
   const [browserLive, setBrowserLive] = useState<{ visible: boolean; screenshotUrl?: string; statusText: string; pageTitle?: string; pageUrl?: string; type: string; stepCount: number; minimized: boolean }>({ visible: false, statusText: "", type: "", stepCount: 0, minimized: false });
   const browserLiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -962,6 +963,7 @@ export default function ChatPage() {
   const [ttsEnabled, setTtsEnabled] = useState(() => localStorage.getItem("vc_tts_enabled") === "true");
   const ttsEnabledRef = useRef(ttsEnabled);
   useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+  useEffect(() => { setProjectBanner(null); }, [conversationId]);
   const [talkModeActive, setTalkModeActive] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1470,6 +1472,7 @@ export default function ChatPage() {
     setStreamThinking("");
     setStreamThinkingDone(false);
     setToolCalls([]);
+    setProjectBanner(null);
     setOrchestrationPlan(null);
 
     abortRef.current = new AbortController();
@@ -1682,11 +1685,12 @@ export default function ChatPage() {
               }]);
             }
             if (data.type === "auto_project") {
+              setProjectBanner({ projectId: data.projectId, projectName: data.projectName, trigger: data.trigger || "project_keywords" });
               setToolCalls((prev) => [...prev, {
                 id: `proj_${Date.now()}`,
                 name: "📁 Project Created",
                 input: { action: "Auto-created project for this work" },
-                output: { projectId: data.projectId, name: data.projectName, note: "All files, notes, and progress will be tracked. For future sessions, open this project from the Projects page." },
+                output: { projectId: data.projectId, name: data.projectName },
                 done: true,
               }]);
             }
@@ -2099,6 +2103,49 @@ export default function ChatPage() {
               />
             )}
           </>
+        )}
+        {projectBanner && !streaming && (
+          <div className="mx-auto max-w-2xl w-full px-4 mb-4" data-testid="project-banner">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                  <FolderOpen className="w-5 h-5 text-primary" />
+                </div>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <p className="font-semibold text-sm" data-testid="text-project-banner-title">
+                    This conversation is now a project
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {projectBanner.trigger === "extended_conversation"
+                      ? "Your conversation has grown into an extended discussion, so it has been organized into a project to keep everything together."
+                      : "Project-level work was detected, so this has been organized into a project to track your progress."}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    All files, notes, and progress are saved. To continue this work later, open the project from the <strong>Projects</strong> page and start a new chat there.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setProjectBanner(null)}
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  data-testid="button-dismiss-project-banner"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2 pl-11">
+                <button
+                  onClick={() => navigate(`/projects?id=${projectBanner.projectId}`)}
+                  className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
+                  data-testid="button-view-project"
+                >
+                  View Project
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {projectBanner.projectName}
+                </span>
+              </div>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

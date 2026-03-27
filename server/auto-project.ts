@@ -1,6 +1,8 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
+const CONVERSATIONAL_THRESHOLD = 4;
+
 const PROJECT_SIGNAL_PATTERNS = [
   /\b(?:build|create|develop|design|make|set up|launch|start)\s+(?:a|an|the|my|our)?\s*(?:website|app|application|platform|tool|system|dashboard|landing page|api|service|bot|agent|brand|business|channel|campaign|newsletter|course|product|store|shop|portfolio)/i,
   /\b(?:write|draft|create|produce)\s+(?:a|an|the|my|our)?\s*(?:script|slide deck|presentation|proposal|pitch deck|business plan|marketing plan|content calendar|strategy|report|white paper|blog series)/i,
@@ -19,7 +21,9 @@ const EXCLUDE_PATTERNS = [
 ];
 
 function shouldAutoCreateProject(userMessage: string, messageCount: number): boolean {
-  if (messageCount > 6) return false;
+  if (messageCount >= CONVERSATIONAL_THRESHOLD) {
+    return true;
+  }
 
   for (const pat of EXCLUDE_PATTERNS) {
     if (pat.test(userMessage)) return false;
@@ -40,32 +44,50 @@ function shouldAutoCreateProject(userMessage: string, messageCount: number): boo
   return signalScore >= 2;
 }
 
-function extractProjectName(userMessage: string): string {
-  const namePatterns = [
-    /(?:build|create|develop|design|launch|start|set up)\s+(?:a|an|the|my|our)?\s*(.{5,40}?)(?:\.|,|!|\?|$|\band\b|\bthen\b|\bfor\b|\bthat\b|\bwhich\b)/i,
-    /(?:youtube\s+channel|social media|email campaign|content strategy|brand identity)(?:\s+(?:for|about|called|named))?\s*(.{3,30})?/i,
-    /(?:project|campaign)\s+(?:for|about|called|named)\s+["']?(.{3,40})["']?/i,
-  ];
+function extractProjectName(conversationTitle: string, userMessages: string[]): string {
+  const title = conversationTitle?.trim();
+  if (title && title !== "New Chat" && title.length >= 3 && title.length <= 60) {
+    return title;
+  }
 
-  for (const pat of namePatterns) {
-    const m = userMessage.match(pat);
-    if (m?.[1]) {
-      const name = m[1].trim().replace(/[.!?,;]$/, "").trim();
-      if (name.length >= 3 && name.length <= 50) {
-        return name.charAt(0).toUpperCase() + name.slice(1);
+  for (const msg of userMessages.slice(0, 3)) {
+    for (const pat of [
+      /(?:build|create|develop|design|launch|start|set up)\s+(?:a|an|the|my|our)?\s*(.{5,40}?)(?:\.|,|!|\?|$|\band\b|\bthen\b|\bfor\b|\bthat\b|\bwhich\b)/i,
+      /(?:youtube\s+channel|social media|email campaign|content strategy|brand identity)(?:\s+(?:for|about|called|named))?\s*(.{3,30})?/i,
+      /(?:project|campaign)\s+(?:for|about|called|named)\s+["']?(.{3,40})["']?/i,
+    ]) {
+      const m = msg.match(pat);
+      if (m?.[1]) {
+        const name = m[1].trim().replace(/[.!?,;]$/, "").trim();
+        if (name.length >= 3 && name.length <= 50) {
+          return name.charAt(0).toUpperCase() + name.slice(1);
+        }
       }
     }
   }
 
-  const words = userMessage.split(/\s+/).slice(0, 8).join(" ");
-  return words.length > 40 ? words.slice(0, 40) + "..." : words;
+  const firstMsg = userMessages[0] || "Untitled Project";
+  const words = firstMsg.split(/\s+/).slice(0, 8).join(" ");
+  return words.length > 50 ? words.slice(0, 47) + "..." : words;
+}
+
+function buildProjectDescription(userMessages: string[], aiMessages: string[]): string {
+  const lines: string[] = [];
+  const limit = Math.min(userMessages.length, 3);
+  for (let i = 0; i < limit; i++) {
+    const userSnippet = userMessages[i]?.slice(0, 150) || "";
+    if (userSnippet) lines.push(`User: ${userSnippet}`);
+    const aiSnippet = (aiMessages[i] || "").replace(/<!-- tools:\[.*?\] -->/gs, "").trim().slice(0, 150);
+    if (aiSnippet) lines.push(`AI: ${aiSnippet}`);
+  }
+  return lines.join("\n").slice(0, 500) || "Auto-created from extended conversation.";
 }
 
 export async function checkAndAutoCreateProject(
   conversationId: number,
   tenantId: number,
   userMessage: string
-): Promise<{ created: boolean; projectId?: number; projectName?: string; directive?: string } | null> {
+): Promise<{ created: boolean; projectId?: number; projectName?: string; projectDescription?: string; directive?: string; trigger?: string } | null> {
   try {
     const convRes = await db.execute(sql`
       SELECT project_id, title FROM conversations WHERE id = ${conversationId}
@@ -82,19 +104,26 @@ export async function checkAndAutoCreateProject(
     const linkRows = (linkRes as any).rows || linkRes;
     if (linkRows?.[0]?.project_id) return null;
 
-    const msgCountRes = await db.execute(sql`
-      SELECT COUNT(*) as cnt FROM messages WHERE conversation_id = ${conversationId}
+    const msgRes = await db.execute(sql`
+      SELECT role, LEFT(content, 300) as content FROM messages 
+      WHERE conversation_id = ${conversationId} 
+      ORDER BY id ASC LIMIT 20
     `);
-    const msgRows = (msgCountRes as any).rows || msgCountRes;
-    const messageCount = parseInt(msgRows?.[0]?.cnt || "0", 10);
+    const msgRows = (msgRes as any).rows || msgRes;
+    const messageCount = msgRows.length;
 
     if (!shouldAutoCreateProject(userMessage, messageCount)) return null;
 
-    const projectName = extractProjectName(userMessage);
+    const userMessages = msgRows.filter((m: any) => m.role === "user").map((m: any) => m.content || "");
+    const aiMessages = msgRows.filter((m: any) => m.role === "assistant").map((m: any) => m.content || "");
+    const trigger = messageCount >= CONVERSATIONAL_THRESHOLD ? "extended_conversation" : "project_keywords";
+
+    const projectName = extractProjectName(conv.title, userMessages);
+    const projectDescription = buildProjectDescription(userMessages, aiMessages);
 
     const insertRes = await db.execute(sql`
       INSERT INTO projects (name, description, status, tenant_id, created_at, updated_at)
-      VALUES (${projectName}, ${userMessage.slice(0, 200)}, 'active', ${tenantId}, NOW(), NOW())
+      VALUES (${projectName}, ${projectDescription}, 'active', ${tenantId}, NOW(), NOW())
       RETURNING id
     `);
     const insertRows = (insertRes as any).rows || insertRes;
@@ -112,24 +141,24 @@ export async function checkAndAutoCreateProject(
 
     await db.execute(sql`
       INSERT INTO project_notes (project_id, note, author)
-      VALUES (${projectId}, ${"Project auto-created from conversation #" + conversationId + ". Initial request: " + userMessage.slice(0, 300)}, 'system')
+      VALUES (${projectId}, ${"Project auto-created from conversation #" + conversationId + " (" + trigger + "). " + userMessages[0]?.slice(0, 200)}, 'system')
     `);
 
-    console.log(`[auto-project] Created project #${projectId}: "${projectName}" from conv #${conversationId}`);
+    console.log(`[auto-project] Created project #${projectId}: "${projectName}" from conv #${conversationId} (trigger: ${trigger})`);
 
     const directive = `\n\nSYSTEM NOTIFICATION — PROJECT AUTO-CREATED:
-A project has been automatically created for this work:
-- **Project #${projectId}: "${projectName}"**
-- This conversation is now linked to it.
+This conversation has been automatically organized into a project:
+- **Project: "${projectName}"** (ID #${projectId})
+- Trigger: ${trigger === "extended_conversation" ? "This conversation has grown into an extended discussion" : "Project-level work detected"}
 
-IMPORTANT INSTRUCTIONS FOR THE USER:
-1. Tell the user that a project has been created for their work: "${projectName}" (Project #${projectId})
-2. Tell them that all files, notes, and progress will be tracked automatically in this project
-3. Tell them that for any FUTURE conversations about this same work, they should go to the Projects section and start a new conversation FROM the project — this ensures continuity across sessions
-4. Tell them: "I'll remember everything we do here. When you come back later, just open Project #${projectId} and start a new chat — I'll pick up right where we left off."
-5. Continue with their request normally after this notification.`;
+IMPORTANT — TELL THE USER:
+1. Let them know: "I've organized our conversation into a project called '${projectName}' so we can keep track of everything we're working on."
+2. Explain: "All our discussion, files, and progress are now saved in this project. You can find it anytime in the Projects section."
+3. Tell them: "You can rename this project to whatever makes sense to you — just click the project name to edit it."
+4. Tell them: "When you come back to continue this work, open the project from the Projects page and start a new chat there. I'll remember everything we've discussed."
+5. Continue helping with their current request — don't interrupt the flow.`;
 
-    return { created: true, projectId, projectName, directive };
+    return { created: true, projectId, projectName, projectDescription, directive, trigger };
   } catch (err: any) {
     console.error(`[auto-project] Error:`, err.message);
     return null;

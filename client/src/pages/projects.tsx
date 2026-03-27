@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRef } from "react";
-import { FolderOpen, Plus, FileText, MessageSquare, StickyNote, Search, ArrowLeft, Trash2, Tag, User, Clock, ChevronRight, PlayCircle, Upload, Image as ImageIcon, File, X, Loader2 } from "lucide-react";
+import { FolderOpen, Plus, FileText, MessageSquare, StickyNote, Search, ArrowLeft, Trash2, Tag, User, Clock, ChevronRight, PlayCircle, Upload, Image as ImageIcon, File, X, Loader2, Pencil, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Project {
@@ -60,13 +60,18 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
-  const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const initialProjectId = (() => {
+    try { const p = new URLSearchParams(window.location.search).get("id"); return p ? parseInt(p) : null; } catch { return null; }
+  })();
+  const [selectedProject, setSelectedProject] = useState<number | null>(initialProjectId);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "", customerName: "", customerEmail: "", tags: "" });
   const [newNote, setNewNote] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isUploading, setIsUploading] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -113,6 +118,20 @@ export default function ProjectsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       if (selectedProject) queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProject] });
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      apiRequest("PATCH", `/api/projects/${id}`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      if (selectedProject) queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProject] });
+      setEditingName(false);
+      toast({ title: "Project renamed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to rename", variant: "destructive" });
     },
   });
 
@@ -186,10 +205,53 @@ export default function ProjectsPage() {
     return (
       <div className="flex-1 p-6 space-y-6 overflow-auto" data-testid="project-detail">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedProject(null)} data-testid="button-back">
+          <Button variant="ghost" size="sm" onClick={() => { setSelectedProject(null); setEditingName(false); }} data-testid="button-back">
             <ArrowLeft className="w-4 h-4 mr-1" /> Back
           </Button>
-          <h1 className="text-2xl font-bold" data-testid="text-project-name">{project.name}</h1>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editNameValue}
+                onChange={(e) => setEditNameValue(e.target.value)}
+                className="text-lg font-bold h-9 w-64"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editNameValue.trim() && !renameMutation.isPending) {
+                    renameMutation.mutate({ id: project.id, name: editNameValue.trim() });
+                  }
+                  if (e.key === "Escape") setEditingName(false);
+                }}
+                data-testid="input-rename-project"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (editNameValue.trim()) renameMutation.mutate({ id: project.id, name: editNameValue.trim() });
+                }}
+                disabled={renameMutation.isPending}
+                data-testid="button-save-rename"
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingName(false)} data-testid="button-cancel-rename">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group">
+              <h1 className="text-2xl font-bold" data-testid="text-project-name">{project.name}</h1>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => { setEditNameValue(project.name); setEditingName(true); }}
+                data-testid="button-rename-project"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
           <Badge className={statusColors[project.status]}>{project.status}</Badge>
           <Select value={project.status} onValueChange={(v) => updateStatusMutation.mutate({ id: project.id, status: v })}>
             <SelectTrigger className="w-32" data-testid="select-status">
