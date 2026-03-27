@@ -2333,6 +2333,7 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
         const toolCallBuffers: Record<number, { id: string; name: string; args: string }> = {};
         let hasToolCalls = false;
 
+        try {
         for await (const chunk of stream) {
           if (streamAborted) break;
           const choice = chunk.choices[0];
@@ -2407,6 +2408,18 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
             }
           } else {
             res.write(`data: ${JSON.stringify({ content: contentDelta })}\n\n`);
+          }
+        }
+        } catch (midStreamErr: any) {
+          const midMsg = String(midStreamErr?.message || midStreamErr || "");
+          console.error(`[stream] Mid-stream error (round ${round}): ${midMsg.slice(0, 200)}`);
+          if (midMsg.includes("context length") || midMsg.includes("maximum") || midMsg.includes("token")) {
+            const truncNote = "\n\n*[The conversation exceeded the model's context window. Please start a new conversation or ask me to summarize and continue.]*";
+            fullResponse += truncNote;
+            res.write(`data: ${JSON.stringify({ content: truncNote })}\n\n`);
+            hasToolCalls = false;
+          } else if (!roundContent) {
+            throw midStreamErr;
           }
         }
 
