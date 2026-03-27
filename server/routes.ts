@@ -2994,6 +2994,31 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
           };
         }
       } catch (err: any) {
+        if (key.provider === "anthropic" && err.message?.includes("Claude CLI")) {
+          console.warn(`[test-keys] Anthropic Claude Runner failed, retrying with direct API...`);
+          try {
+            const directClient = new (await import("openai")).default({
+              apiKey: key.apiKey,
+              baseURL: "https://api.anthropic.com/v1/",
+            });
+            const resp2 = await directClient.chat.completions.create({
+              model: modelId,
+              messages: [{ role: "user", content: "Reply with only the word: connected" }],
+              max_tokens: 10,
+            });
+            const latencyMs = Date.now() - start;
+            const reply = resp2.choices?.[0]?.message?.content?.trim() || "";
+            results[key.provider] = {
+              connected: true,
+              provider: PROVIDER_CONFIG[key.provider]?.name || key.provider,
+              detail: `OK - replied "${reply}" (direct API, Runner unavailable)`,
+              latencyMs,
+            };
+            continue;
+          } catch (err2: any) {
+            console.error(`[test-keys] Anthropic direct API also failed: ${err2.message?.slice(0, 150)}`);
+          }
+        }
         const latencyMs = Date.now() - start;
         console.error(`[test-keys] ${key.provider} failed: ${err.message?.slice(0, 150)}`);
         results[key.provider] = {

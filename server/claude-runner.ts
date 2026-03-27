@@ -21,6 +21,7 @@ const liveProcesses = new Map<string, { proc: ChildProcess; abortReason?: string
 const ENV_ALLOWLIST = new Set([
   "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL",
   "NODE_PATH", "NODE_ENV", "NPM_CONFIG_PREFIX",
+  "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME",
   "ANTHROPIC_API_KEY",
 ]);
 
@@ -31,6 +32,11 @@ function buildSafeEnv(): NodeJS.ProcessEnv {
       env[key] = process.env[key];
     }
   }
+  const home = env.HOME || "/home/runner";
+  if (!env.XDG_CONFIG_HOME) env.XDG_CONFIG_HOME = `${home}/.config`;
+  if (!env.XDG_DATA_HOME) env.XDG_DATA_HOME = `${home}/.local/share`;
+  if (!env.XDG_CACHE_HOME) env.XDG_CACHE_HOME = `${home}/.cache`;
+  if (!env.XDG_STATE_HOME) env.XDG_STATE_HOME = `${home}/.local/state`;
   return env;
 }
 
