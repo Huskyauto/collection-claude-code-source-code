@@ -18,15 +18,15 @@ const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   "grok-4": 256_000,
   "grok-3": 131_072,
   "grok-3-mini": 131_072,
-  "moonshotai/kimi-k2.5": 262_144,
-  "minimax/minimax-m2.7": 197_000,
-  "qwen/qwen3.5-plus-02-15": 1_000_000,
-  "qwen/qwen2.5-vl-72b-instruct": 131_072,
-  "deepseek/deepseek-r1": 164_000,
-  "deepseek/deepseek-v3.2": 164_000,
-  "meta-llama/llama-4-maverick": 1_000_000,
-  "meta-llama/llama-4-scout": 512_000,
-  "mistralai/mistral-large-2512": 262_000,
+  "moonshotai/kimi-k2.5": 131_072,
+  "minimax/minimax-m2.7": 131_072,
+  "qwen/qwen3.5-plus-02-15": 131_072,
+  "qwen/qwen2.5-vl-72b-instruct": 64_000,
+  "deepseek/deepseek-r1": 64_000,
+  "deepseek/deepseek-v3.2": 64_000,
+  "meta-llama/llama-4-maverick": 131_072,
+  "meta-llama/llama-4-scout": 131_072,
+  "mistralai/mistral-large-2512": 131_072,
   "google/gemini-3-flash-preview": 1_000_000,
   "sonar": 128_000,
   "sonar-pro": 200_000,
@@ -178,4 +178,88 @@ export function extractDroppedMessagesSummary(
 
   if (summaryParts.length === 0) return null;
   return `Context snapshot (${dropped.length} messages dropped at ${new Date().toISOString()}):\n${summaryParts.join("\n")}`;
+}
+
+export function buildConversationSummary(
+  droppedMessages: Array<{ role: string; content: any }>
+): string {
+  const userTopics: string[] = [];
+  const assistantActions: string[] = [];
+  const toolsUsed: Set<string> = new Set();
+  let turnCount = 0;
+
+  for (const msg of droppedMessages) {
+    turnCount++;
+    const text = typeof msg.content === "string"
+      ? msg.content
+      : Array.isArray(msg.content)
+        ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ")
+        : JSON.stringify(msg.content);
+
+    const clean = text.replace(/<!--[\s\S]*?-->/g, "").trim();
+    if (!clean || clean.length < 10) continue;
+
+    if (msg.role === "user") {
+      userTopics.push(clean.slice(0, 200));
+    } else if (msg.role === "assistant") {
+      const snippet = clean.slice(0, 300);
+      assistantActions.push(snippet);
+      const toolMatches = clean.match(/\[tool:\s*(\w+)\]|Executing:\s*(\w+)|Called\s+(\w+)/gi);
+      if (toolMatches) {
+        for (const m of toolMatches) {
+          const name = m.replace(/\[tool:\s*|\]|Executing:\s*|Called\s+/gi, "").trim();
+          if (name) toolsUsed.add(name);
+        }
+      }
+    }
+  }
+
+  const parts: string[] = [
+    `[Conversation History Summary — ${turnCount} messages condensed]`,
+  ];
+
+  if (userTopics.length > 0) {
+    const topicSample = userTopics.slice(-5).map((t, i) => `  ${i + 1}. ${t}`).join("\n");
+    parts.push(`User discussed:\n${topicSample}`);
+  }
+
+  if (assistantActions.length > 0) {
+    const actionSample = assistantActions.slice(-3).map((a, i) => `  ${i + 1}. ${a.slice(0, 200)}`).join("\n");
+    parts.push(`Assistant actions:\n${actionSample}`);
+  }
+
+  if (toolsUsed.size > 0) {
+    parts.push(`Tools used: ${[...toolsUsed].join(", ")}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+export function truncateWithSummary(
+  messages: Array<{ role: string; content: any }>,
+  keepCount: number
+): Array<{ role: string; content: any }> {
+  if (messages.length <= keepCount) return messages;
+
+  const systemMsg = messages[0]?.role === "system" ? messages[0] : null;
+  const nonSystem = systemMsg ? messages.slice(1) : messages;
+  const keepN = keepCount - (systemMsg ? 1 : 0) - 1;
+  const dropCount = nonSystem.length - keepN;
+  if (dropCount <= 0) return messages;
+
+  const dropped = nonSystem.slice(0, dropCount);
+  const kept = nonSystem.slice(dropCount);
+
+  const summary = buildConversationSummary(dropped);
+  const summaryMessage = {
+    role: "system" as const,
+    content: summary,
+  };
+
+  const result: Array<{ role: string; content: any }> = [];
+  if (systemMsg) result.push(systemMsg);
+  result.push(summaryMessage);
+  result.push(...kept);
+
+  return result;
 }

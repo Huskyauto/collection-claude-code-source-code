@@ -31,7 +31,7 @@ import { scanInboundMessage } from "./safety-layer";
 import { acquireConversationLock, getQueueStats } from "./conversation-queue";
 import { captureToolChainMemory, getAutoMemoryStats } from "./auto-memory";
 import { understandLinks, formatLinkContext } from "./link-understanding";
-import { evaluateContextGuard, truncateMessages, extractDroppedMessagesSummary } from "./context-window-guard";
+import { evaluateContextGuard, truncateMessages, truncateWithSummary, extractDroppedMessagesSummary } from "./context-window-guard";
 import { getDesk, getAllDesks, getDesksOverview, setDeskFocus, setDeskStatus } from "./agent-desk";
 import { getChannels, postMessage as postChannelMessage, readMessages as readChannelMessages, getUnreadCount } from "./agent-channels";
 import { emitEvent, getEventTypes, getEventLog, getEventDetail, getEventSubscriptions, createEventSubscription, updateEventSubscription, deleteEventSubscription, getEventStats } from "./event-bus";
@@ -2242,7 +2242,8 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
           } catch (snapshotErr) {
             console.error("[context-guard] Snapshot save failed:", snapshotErr);
           }
-          apiMessages = truncateMessages(apiMessages, guard.truncateToMessages);
+          apiMessages = truncateWithSummary(apiMessages, guard.truncateToMessages);
+          console.log(`[context-guard] Summarized ${guard.info.estimatedTokens.toLocaleString()} tokens → ${apiMessages.length} messages`);
           res.write(`data: ${JSON.stringify({ type: "context_guard", action: "truncate", message: guard.message, usage: Math.round(guard.info.usageRatio * 100) })}\n\n`);
         } else if (guard.action === "warn") {
           console.log(`[context-guard] Round ${round}: ${guard.message}`);
