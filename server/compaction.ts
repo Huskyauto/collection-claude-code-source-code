@@ -79,7 +79,7 @@ function extractText(content: any): string {
   return String(content || "");
 }
 
-async function archiveMessages(
+export async function archiveMessages(
   conversationId: number | string,
   messages: { role: string; content: string }[],
   allMessages: { role: string; content: string }[]
@@ -133,7 +133,7 @@ async function archiveMessages(
   return archivePath;
 }
 
-async function extractAndSaveMemories(
+export async function extractAndSaveMemories(
   messages: { role: string; content: string }[],
   conversationId: number | string,
   tenantId?: number

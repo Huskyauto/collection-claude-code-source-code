@@ -2225,25 +2225,44 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
         const guard = evaluateContextGuard(activeModelId, apiMessages);
         if (guard.action === "truncate") {
           console.log(`[context-guard] Round ${round}: ${guard.message}`);
-          try {
-            const projIdResult = await db.execute(sql`SELECT project_id FROM conversations WHERE id = ${conversationId} AND project_id IS NOT NULL`);
-            const projIdRows = (projIdResult as any).rows || projIdResult;
-            if (Array.isArray(projIdRows) && projIdRows.length > 0 && projIdRows[0].project_id) {
-              const projId = projIdRows[0].project_id;
-              const snapshot = extractDroppedMessagesSummary(apiMessages, guard.truncateToMessages);
-              if (snapshot) {
-                await db.execute(sql`
-                  INSERT INTO project_notes (project_id, note, author)
-                  VALUES (${projId}, ${snapshot.slice(0, 5000)}, ${'system:context-guard'})
-                `);
-                console.log(`[context-guard] Auto-saved ${snapshot.length} chars to project #${projId} notes`);
-              }
+
+          const systemMsg = apiMessages[0]?.role === "system" ? apiMessages[0] : null;
+          const nonSystem = systemMsg ? apiMessages.slice(1) : apiMessages;
+          const keepN = guard.truncateToMessages - (systemMsg ? 1 : 0) - 1;
+          const dropCount = nonSystem.length - keepN;
+          const droppedMessages = dropCount > 0 ? nonSystem.slice(0, dropCount) : [];
+
+          if (droppedMessages.length > 0) {
+            try {
+              const { archiveMessages, extractAndSaveMemories } = await import("./compaction");
+              await archiveMessages(conversationId, droppedMessages as any, apiMessages as any);
+              console.log(`[context-guard] Archived ${droppedMessages.length} messages to compaction_archives before condensing`);
+
+              extractAndSaveMemories(droppedMessages as any, conversationId, tenantId).then(saved => {
+                if (saved > 0) console.log(`[context-guard] Extracted ${saved} memories from dropped messages`);
+              }).catch(() => {});
+            } catch (archiveErr: any) {
+              console.error(`[context-guard] Archive save failed: ${archiveErr.message}`);
             }
-          } catch (snapshotErr) {
-            console.error("[context-guard] Snapshot save failed:", snapshotErr);
+
+            try {
+              const projIdResult = await db.execute(sql`SELECT project_id FROM conversations WHERE id = ${conversationId} AND project_id IS NOT NULL`);
+              const projIdRows = (projIdResult as any).rows || projIdResult;
+              if (Array.isArray(projIdRows) && projIdRows.length > 0 && projIdRows[0].project_id) {
+                const projId = projIdRows[0].project_id;
+                const snapshot = extractDroppedMessagesSummary(apiMessages, guard.truncateToMessages);
+                if (snapshot) {
+                  await db.execute(sql`
+                    INSERT INTO project_notes (project_id, note, author)
+                    VALUES (${projId}, ${snapshot.slice(0, 5000)}, ${'system:context-guard'})
+                  `);
+                }
+              }
+            } catch {}
           }
+
           apiMessages = truncateWithSummary(apiMessages, guard.truncateToMessages);
-          console.log(`[context-guard] Summarized ${guard.info.estimatedTokens.toLocaleString()} tokens → ${apiMessages.length} messages`);
+          console.log(`[context-guard] Summarized ${guard.info.estimatedTokens.toLocaleString()} tokens → ${apiMessages.length} messages (${droppedMessages.length} archived)`);
           res.write(`data: ${JSON.stringify({ type: "context_guard", action: "truncate", message: guard.message, usage: Math.round(guard.info.usageRatio * 100) })}\n\n`);
         } else if (guard.action === "warn") {
           console.log(`[context-guard] Round ${round}: ${guard.message}`);
