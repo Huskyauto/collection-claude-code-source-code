@@ -1482,6 +1482,8 @@ export default function ChatPage() {
 
     let staleTimer: ReturnType<typeof setTimeout> | null = null;
     let staleWarned = false;
+    let errorShown = false;
+    let hadError = false;
 
     try {
       const body: any = { content: content || "" };
@@ -1506,7 +1508,7 @@ export default function ChatPage() {
 
       const resetStaleTimer = () => {
         if (staleTimer) clearTimeout(staleTimer);
-        staleWarned = false;
+        if (staleWarned) return;
         staleTimer = setTimeout(() => {
           if (!staleWarned) {
             staleWarned = true;
@@ -1733,7 +1735,9 @@ export default function ChatPage() {
                 done: true,
               }]);
             }
-            if (data.error && !data.content && !data.done) {
+            if (data.error && !data.content && !data.done && !errorShown) {
+              errorShown = true;
+              hadError = true;
               const errMsg = typeof data.error === "string" ? data.error : "Something went wrong";
               setToolCalls((prev) => [...prev, {
                 id: `err_${Date.now()}`,
@@ -1839,6 +1843,7 @@ export default function ChatPage() {
       }
     } catch (err: any) {
       if (err?.name !== "AbortError") {
+        hadError = true;
         const errorDetail = err?.message?.includes("Failed to fetch")
           ? "Connection lost — please check your internet and try again."
           : err?.message?.includes("Failed to send")
@@ -1859,7 +1864,9 @@ export default function ChatPage() {
       setStreamingContent("");
       setStreamThinking("");
       setStreamThinkingDone(false);
-      setToolCalls([]);
+      if (!hadError) {
+        setToolCalls([]);
+      }
       if (browserLiveTimerRef.current) clearTimeout(browserLiveTimerRef.current);
       browserLiveTimerRef.current = setTimeout(() => {
         setBrowserLive({ visible: false, statusText: "", type: "", stepCount: 0, minimized: false });

@@ -2994,8 +2994,15 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
           };
         }
       } catch (err: any) {
-        if (key.provider === "anthropic" && err.message?.includes("Claude CLI")) {
-          console.warn(`[test-keys] Anthropic Claude Runner failed, retrying with direct API...`);
+        const isClaudeRunnerError = key.provider === "anthropic" && (
+          err.message?.includes("Claude CLI") ||
+          err.message?.includes("claude-runner") ||
+          err.message?.includes("127.0.0.1:7779") ||
+          err.status === 502 ||
+          err.message?.includes("ECONNREFUSED")
+        );
+        if (isClaudeRunnerError) {
+          console.warn(`[test-keys] Anthropic via Runner failed (${err.message?.slice(0, 80)}), retrying direct API...`);
           try {
             const directClient = new (await import("openai")).default({
               apiKey: key.apiKey,
