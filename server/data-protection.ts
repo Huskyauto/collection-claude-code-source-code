@@ -41,6 +41,8 @@ export async function ensureDataProtectionColumns(): Promise<void> {
 
     await db.execute(sql`ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS category_id INTEGER`);
 
+    await db.execute(sql`ALTER TABLE agent_knowledge ADD COLUMN IF NOT EXISTS tenant_id INTEGER DEFAULT 1`);
+
     console.log("[data-protection] Schema columns ready");
   } catch (err: any) {
     console.warn("[data-protection] Column setup warning:", err.message);
