@@ -32,9 +32,9 @@ for item in "\${MUST_EXCLUDE[@]}"; do
 done
 git add -A
 git diff --cached --quiet || git -c user.name="VisionClaw Agent" -c user.email="agent@visionclaw.ai" commit -m "\${1:-Auto-backup commit}"
-GITHUB_TOKEN_VAL="\${GITHUB_TOKEN}"
+GITHUB_TOKEN_VAL="\${GITHUB_PERSONAL_ACCESS_TOKEN_2:-\${GITHUB_TOKEN}}"
 if [ -z "$GITHUB_TOKEN_VAL" ]; then echo "No GITHUB_TOKEN"; exit 0; fi
-git push "https://\${GITHUB_TOKEN_VAL}@github.com/Huskyauto/VisionClaw-Agent.git" main 2>&1
+GIT_ASKPASS="" git push "https://\${GITHUB_TOKEN_VAL}@github.com/Huskyauto/VisionClaw-Agent.git" main 2>&1
 echo "[push] Done"
 `;
   try { fs.writeFileSync(scriptPath, script, { mode: 0o755 }); } catch {}
