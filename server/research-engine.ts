@@ -208,16 +208,21 @@ ${previousContext}
 
 INSTRUCTIONS:
 1. Generate a clear HYPOTHESIS for this experiment
-2. Execute the research/analysis
+2. Execute the research/analysis — provide SPECIFIC, ACTIONABLE findings with concrete details (file names, function signatures, code patterns, configuration values, exact steps). Generic recommendations score low.
 3. Evaluate your own result against the metrics
-4. Self-score your result on a scale of 1-10
+4. Self-score your result on a scale of 1-10 using this rubric:
+   - 1-3: Vague or generic advice anyone could give
+   - 4-5: Reasonable insight but lacks specifics or actionable detail
+   - 6-7: Concrete, actionable finding with specific implementation guidance
+   - 8-9: Highly specific finding with exact code patterns, configurations, or techniques ready to implement
+   - 10: Breakthrough insight with complete implementation plan
 
 Respond in this exact format:
 HYPOTHESIS: [Your hypothesis for this experiment]
 APPROACH: [Brief description of your approach]
-RESULT: [Your actual findings/output]
+RESULT: [Your actual findings — be SPECIFIC and CONCRETE, not generic. Include exact patterns, code examples, configurations, or step-by-step implementation details.]
 METRIC: [Which metric you're evaluating]
-SCORE: [1-10 self-assessment score]
+SCORE: [1-10 self-assessment score — use the rubric above honestly. A well-researched analytical finding with specific implementation details deserves a 6-8.]
 VERDICT: [KEEP if score >= 6, DISCARD if score < 6]
 INSIGHT: [One key insight that could inform the next experiment]`;
 
@@ -268,7 +273,8 @@ INSIGHT: [One key insight that could inform the next experiment]`;
     approach = approachMatch?.[1]?.trim() || "";
     result = resultMatch?.[1]?.trim() || content.substring(0, 500);
     metric = metricMatch?.[1]?.trim() || "quality";
-    const score = parseInt(scoreMatch?.[1] || "0");
+    const rawScore = parseInt(scoreMatch?.[1] || "0");
+    const score = Math.max(1, Math.min(10, rawScore || 1));
     metricValue = String(score);
     const verdict = verdictMatch?.[1]?.toUpperCase() || (score >= 6 ? "KEEP" : "DISCARD");
 
