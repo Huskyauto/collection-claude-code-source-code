@@ -4,6 +4,14 @@ import { executeWithFailover } from "./model-failover";
 import { getAvailableModels } from "./providers";
 import { storage } from "./storage";
 
+const NIGHTLY_PROGRAM_NAMES = new Set([
+  "Nightly AI Model & Provider Intelligence",
+  "Nightly AI Tools & Techniques Scanner",
+  "Nightly Competitive Platform Analysis",
+  "Nightly Agent Architecture Research",
+  "Nightly Security & Safety Intelligence",
+]);
+
 const RESEARCH_COST_MODELS = [
   "z-ai/glm-5-turbo",
   "gemini-2.5-flash",
@@ -88,6 +96,8 @@ export async function startResearchSession(params: {
   };
 
   activeSessions.set(sessionId, session);
+
+  db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND expires_at < NOW()`).catch(() => {});
 
   const staggerDelay = (activeSessions.size - 1) * SESSION_STAGGER_MS;
   console.log(`[research] Session #${sessionId} started for program "${program.name}" (model: ${session.model})${staggerDelay > 0 ? `, stagger delay: ${staggerDelay / 1000}s` : ""}`);
@@ -261,6 +271,10 @@ INSIGHT: [One key insight that could inform the next experiment]`;
       status = "keep";
       session.keptCount++;
       session.consecutiveFailures = 0;
+
+      injectKeepedFinding(session, hypothesis, result, approach, score).catch(err => {
+        console.warn(`[research] Injection failed for exp #${session.experimentCount}: ${err.message}`);
+      });
     } else {
       status = "discard";
       session.discardedCount++;
@@ -353,4 +367,74 @@ export async function getResearchSessionStatus(sessionId: number) {
 
 export function getActiveSessionCount(): number {
   return activeSessions.size;
+}
+
+const PROGRAM_PERSONA_MAP: Record<string, { personaId: number; category: string }> = {
+  "Nightly AI Model & Provider Intelligence": { personaId: 9, category: "model_intelligence" },
+  "Nightly AI Tools & Techniques Scanner": { personaId: 5, category: "technique" },
+  "Nightly Competitive Platform Analysis": { personaId: 9, category: "competitive_intel" },
+  "Nightly Agent Architecture Research": { personaId: 3, category: "architecture" },
+  "Nightly Security & Safety Intelligence": { personaId: 14, category: "security" },
+};
+
+async function injectKeepedFinding(
+  session: ActiveSession,
+  hypothesis: string,
+  result: string,
+  approach: string,
+  score: number,
+): Promise<void> {
+  const progResult = await db.execute(sql`SELECT name FROM research_programs WHERE id = ${session.programId}`);
+  const progRows = (progResult as any).rows || progResult;
+  const programName = progRows[0]?.name || "";
+
+  if (!NIGHTLY_PROGRAM_NAMES.has(programName)) return;
+
+  const mapping = PROGRAM_PERSONA_MAP[programName];
+  if (!mapping) return;
+
+  const knowledgeTitle = `[Auto-Research] ${hypothesis.substring(0, 120)}`;
+  const knowledgeContent = [
+    `**Finding (score ${score}/10):** ${hypothesis}`,
+    approach ? `**Approach:** ${approach}` : "",
+    `**Result:** ${result}`,
+    `*Source: ${programName}, Session #${session.sessionId}, ${new Date().toISOString().split("T")[0]}*`,
+  ].filter(Boolean).join("\n\n");
+
+  const priority = score >= 9 ? 5 : score >= 7 ? 4 : 3;
+
+  const ttlDays = mapping.category === "security" ? 30 : 14;
+  const expiresAt = new Date(Date.now() + ttlDays * 86_400_000).toISOString();
+
+  await db.execute(sql`
+    INSERT INTO agent_knowledge (title, content, category, priority, persona_id, tenant_id, source, expires_at)
+    VALUES (
+      ${knowledgeTitle},
+      ${knowledgeContent},
+      ${mapping.category},
+      ${priority},
+      ${mapping.personaId},
+      ${session.tenantId},
+      ${"autoresearch"},
+      ${expiresAt}::timestamp
+    )
+  `);
+
+  if (programName === "Nightly AI Model & Provider Intelligence" && score >= 8) {
+    const modelMatch = result.match(/model[_\s]?id[:\s]*["`']?([a-zA-Z0-9\-_./]+)["`']?/i);
+    const providerMatch = result.match(/provider[:\s]*["`']?([a-zA-Z0-9\-_]+)["`']?/i);
+    if (modelMatch) {
+      await db.execute(sql`
+        INSERT INTO model_registry_updates (update_type, model_id, model_data, status)
+        VALUES (
+          'add',
+          ${modelMatch[1]},
+          ${JSON.stringify({ source: "autoresearch", hypothesis, result, score, provider: providerMatch?.[1] || "unknown" })}::jsonb,
+          'pending'
+        )
+      `).catch(() => {});
+    }
+  }
+
+  console.log(`[research] Injected KEEP finding → agent_knowledge (persona=${mapping.personaId}, cat=${mapping.category}, priority=${priority}, ttl=${ttlDays}d)`);
 }
