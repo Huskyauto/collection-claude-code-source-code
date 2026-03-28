@@ -348,7 +348,7 @@ RESULT: ${result.substring(0, 2000)}
 Score this finding using the rubric in your instructions. Output your reasoning for each criterion on one line, then the final score on the last line as just a number.`;
 
       const scoreResp = await replitOpenai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-5.4",
         messages: [
           { role: "system", content: SCORING_SYSTEM_PROMPT },
           { role: "user", content: scoringContent },
