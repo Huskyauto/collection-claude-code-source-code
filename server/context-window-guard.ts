@@ -41,7 +41,7 @@ const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 const DEFAULT_CONTEXT_WINDOW = 128_000;
 const WARN_USAGE_RATIO = 0.85;
 const MAX_USAGE_RATIO = 0.95;
-const RESERVED_OUTPUT_TOKENS = 65_536;
+const RESERVED_OUTPUT_TOKENS = 16_384;
 
 export interface ContextWindowInfo {
   modelId: string;

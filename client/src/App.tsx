@@ -66,6 +66,17 @@ class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary] Caught error:", error, info);
+    if (error?.message?.includes("Failed to fetch dynamically imported module") ||
+        error?.message?.includes("Loading chunk") ||
+        error?.message?.includes("Loading CSS chunk")) {
+      const reloadKey = "vc_chunk_reload";
+      const last = sessionStorage.getItem(reloadKey);
+      if (!last || Date.now() - parseInt(last) > 30000) {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   render() {

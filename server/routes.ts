@@ -2387,8 +2387,10 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
             }
           }
 
-          const contentDelta = delta?.content || "";
+          let contentDelta = delta?.content || "";
           if (!contentDelta) continue;
+          contentDelta = contentDelta.replace(/<\/?tool_call>/g, "").replace(/<\/?function_calls?>/g, "").replace(/<invoke\s+name="[^"]*"\s*\/?>/g, "").replace(/<\/?antml:\w+>/g, "");
+          if (!contentDelta.trim() && delta?.content) continue;
           roundContent += contentDelta;
           fullResponse += contentDelta;
 
