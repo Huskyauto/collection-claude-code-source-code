@@ -306,8 +306,25 @@ INSIGHT: [One key insight that could inform the next experiment]`;
     console.log(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: [${status.toUpperCase()}] ${hypothesis.substring(0, 80)} (score: ${metricValue})`);
 
   } catch (err: any) {
-    const isTransient = err.message?.includes("401") || err.message?.includes("429") || err.message?.includes("rate") || err.message?.includes("Missing Authentication");
-    if (isTransient && session.consecutiveFailures < MAX_CONSECUTIVE_FAILURES - 1) {
+    const isAuthError = err.message?.includes("401") || err.message?.includes("Missing Authentication") || err.message?.includes("Unauthorized") || err.message?.includes("Invalid API");
+    const isTransient = isAuthError || err.message?.includes("429") || err.message?.includes("rate");
+
+    if (isAuthError && session.consecutiveFailures === 0) {
+      const fallbackModel = RESEARCH_COST_MODELS.find(m => m !== session.model) || "gemini-2.5-flash";
+      console.warn(`[research] Session #${session.sessionId}: auth error on "${session.model}", switching to fallback "${fallbackModel}"`);
+      session.model = fallbackModel;
+      session.crashedCount++;
+      session.consecutiveFailures++;
+      await db.execute(sql`
+        UPDATE research_experiments SET
+          hypothesis = ${hypothesis},
+          result = ${`Auth error on ${session.model}, switching to ${fallbackModel}: ${err.message}`},
+          status = 'crash',
+          duration_ms = ${Date.now() - start}
+        WHERE id = ${experimentId}
+      `);
+      await db.execute(sql`UPDATE research_sessions SET model = ${fallbackModel} WHERE id = ${session.sessionId}`);
+    } else if (isTransient && session.consecutiveFailures < MAX_CONSECUTIVE_FAILURES - 1) {
       const backoff = (session.consecutiveFailures + 1) * 10_000;
       console.warn(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: transient error, retrying in ${backoff / 1000}s — ${err.message}`);
       session.crashedCount++;
