@@ -99,7 +99,7 @@ export async function startResearchSession(params: {
 
   activeSessions.set(sessionId, session);
 
-  db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND expires_at < NOW()`).catch(() => {});
+  db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND tenant_id = ${tenantId} AND expires_at < NOW()`).catch(() => {});
 
   const staggerDelay = (activeSessions.size - 1) * SESSION_STAGGER_MS;
   console.log(`[research] Session #${sessionId} started for program "${program.name}" (model: ${session.model})${staggerDelay > 0 ? `, stagger delay: ${staggerDelay / 1000}s` : ""}`);
@@ -227,16 +227,17 @@ INSIGHT: [One key insight that could inform the next experiment]`;
   let metric = "";
   let metricValue = "";
   let status = "crash";
+  let experimentId: number | undefined;
 
+  try {
   const expResult = await db.execute(sql`
     INSERT INTO research_experiments (session_id, tenant_id, program_id, hypothesis, status, model)
     VALUES (${session.sessionId}, ${session.tenantId}, ${session.programId}, ${hypothesis}, 'running', ${session.model})
     RETURNING id
   `);
   const expRows = (expResult as any).rows || expResult;
-  const experimentId = expRows[0]?.id;
+  experimentId = expRows[0]?.id;
 
-  try {
     const availableModels = await getAvailableModels();
     const { result: resp, usedModel } = await executeWithFailover(
       session.model, availableModels,
@@ -309,54 +310,60 @@ INSIGHT: [One key insight that could inform the next experiment]`;
     const isAuthError = err.message?.includes("401") || err.message?.includes("Missing Authentication") || err.message?.includes("Unauthorized") || err.message?.includes("Invalid API");
     const isTransient = isAuthError || err.message?.includes("429") || err.message?.includes("rate");
 
-    if (isAuthError && session.consecutiveFailures === 0) {
+    if (isAuthError) {
       const fallbackModel = RESEARCH_COST_MODELS.find(m => m !== session.model) || "gemini-2.5-flash";
       console.warn(`[research] Session #${session.sessionId}: auth error on "${session.model}", switching to fallback "${fallbackModel}"`);
       session.model = fallbackModel;
       session.crashedCount++;
       session.consecutiveFailures++;
-      await db.execute(sql`
-        UPDATE research_experiments SET
-          hypothesis = ${hypothesis},
-          result = ${`Auth error on ${session.model}, switching to ${fallbackModel}: ${err.message}`},
-          status = 'crash',
-          duration_ms = ${Date.now() - start}
-        WHERE id = ${experimentId}
-      `);
+      if (experimentId) {
+        await db.execute(sql`
+          UPDATE research_experiments SET
+            hypothesis = ${hypothesis},
+            result = ${`Auth error, switching to ${fallbackModel}: ${err.message}`},
+            status = 'crash',
+            duration_ms = ${Date.now() - start}
+          WHERE id = ${experimentId}
+        `);
+      }
       await db.execute(sql`UPDATE research_sessions SET model = ${fallbackModel} WHERE id = ${session.sessionId}`);
     } else if (isTransient && session.consecutiveFailures < MAX_CONSECUTIVE_FAILURES - 1) {
       const backoff = (session.consecutiveFailures + 1) * 10_000;
       console.warn(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: transient error, retrying in ${backoff / 1000}s — ${err.message}`);
       session.crashedCount++;
       session.consecutiveFailures++;
-      await db.execute(sql`
-        UPDATE research_experiments SET
-          hypothesis = ${hypothesis},
-          result = ${`Transient error (will retry): ${err.message}`},
-          status = 'crash',
-          duration_ms = ${Date.now() - start}
-        WHERE id = ${experimentId}
-      `);
+      if (experimentId) {
+        await db.execute(sql`
+          UPDATE research_experiments SET
+            hypothesis = ${hypothesis},
+            result = ${`Transient error (will retry): ${err.message}`},
+            status = 'crash',
+            duration_ms = ${Date.now() - start}
+          WHERE id = ${experimentId}
+        `);
+      }
       await new Promise(resolve => setTimeout(resolve, backoff));
     } else {
       status = "crash";
       session.crashedCount++;
       session.consecutiveFailures++;
 
-      await db.execute(sql`
-        UPDATE research_experiments SET
-          hypothesis = ${hypothesis},
-          result = ${`Error: ${err.message}`},
-          status = 'crash',
-          duration_ms = ${Date.now() - start}
-        WHERE id = ${experimentId}
-      `);
+      if (experimentId) {
+        await db.execute(sql`
+          UPDATE research_experiments SET
+            hypothesis = ${hypothesis},
+            result = ${`Error: ${err.message}`},
+            status = 'crash',
+            duration_ms = ${Date.now() - start}
+          WHERE id = ${experimentId}
+        `);
+      }
 
       console.error(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: CRASH — ${err.message}`);
     }
+  } finally {
+    session.experimentInFlight = false;
   }
-
-  session.experimentInFlight = false;
 
   await db.execute(sql`
     UPDATE research_sessions SET

@@ -7240,8 +7240,13 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
     const tenantId = getTenantFromRequest(req);
     if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
     try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid session ID" });
+      const ownership = await db.execute(sql`SELECT id FROM research_sessions WHERE id = ${id} AND tenant_id = ${tenantId}`);
+      const ownerRows = (ownership as any).rows || ownership;
+      if (!ownerRows.length) return res.status(404).json({ error: "Session not found" });
       const { stopResearchSession } = await import("./research-engine");
-      await stopResearchSession(parseInt(req.params.id));
+      await stopResearchSession(id);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -7271,11 +7276,15 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
     if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid session ID" });
+      const ownership = await db.execute(sql`SELECT id FROM research_sessions WHERE id = ${id} AND tenant_id = ${tenantId}`);
+      const ownerRows = (ownership as any).rows || ownership;
+      if (!ownerRows.length) return res.status(404).json({ error: "Session not found" });
       const { getResearchSessionStatus } = await import("./research-engine");
       const session = await getResearchSessionStatus(id);
       if (!session) return res.status(404).json({ error: "Not found" });
       const experiments = await db.execute(sql`
-        SELECT * FROM research_experiments WHERE session_id = ${id} ORDER BY created_at ASC
+        SELECT * FROM research_experiments WHERE session_id = ${id} AND tenant_id = ${tenantId} ORDER BY created_at ASC
       `);
       res.json({ session, experiments: (experiments as any).rows || experiments });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
