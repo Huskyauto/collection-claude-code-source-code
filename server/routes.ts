@@ -7438,7 +7438,7 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: "Invalid proposal ID" });
       const { status, reviewed_by } = req.body;
-      if (!["approved", "rejected", "applied", "pending", "ready", "needs_review"].includes(status)) {
+      if (!["approved", "rejected", "applied", "pending", "ready", "needs_review", "failed", "reverted"].includes(status)) {
         return res.status(400).json({ error: "Invalid status" });
       }
       const now = new Date().toISOString();
@@ -7453,6 +7453,32 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
       const rows = (result as any).rows || result;
       if (!rows.length) return res.status(404).json({ error: "Not found" });
       res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/research/code-proposals/:id/apply", async (req, res) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid proposal ID" });
+      const { safeApplyProposal } = await import("./research-engine");
+      const result = await safeApplyProposal(id, tenantId);
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/research/code-proposals/:id/revert", async (req, res) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid proposal ID" });
+      const { revertProposal } = await import("./research-engine");
+      const result = await revertProposal(id, tenantId);
+      res.json(result);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

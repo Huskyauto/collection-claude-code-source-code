@@ -636,3 +636,190 @@ Based on this finding, should we modify the VisionClaw codebase? If yes, produce
   const risk = riskMatch?.[1]?.toUpperCase() || "UNKNOWN";
   console.log(`[research] Code proposal created: "${titleMatch[1].trim()}" → ${normalizedFile} [${statusLabel}, risk: ${risk}]`);
 }
+
+export async function safeApplyProposal(proposalId: number, tenantId: number): Promise<{
+  success: boolean;
+  stage: string;
+  error?: string;
+  reverted: boolean;
+}> {
+  const result = await db.execute(sql`SELECT * FROM code_proposals WHERE id = ${proposalId} AND tenant_id = ${tenantId}`);
+  const rows = (result as any).rows || result;
+  const proposal = rows[0];
+  if (!proposal) return { success: false, stage: "lookup", error: "Proposal not found", reverted: false };
+  if (proposal.status !== "approved") return { success: false, stage: "status", error: `Proposal status is "${proposal.status}", must be "approved"`, reverted: false };
+
+  const targetFile = proposal.target_file;
+  if (!ALLOWED_PROPOSAL_FILES.has(targetFile)) {
+    return { success: false, stage: "security", error: `File "${targetFile}" not in allowlist`, reverted: false };
+  }
+
+  const fs = await import("fs/promises");
+  const { execSync } = await import("child_process");
+
+  let originalContent: string;
+  try {
+    originalContent = await fs.readFile(targetFile, "utf-8");
+  } catch {
+    return { success: false, stage: "read", error: `Cannot read ${targetFile}`, reverted: false };
+  }
+
+  const diffLines = proposal.code_diff.split("\n");
+  const oldCodeStart = diffLines.findIndex((l: string) => l.startsWith("- OLD CODE:"));
+  const newCodeStart = diffLines.findIndex((l: string) => l.startsWith("+ NEW CODE:"));
+  if (oldCodeStart === -1 || newCodeStart === -1) {
+    return { success: false, stage: "parse", error: "Cannot parse code diff format", reverted: false };
+  }
+
+  const oldCode = diffLines.slice(oldCodeStart + 1, newCodeStart).join("\n").trim();
+  const newCode = diffLines.slice(newCodeStart + 1).join("\n").trim();
+
+  const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
+  const contentNormalized = originalContent.replace(/\s+/g, " ");
+  if (!contentNormalized.includes(oldCodeNormalized)) {
+    await db.execute(sql`UPDATE code_proposals SET status = 'needs_review', validation_result = ${JSON.stringify({ valid: false, error: "OLD_CODE no longer matches file content", fileExists: true, oldCodeFound: false })}::jsonb WHERE id = ${proposalId}`);
+    return { success: false, stage: "match", error: "OLD_CODE block no longer matches the file (code has changed since proposal was created)", reverted: false };
+  }
+
+  const oldCodeExact = findExactMatch(originalContent, oldCode);
+  if (!oldCodeExact) {
+    return { success: false, stage: "match", error: "Could not find exact code block to replace", reverted: false };
+  }
+
+  const modifiedContent = originalContent.replace(oldCodeExact, newCode);
+  await fs.writeFile(targetFile, modifiedContent, "utf-8");
+  console.log(`[proposal] Applied proposal #${proposalId} to ${targetFile}`);
+
+  let compilePass = false;
+  let compileError = "";
+  try {
+    execSync(`npx tsc --noEmit --skipLibCheck --target ES2022 --module nodenext --moduleResolution nodenext ${targetFile} 2>&1`, {
+      timeout: 30_000,
+      encoding: "utf-8",
+      cwd: process.cwd(),
+    });
+    compilePass = true;
+  } catch (err: any) {
+    compileError = (err.stdout || err.message || "").substring(0, 1000);
+  }
+
+  if (!compilePass) {
+    await fs.writeFile(targetFile, originalContent, "utf-8");
+    console.warn(`[proposal] REVERTED proposal #${proposalId} — compile failed: ${compileError.substring(0, 200)}`);
+    await db.execute(sql`
+      UPDATE code_proposals SET
+        status = 'failed',
+        validation_result = ${JSON.stringify({ valid: false, error: `Compile check failed: ${compileError.substring(0, 500)}`, compilePass: false, reverted: true })}::jsonb,
+        reviewed_at = NOW()
+      WHERE id = ${proposalId}
+    `);
+    return { success: false, stage: "compile", error: compileError, reverted: true };
+  }
+
+  let syntaxPass = false;
+  let syntaxError = "";
+  try {
+    execSync(`node -e "require('fs').readFileSync('${targetFile}', 'utf-8')" 2>&1`, {
+      timeout: 5_000,
+      encoding: "utf-8",
+    });
+    syntaxPass = true;
+  } catch (err: any) {
+    syntaxError = (err.stdout || err.message || "").substring(0, 500);
+  }
+
+  if (!syntaxPass) {
+    await fs.writeFile(targetFile, originalContent, "utf-8");
+    console.warn(`[proposal] REVERTED proposal #${proposalId} — syntax check failed`);
+    await db.execute(sql`
+      UPDATE code_proposals SET
+        status = 'failed',
+        validation_result = ${JSON.stringify({ valid: false, error: `Syntax check failed: ${syntaxError}`, syntaxPass: false, reverted: true })}::jsonb,
+        reviewed_at = NOW()
+      WHERE id = ${proposalId}
+    `);
+    return { success: false, stage: "syntax", error: syntaxError, reverted: true };
+  }
+
+  await db.execute(sql`
+    UPDATE code_proposals SET
+      status = 'applied',
+      applied_at = NOW(),
+      validation_result = ${JSON.stringify({ valid: true, compilePass: true, syntaxPass: true, reverted: false, originalSnapshot: originalContent.substring(0, 200) + "..." })}::jsonb
+    WHERE id = ${proposalId}
+  `);
+
+  console.log(`[proposal] Proposal #${proposalId} applied successfully to ${targetFile} (compile: PASS, syntax: PASS)`);
+  return { success: true, stage: "complete", reverted: false };
+}
+
+export async function revertProposal(proposalId: number, tenantId: number): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const result = await db.execute(sql`SELECT * FROM code_proposals WHERE id = ${proposalId} AND tenant_id = ${tenantId}`);
+  const rows = (result as any).rows || result;
+  const proposal = rows[0];
+  if (!proposal) return { success: false, error: "Proposal not found" };
+  if (proposal.status !== "applied") return { success: false, error: `Cannot revert: status is "${proposal.status}", not "applied"` };
+
+  const targetFile = proposal.target_file;
+  if (!ALLOWED_PROPOSAL_FILES.has(targetFile)) {
+    return { success: false, error: `File "${targetFile}" not in allowlist` };
+  }
+
+  const fs = await import("fs/promises");
+  const { execSync } = await import("child_process");
+
+  let currentContent: string;
+  try {
+    currentContent = await fs.readFile(targetFile, "utf-8");
+  } catch {
+    return { success: false, error: `Cannot read ${targetFile}` };
+  }
+
+  const diffLines = proposal.code_diff.split("\n");
+  const oldCodeStart = diffLines.findIndex((l: string) => l.startsWith("- OLD CODE:"));
+  const newCodeStart = diffLines.findIndex((l: string) => l.startsWith("+ NEW CODE:"));
+  if (oldCodeStart === -1 || newCodeStart === -1) {
+    return { success: false, error: "Cannot parse code diff" };
+  }
+
+  const oldCode = diffLines.slice(oldCodeStart + 1, newCodeStart).join("\n").trim();
+  const newCode = diffLines.slice(newCodeStart + 1).join("\n").trim();
+
+  const newCodeExact = findExactMatch(currentContent, newCode);
+  if (!newCodeExact) {
+    try {
+      execSync(`git checkout -- ${targetFile}`, { timeout: 10_000, encoding: "utf-8" });
+      await db.execute(sql`UPDATE code_proposals SET status = 'reverted', reviewed_at = NOW() WHERE id = ${proposalId}`);
+      console.log(`[proposal] Reverted proposal #${proposalId} via git checkout`);
+      return { success: true };
+    } catch {
+      return { success: false, error: "NEW_CODE not found in file and git checkout failed — manual revert needed" };
+    }
+  }
+
+  const revertedContent = currentContent.replace(newCodeExact, oldCode);
+  await fs.writeFile(targetFile, revertedContent, "utf-8");
+
+  await db.execute(sql`UPDATE code_proposals SET status = 'reverted', reviewed_at = NOW() WHERE id = ${proposalId}`);
+  console.log(`[proposal] Reverted proposal #${proposalId} on ${targetFile}`);
+  return { success: true };
+}
+
+function findExactMatch(fileContent: string, searchCode: string): string | null {
+  if (fileContent.includes(searchCode)) return searchCode;
+
+  const searchNorm = searchCode.replace(/\s+/g, " ").trim();
+  const lines = fileContent.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    for (let len = 1; len <= Math.min(50, lines.length - i); len++) {
+      const chunk = lines.slice(i, i + len).join("\n");
+      if (chunk.replace(/\s+/g, " ").trim() === searchNorm) {
+        return chunk;
+      }
+    }
+  }
+  return null;
+}

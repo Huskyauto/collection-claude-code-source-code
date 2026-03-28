@@ -681,6 +681,40 @@ export default function ResearchPage() {
     },
   });
 
+  const applyProposal = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/research/code-proposals/${id}/apply`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/code-proposals"] });
+      if (data.success) {
+        toast({ title: "Proposal applied successfully", description: "Compile check passed. Change is live." });
+      } else {
+        toast({
+          title: data.reverted ? "Auto-reverted — change failed" : "Apply failed",
+          description: `Stage: ${data.stage}. ${data.error || ""}`,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: "Apply failed", description: err.message || "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const revertProposalMut = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/research/code-proposals/${id}/revert`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/code-proposals"] });
+      if (data.success) {
+        toast({ title: "Proposal reverted", description: "Original code restored." });
+      } else {
+        toast({ title: "Revert failed", description: data.error || "Unknown error", variant: "destructive" });
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: "Revert failed", description: err.message || "Unknown error", variant: "destructive" });
+    },
+  });
+
   const [expandedProposal, setExpandedProposal] = useState<number | null>(null);
   const pendingProposalCount = proposals.filter((p: any) => p.status === "ready" || p.status === "pending" || p.status === "needs_review").length;
 
@@ -1041,6 +1075,8 @@ export default function ResearchPage() {
                         proposal.status === "approved" ? "border-green-500/30 bg-green-500/5" :
                         proposal.status === "rejected" ? "border-red-500/30 bg-red-500/5 opacity-60" :
                         proposal.status === "applied" ? "border-blue-500/30 bg-blue-500/5" :
+                        proposal.status === "failed" ? "border-red-500/30 bg-red-500/5" :
+                        proposal.status === "reverted" ? "border-gray-500/30 bg-gray-500/5 opacity-70" :
                         proposal.status === "ready" ? "border-orange-500/30" :
                         "border-yellow-500/30"
                       }`}
@@ -1061,10 +1097,14 @@ export default function ResearchPage() {
                                 proposal.status === "ready" ? "bg-orange-500" :
                                 proposal.status === "approved" ? "bg-green-500" :
                                 proposal.status === "applied" ? "bg-blue-500" :
+                                proposal.status === "failed" ? "bg-red-600" :
+                                proposal.status === "reverted" ? "bg-gray-500" :
                                 ""
                               }`} data-testid={`badge-status-${proposal.id}`}>
                                 {proposal.status === "ready" ? "Ready for Review" :
                                  proposal.status === "needs_review" ? "Needs Review" :
+                                 proposal.status === "failed" ? "Failed (Auto-Reverted)" :
+                                 proposal.status === "reverted" ? "Reverted" :
                                  proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                               </Badge>
                             </div>
@@ -1122,6 +1162,31 @@ export default function ResearchPage() {
                                   <ThumbsDown className="w-4 h-4" />
                                 </Button>
                               </>
+                            )}
+                            {proposal.status === "approved" && (
+                              <Button
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1"
+                                onClick={() => applyProposal.mutate(proposal.id)}
+                                disabled={applyProposal.isPending}
+                                data-testid={`button-apply-${proposal.id}`}
+                              >
+                                {applyProposal.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                                Safe Apply
+                              </Button>
+                            )}
+                            {proposal.status === "applied" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-orange-600 border-orange-300 hover:bg-orange-50 text-xs gap-1"
+                                onClick={() => revertProposalMut.mutate(proposal.id)}
+                                disabled={revertProposalMut.isPending}
+                                data-testid={`button-revert-${proposal.id}`}
+                              >
+                                {revertProposalMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5 rotate-180" />}
+                                Revert
+                              </Button>
                             )}
                           </div>
                         </div>
