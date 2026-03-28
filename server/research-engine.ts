@@ -437,4 +437,174 @@ async function injectKeepedFinding(
   }
 
   console.log(`[research] Injected KEEP finding → agent_knowledge (persona=${mapping.personaId}, cat=${mapping.category}, priority=${priority}, ttl=${ttlDays}d)`);
+
+  if (score >= 8) {
+    generateCodeProposal(session, programName, hypothesis, result, approach, score, mapping).catch(err => {
+      console.warn(`[research] Code proposal generation skipped: ${err.message}`);
+    });
+  }
+}
+
+const CODE_PROPOSAL_TARGETS: Record<string, string[]> = {
+  "Nightly AI Model & Provider Intelligence": ["server/providers.ts", "server/model-failover.ts"],
+  "Nightly AI Tools & Techniques Scanner": ["server/tools.ts", "server/chat-engine.ts"],
+  "Nightly Competitive Platform Analysis": ["server/tools.ts", "server/chat-engine.ts"],
+  "Nightly Agent Architecture Research": ["server/chat-engine.ts", "server/trust-engine.ts", "server/research-engine.ts"],
+  "Nightly Security & Safety Intelligence": ["server/routes.ts", "server/process-governor.ts"],
+};
+
+async function generateCodeProposal(
+  session: ActiveSession,
+  programName: string,
+  hypothesis: string,
+  result: string,
+  approach: string,
+  score: number,
+  mapping: { personaId: number; category: string },
+): Promise<void> {
+  const targetFiles = CODE_PROPOSAL_TARGETS[programName] || [];
+  if (targetFiles.length === 0) return;
+
+  const fs = await import("fs");
+  const fileSnippets: string[] = [];
+  for (const f of targetFiles) {
+    try {
+      const content = fs.readFileSync(f, "utf-8");
+      const lines = content.split("\n");
+      fileSnippets.push(`--- ${f} (${lines.length} lines) ---\n${lines.slice(0, 60).join("\n")}\n... (truncated)`);
+    } catch { /* file might not exist */ }
+  }
+
+  if (fileSnippets.length === 0) return;
+
+  const availableModels = await getAvailableModels();
+  const { result: resp } = await executeWithFailover(
+    session.model, availableModels,
+    async (client: any, modelId: string) => {
+      return client.chat.completions.create({
+        model: modelId,
+        messages: [
+          {
+            role: "system",
+            content: `You are a senior TypeScript engineer working on VisionClaw, a multi-agent AI platform built with Express + React + Drizzle ORM + PostgreSQL.
+
+Your job: Given a research finding, determine IF it warrants a code change, and if so, produce a concrete code proposal.
+
+RULES:
+- Only propose changes if the finding has a CLEAR, SPECIFIC implementation path
+- Output MUST be valid TypeScript that fits the existing codebase patterns
+- Show the exact file, the code to find (old), and the replacement (new)
+- Include a 1-paragraph rationale explaining why this change improves the platform
+- If the finding is informational only (no code change needed), respond with just: NO_CODE_CHANGE
+- Never propose changes to shared/schema.ts or package.json
+- Keep changes surgical — small, focused diffs only
+- Prefer adding to existing files over creating new files
+
+FORMAT (if proposing a change):
+TITLE: <short descriptive title>
+FILE: <target file path>
+DESCRIPTION: <what this change does in 2-3 sentences>
+RATIONALE: <why this matters for VisionClaw>
+OLD_CODE:
+\`\`\`typescript
+<exact existing code to replace>
+\`\`\`
+NEW_CODE:
+\`\`\`typescript
+<replacement code>
+\`\`\`
+RISK: LOW|MEDIUM|HIGH`,
+          },
+          {
+            role: "user",
+            content: `RESEARCH FINDING (score ${score}/10):
+Hypothesis: ${hypothesis}
+Approach: ${approach}
+Result: ${result}
+
+RELEVANT SOURCE FILES:
+${fileSnippets.join("\n\n")}
+
+Based on this finding, should we modify the VisionClaw codebase? If yes, produce a concrete code proposal. If the finding is purely informational, respond NO_CODE_CHANGE.`,
+          },
+        ],
+        max_completion_tokens: 2000,
+      });
+    },
+    session.tenantId,
+  );
+
+  const output = resp.choices[0]?.message?.content || "";
+
+  if (output.includes("NO_CODE_CHANGE") || !output.includes("OLD_CODE")) {
+    return;
+  }
+
+  const titleMatch = output.match(/TITLE:\s*(.+)/);
+  const fileMatch = output.match(/FILE:\s*(.+)/);
+  const descMatch = output.match(/DESCRIPTION:\s*([\s\S]*?)(?=RATIONALE:)/);
+  const rationaleMatch = output.match(/RATIONALE:\s*([\s\S]*?)(?=OLD_CODE:)/);
+  const riskMatch = output.match(/RISK:\s*(LOW|MEDIUM|HIGH)/i);
+
+  const oldCodeMatch = output.match(/OLD_CODE:\s*```(?:typescript)?\n([\s\S]*?)```/);
+  const newCodeMatch = output.match(/NEW_CODE:\s*```(?:typescript)?\n([\s\S]*?)```/);
+
+  if (!titleMatch || !fileMatch || !oldCodeMatch || !newCodeMatch) {
+    return;
+  }
+
+  const targetFile = fileMatch[1].trim();
+  const oldCode = oldCodeMatch[1].trimEnd();
+  const newCode = newCodeMatch[1].trimEnd();
+
+  let validationResult: { valid: boolean; error?: string; fileExists: boolean; oldCodeFound: boolean } = {
+    valid: false,
+    fileExists: false,
+    oldCodeFound: false,
+  };
+
+  try {
+    const fileExists = fs.existsSync(targetFile);
+    validationResult.fileExists = fileExists;
+
+    if (fileExists) {
+      const fileContent = fs.readFileSync(targetFile, "utf-8");
+      const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
+      const fileContentNormalized = fileContent.replace(/\s+/g, " ");
+      validationResult.oldCodeFound = fileContentNormalized.includes(oldCodeNormalized);
+
+      if (validationResult.oldCodeFound) {
+        validationResult.valid = true;
+      } else {
+        validationResult.error = "OLD_CODE block not found in target file (code may have changed)";
+      }
+    } else {
+      validationResult.error = `Target file ${targetFile} does not exist`;
+    }
+  } catch (err: any) {
+    validationResult.error = `Validation error: ${err.message}`;
+  }
+
+  const codeDiff = `--- ${targetFile}\n+++ ${targetFile} (proposed)\n\n- OLD CODE:\n${oldCode}\n\n+ NEW CODE:\n${newCode}`;
+
+  await db.execute(sql`
+    INSERT INTO code_proposals (tenant_id, persona_id, title, description, target_file, code_diff, rationale, source, source_session_id, validation_result, status)
+    VALUES (
+      ${session.tenantId},
+      ${mapping.personaId},
+      ${titleMatch[1].trim()},
+      ${descMatch?.[1]?.trim() || "Auto-generated from research finding"},
+      ${targetFile},
+      ${codeDiff},
+      ${rationaleMatch?.[1]?.trim() || hypothesis},
+      ${"autoresearch"},
+      ${session.sessionId},
+      ${JSON.stringify(validationResult)}::jsonb,
+      ${validationResult.valid ? "ready" : "needs_review"}
+    )
+  `);
+
+  const statusLabel = validationResult.valid ? "READY" : "NEEDS REVIEW";
+  const risk = riskMatch?.[1]?.toUpperCase() || "UNKNOWN";
+  console.log(`[research] Code proposal created: "${titleMatch[1].trim()}" → ${targetFile} [${statusLabel}, risk: ${risk}]`);
 }

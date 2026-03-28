@@ -7402,6 +7402,57 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.get("/api/research/code-proposals", async (req, res) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const status = req.query.status as string | undefined;
+      let result;
+      if (status) {
+        result = await db.execute(sql`SELECT * FROM code_proposals WHERE tenant_id = ${tenantId} AND status = ${status} ORDER BY created_at DESC LIMIT 50`);
+      } else {
+        result = await db.execute(sql`SELECT * FROM code_proposals WHERE tenant_id = ${tenantId} ORDER BY created_at DESC LIMIT 50`);
+      }
+      res.json(((result as any).rows || result) || []);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/research/code-proposals/:id", async (req, res) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.execute(sql`SELECT * FROM code_proposals WHERE id = ${id} AND tenant_id = ${tenantId}`);
+      const rows = (result as any).rows || result;
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.patch("/api/research/code-proposals/:id", async (req, res) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const id = parseInt(req.params.id);
+      const { status, reviewed_by } = req.body;
+      if (!["approved", "rejected", "applied", "pending", "ready", "needs_review"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      const now = new Date().toISOString();
+      const result = await db.execute(sql`
+        UPDATE code_proposals SET
+          status = ${status},
+          reviewed_by = ${reviewed_by || "admin"},
+          reviewed_at = ${now}::timestamp
+        WHERE id = ${id} AND tenant_id = ${tenantId}
+        RETURNING *
+      `);
+      const rows = (result as any).rows || result;
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/insights", async (req, res) => {
     const tenantId = getTenantFromRequest(req);
     if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
