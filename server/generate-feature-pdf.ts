@@ -259,7 +259,9 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawSubheading("Smart Model Auto-Selection");
     const autoSelect = [
       "10-category auto-router: simple-chat, general, writing, coding, reasoning, research, etc.",
-      "OAuth-Aware routing: separates OAuth models from premium paid; OAuth never deprioritized",
+      "Cost-Aware Auto-Routing: every model tagged with costClass (free/cheap/paid)",
+      "Auto-router sorts by cost for ALL complexity levels, not just simple tasks",
+      "Dynamic Cost Classification: Anthropic models = free when Runner up, paid when down",
       "High-complexity coding auto-routes to Claude Opus 4.6 / Gemini 3.1 Pro",
       "Multimodal-Aware Routing - detects images/files, routes to vision models (GLM-4.5V, Gemini)",
       "Auto-Thinking Mode - enables extended thinking for complex queries",
@@ -268,6 +270,16 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       "Failover Cascade: Claude Runner > OAuth subscription > API keys > Replit built-in",
     ];
     for (const item of autoSelect) drawBullet(item);
+
+    drawSubheading("Cost Class Distribution");
+    drawTableRow(["Cost Class", "Count", "Routing Priority"], [80, 50, 380], true);
+    drawTableRow(["Free", "15", "Always tried first (Runner, Replit OpenAI, Gemini Integration)"], [80, 50, 380]);
+    drawTableRow(["Cheap", "12", "Tried after free exhausted (OpenRouter models)"], [80, 50, 380]);
+    drawTableRow(["Paid", "10", "Last resort only (xAI, Perplexity, premium OpenRouter)"], [80, 50, 380]);
+    y -= 4;
+    drawBullet("Three Free Channels: Claude Runner ($0 via Max plan), Replit OpenAI Integration, Google Gemini Integration");
+    drawBullet("Free models cover fast, balanced, powerful, and reasoning tiers");
+    drawBullet("Paid APIs only used when no free model can handle the specific task category");
 
     // === SECTION 4: AUTONOMOUS OPERATIONS ===
     drawHeading("Section 4: Autonomous Operations");
@@ -533,6 +545,12 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawSubheading("Health Monitor");
     drawBullet("6-check health system every 5 minutes");
     drawBullet("DB connectivity, API availability, memory, heartbeat, watchdog status");
+
+    drawSubheading("Self-Healing Port Management");
+    drawBullet("Express server (port 5000): auto-detects EADDRINUSE, kills stale processes, retries 3x");
+    drawBullet("Claude Runner bridge (port 7779): same pattern with escalating wait times (500ms/1s/1.5s)");
+    drawBullet("Process safety: never kills own PID; SIGKILL for Express, SIGTERM for Runner");
+    drawBullet("Zero manual intervention - eliminates most common restart failure (port conflicts)");
 
     // === SECTION 18: SECURITY ===
     drawHeading("Section 18: Security");
