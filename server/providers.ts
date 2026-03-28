@@ -47,15 +47,29 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   { id: "sonar-reasoning-pro", label: "Sonar Reasoning Pro", provider: "perplexity", tier: "reasoning", description: "Multi-step research with reasoning" },
   { id: "sonar-deep-research", label: "Sonar Deep Research", provider: "perplexity", tier: "powerful", description: "Exhaustive multi-source research" },
 
+  { id: "z-ai/glm-5", label: "GLM-5", provider: "openrouter", tier: "powerful", description: "Z.ai flagship — #1 Chatbot Arena, agentic planning, 80K ctx - $0.72/M in", capabilities: ["vision", "code", "tools"] },
+  { id: "z-ai/glm-5-turbo", label: "GLM-5 Turbo", provider: "openrouter", tier: "balanced", description: "Fast GLM-5 variant — optimized for long agent chains & tool use", capabilities: ["code", "tools"] },
+  { id: "z-ai/glm-4.7", label: "GLM-4.7", provider: "openrouter", tier: "powerful", description: "SWE-bench 77.8, AIME 95.7, 203K ctx — $0.39/M in, $1.75/M out", capabilities: ["vision", "code", "tools"] },
+  { id: "z-ai/glm-4.7-flash", label: "GLM-4.7 Flash", provider: "openrouter", tier: "fast", description: "30B SOTA agentic coder, 202K ctx — $0.06/M in, ultra-cheap", capabilities: ["code", "tools"] },
+  { id: "z-ai/glm-4.5v", label: "GLM-4.5V", provider: "openrouter", tier: "powerful", description: "106B MoE vision — SOTA video understanding, OCR, document parsing", capabilities: ["vision", "code", "tools"] },
+
+  { id: "nvidia/nemotron-3-super-120b-a12b", label: "Nemotron 3 Super", provider: "openrouter", tier: "powerful", description: "120B MoE (12B active), 1M ctx, Mamba-Transformer hybrid — $0.10/M in", capabilities: ["code", "tools"] },
+  { id: "nvidia/nemotron-3-nano-30b-a3b", label: "Nemotron 3 Nano", provider: "openrouter", tier: "fast", description: "30B MoE (3B active), 262K ctx — efficient edge agentic AI - $0.05/M in", capabilities: ["code", "tools"] },
+  { id: "nvidia/nemotron-nano-12b-v2-vl:free", label: "Nemotron Nano 2 VL", provider: "openrouter", tier: "balanced", description: "12B multimodal — video, OCR, charts, document intelligence (FREE)", capabilities: ["vision", "code"] },
+
+  { id: "qwen/qwen3.5-plus-02-15", label: "Qwen 3.5 Plus", provider: "openrouter", tier: "powerful", description: "Flagship 397B MoE, 1M ctx, native multimodal — $0.26/M in", capabilities: ["vision", "code", "tools"] },
+  { id: "qwen/qwen3.5-122b-a10b", label: "Qwen 3.5 122B", provider: "openrouter", tier: "powerful", description: "122B MoE (10B active), 262K ctx — near-flagship quality - $0.26/M in", capabilities: ["vision", "code", "tools"] },
+  { id: "qwen/qwen3.5-flash-02-23", label: "Qwen 3.5 Flash", provider: "openrouter", tier: "fast", description: "1M context, ultra-efficient — $0.065/M in, $0.26/M out", capabilities: ["vision", "code", "tools"] },
+  { id: "qwen/qwen3.5-9b", label: "Qwen 3.5 9B", provider: "openrouter", tier: "fast", description: "Compact multimodal, 256K ctx — $0.05/M in, great vision+code", capabilities: ["vision", "code", "tools"] },
+  { id: "qwen/qwen2.5-vl-72b-instruct", label: "Qwen 2.5 VL 72B", provider: "openrouter", tier: "balanced", description: "Top open-source vision model - $0.20/M in, $0.40/M out", capabilities: ["vision", "code", "tools"] },
+
   { id: "minimax/minimax-m2.7", label: "MiniMax M2.7", provider: "openrouter", tier: "powerful", description: "Latest MiniMax model - enhanced reasoning & agentic performance", capabilities: ["tools"] },
   { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5", provider: "openrouter", tier: "powerful", description: "1T params MoE, 262K context, 1500 parallel tools - $0.45/M in", capabilities: ["tools"] },
   { id: "deepseek/deepseek-r1", label: "DeepSeek R1", provider: "openrouter", tier: "reasoning", description: "Deep reasoning model - top math/code benchmarks", capabilities: ["code"] },
   { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2", provider: "openrouter", tier: "balanced", description: "Ultra-cheap, ~90% GPT-5.4 perf - $0.27/M in, $0.41/M out", capabilities: ["code", "tools"] },
-  { id: "qwen/qwen3.5-plus-02-15", label: "Qwen 3.5 Plus", provider: "openrouter", tier: "balanced", description: "Multimodal, 1M context - $0.26/M in, $2.08/M out", capabilities: ["vision", "code", "tools"] },
-  { id: "qwen/qwen2.5-vl-72b-instruct", label: "Qwen 2.5 VL 72B", provider: "openrouter", tier: "balanced", description: "Top open-source vision model - $0.20/M in, $0.40/M out", capabilities: ["vision", "code", "tools"] },
   { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (OR)", provider: "openrouter", tier: "powerful", description: "Google's latest frontier model via OpenRouter", capabilities: ["vision", "audio", "video", "code", "tools"] },
   { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", provider: "openrouter", tier: "powerful", description: "Meta's open-source flagship - vision + tools", capabilities: ["vision", "code", "tools"] },
-  { id: "meta-llama/llama-4-scout", label: "Llama 4 Scout", provider: "openrouter", tier: "balanced", description: "Meta vision model, 109B MoE, 512K context - $0.15/M in, $0.40/M out", capabilities: ["vision", "code", "tools"] },
+  { id: "meta-llama/llama-4-scout", label: "Llama 4 Scout", provider: "openrouter", tier: "balanced", description: "Meta vision model, 109B MoE, 512K ctx - $0.15/M in", capabilities: ["vision", "code", "tools"] },
   { id: "mistralai/mistral-large-2512", label: "Mistral Large 3", provider: "openrouter", tier: "powerful", description: "Apache 2.0, 41B active (675B total), 262K context", capabilities: ["code", "tools"] },
 ];
 
@@ -75,7 +89,7 @@ export const PROVIDER_CONFIG: Record<string, { name: string; baseUrl: string; de
   xai: { name: "xAI (Grok)", baseUrl: "https://api.x.ai/v1", description: "Grok 4, Grok 3, Grok 3 Mini" },
   google: { name: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", description: "Gemini 3.1 Pro, 3 Pro, 3 Flash, 2.5 Pro - cheapest & fastest" },
   perplexity: { name: "Perplexity", baseUrl: "https://api.perplexity.ai", description: "Web research - Sonar, Sonar Pro, Deep Research" },
-  openrouter: { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", description: "Kimi K2.5, MiniMax, DeepSeek, Qwen, Llama & more - one key, many models" },
+  openrouter: { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", description: "GLM-5, Nemotron 3, Qwen 3.5, Kimi K2.5, DeepSeek, Llama 4 & more — one key, 20+ frontier models" },
 };
 
 const INTEGRATION_ENV: Record<string, { apiKeyEnv: string; baseUrlEnv: string }> = {
@@ -387,6 +401,9 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   const tierModels: Record<string, { provider: string; model: string }[]> = {
     fast: [
+      { provider: "openrouter", model: "z-ai/glm-4.7-flash" },
+      { provider: "openrouter", model: "qwen/qwen3.5-flash-02-23" },
+      { provider: "openrouter", model: "nvidia/nemotron-3-nano-30b-a3b" },
       { provider: "google", model: "gemini-2.5-flash" },
       { provider: "openrouter", model: "deepseek/deepseek-v3.2" },
       { provider: "openrouter", model: "meta-llama/llama-4-scout" },
@@ -395,6 +412,9 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
       { provider: "replit", model: "gpt-5-mini" },
     ],
     balanced: [
+      { provider: "openrouter", model: "z-ai/glm-5-turbo" },
+      { provider: "openrouter", model: "z-ai/glm-4.7" },
+      { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
       { provider: "google", model: "gemini-2.5-flash" },
       { provider: "openrouter", model: "deepseek/deepseek-v3.2" },
       { provider: "openrouter", model: "meta-llama/llama-4-scout" },
@@ -403,8 +423,13 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
       { provider: "replit", model: "gpt-5-mini" },
     ],
     powerful: [
+      { provider: "openrouter", model: "z-ai/glm-5" },
+      { provider: "openrouter", model: "nvidia/nemotron-3-super-120b-a12b" },
+      { provider: "openrouter", model: "qwen/qwen3.5-122b-a10b" },
       { provider: "anthropic", model: "claude-opus-4-6" },
       { provider: "anthropic", model: "claude-opus-4-20250514" },
+      { provider: "openrouter", model: "z-ai/glm-4.7" },
+      { provider: "openrouter", model: "moonshotai/kimi-k2.5" },
       { provider: "openrouter", model: "meta-llama/llama-4-maverick" },
       { provider: "openrouter", model: "google/gemini-3-flash-preview" },
       { provider: "openrouter", model: "minimax/minimax-m2.7" },
@@ -466,11 +491,22 @@ const MODEL_MAX_OUTPUT: Record<string, number> = {
   "gemini-3-pro-preview": 65536,
   "gemini-3.1-pro-preview": 65536,
   "gemini-2.5-flash": 65536,
+  "z-ai/glm-5": 32768,
+  "z-ai/glm-5-turbo": 32768,
+  "z-ai/glm-4.7": 32768,
+  "z-ai/glm-4.7-flash": 16384,
+  "z-ai/glm-4.5v": 16384,
+  "nvidia/nemotron-3-super-120b-a12b": 32768,
+  "nvidia/nemotron-3-nano-30b-a3b": 16384,
+  "nvidia/nemotron-nano-12b-v2-vl:free": 16384,
   "deepseek/deepseek-r1": 32768,
   "deepseek/deepseek-v3.2": 16384,
   "minimax/minimax-m2.7": 32768,
   "moonshotai/kimi-k2.5": 32768,
   "qwen/qwen3.5-plus-02-15": 32768,
+  "qwen/qwen3.5-122b-a10b": 32768,
+  "qwen/qwen3.5-flash-02-23": 32768,
+  "qwen/qwen3.5-9b": 16384,
   "meta-llama/llama-4-maverick": 16384,
   "meta-llama/llama-4-scout": 16384,
   "qwen/qwen2.5-vl-72b-instruct": 16384,
