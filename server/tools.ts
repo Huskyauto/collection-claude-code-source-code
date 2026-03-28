@@ -3067,6 +3067,22 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       }
     }
     case "youtube": {
+      if (params.action && typeof params.action === "string") {
+        const xmlArgPattern = /<arg_key>(\w+)<\/?\w*>(?:<arg_value>)?([^<]*?)(?:<\/?\w*>)?$/g;
+        let cleanAction = params.action;
+        const matches = [...params.action.matchAll(/<arg_key>(\w+)<\/?\w*>(?:<arg_value>)?([^<]*)/g)];
+        if (matches.length > 0) {
+          cleanAction = params.action.replace(/<arg_key>.*$/, "").trim();
+          for (const m of matches) {
+            if (m[1] && m[2] !== undefined) {
+              params[m[1]] = m[2].replace(/<\/?\w+>/g, "").trim();
+            }
+          }
+          params.action = cleanAction;
+          console.log(`[youtube] Cleaned malformed params: action="${cleanAction}", extracted:`, Object.fromEntries(matches.map(m => [m[1], params[m[1]]])));
+        }
+      }
+
       const { getYouTubeAccessToken } = await import("./oauth-subscriptions");
       const ytTenantId = params._tenantId || 1;
       const ytToken = await getYouTubeAccessToken(ytTenantId);

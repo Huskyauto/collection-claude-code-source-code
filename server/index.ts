@@ -214,6 +214,14 @@ app.use((req, res, next) => {
 
   await registerRoutes(httpServer, app);
 
+  try {
+    const { processMessage } = await import("./chat-engine");
+    const { registerProcessMessage } = await import("./heartbeat");
+    registerProcessMessage(processMessage);
+  } catch (e: any) {
+    console.warn(`[startup] Failed to register processMessage for delegation: ${e.message}`);
+  }
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
 

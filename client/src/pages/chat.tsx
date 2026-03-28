@@ -146,6 +146,28 @@ function cleanTextForSpeech(text: string): string {
   let cleaned = text;
   cleaned = cleaned.replace(/```[\s\S]*?```/g, "");
   cleaned = cleaned.replace(/`[^`]+`/g, "");
+  cleaned = cleaned.replace(/\{[\s\S]*?\}/g, (match) => {
+    if (match.includes('"') || match.includes("'") || match.includes(":")) return "";
+    return match;
+  });
+  cleaned = cleaned.replace(/\[[\s\S]*?\]/g, (match) => {
+    if (match.includes('"') || match.includes("{") || match.includes(",")) return "";
+    return match;
+  });
+  cleaned = cleaned.replace(/^(import|export|const|let|var|function|class|if|else|for|while|return|switch|case|try|catch|throw|async|await|def|print|self)\b.*$/gm, "");
+  cleaned = cleaned.replace(/[a-zA-Z_]\w*\s*[({]\s*[^)]*\)\s*[;{]?\s*$/gm, "");
+  cleaned = cleaned.replace(/\w+\.\w+\.\w+/g, "");
+  cleaned = cleaned.replace(/[=!<>]{2,}/g, "");
+  cleaned = cleaned.replace(/=>/g, "");
+  cleaned = cleaned.replace(/[{}\[\]();]/g, "");
+  cleaned = cleaned.replace(/"[^"]{0,20}":\s*"[^"]*"/g, "");
+  cleaned = cleaned.replace(/"[^"]{0,20}":\s*\d+/g, "");
+  cleaned = cleaned.replace(/"[^"]{0,20}":\s*(true|false|null)/g, "");
+  cleaned = cleaned.replace(/\b[A-Z_]{2,}\b/g, (m) => {
+    const keepWords = new Set(["OK", "AI", "API", "CEO", "CTO", "LLC", "FAQ", "PDF", "URL"]);
+    return keepWords.has(m) ? m : "";
+  });
+  cleaned = cleaned.replace(/\b(O\(n[^)]*\))/gi, "");
   cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]*\)/g, "");
   cleaned = cleaned.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
   cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
@@ -159,8 +181,12 @@ function cleanTextForSpeech(text: string): string {
   cleaned = cleaned.replace(/^\|.*\|$/gm, "");
   cleaned = cleaned.replace(/<[^>]+>/g, "");
   cleaned = cleaned.replace(/https?:\/\/\S+/g, "");
+  cleaned = cleaned.replace(/\b\w+_\w+\b/g, (m) => m.replace(/_/g, " "));
+  cleaned = cleaned.replace(/\b[a-f0-9]{8,}\b/gi, "");
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
   cleaned = cleaned.replace(/[ \t]+/g, " ");
+  cleaned = cleaned.replace(/^\s*$/gm, "");
+  cleaned = cleaned.replace(/\n{2,}/g, ". ");
   return cleaned.trim();
 }
 

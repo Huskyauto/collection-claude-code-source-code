@@ -8,6 +8,12 @@ import type { HeartbeatTask, Persona } from "@shared/schema";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
+let _processMessageFn: ((convId: number, msg: string, opts?: any) => Promise<any>) | null = null;
+
+export function registerProcessMessage(fn: (convId: number, msg: string, opts?: any) => Promise<any>) {
+  _processMessageFn = fn;
+}
+
 const HEARTBEAT_INTERVAL_ACTIVE_MS = 60 * 1000;
 const HEARTBEAT_INTERVAL_IDLE_MS = 5 * 60 * 1000;
 let currentIntervalMs = HEARTBEAT_INTERVAL_ACTIVE_MS;
@@ -1478,8 +1484,11 @@ MANDATORY RULES:
 - WRONG: "I would use generate_audio to create the narration..."
 - RIGHT: [calls generate_audio tool with the parameters]${scaffoldInjection}`;
 
-      const { processMessage } = await import("./chat-engine");
-      const result = await processMessage(
+      if (!_processMessageFn) {
+        const mod = await import("./chat-engine");
+        _processMessageFn = mod.processMessage;
+      }
+      const result = await _processMessageFn(
         childConv.id,
         taskPrompt,
         { enableTools: true, depth: 1 }
