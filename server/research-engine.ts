@@ -160,8 +160,9 @@ export async function startResearchSession(params: {
 
   db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND expires_at < NOW()`).catch(() => {});
 
-  const staggerDelay = (activeSessions.size - 1) * SESSION_STAGGER_MS;
-  console.log(`[research] Session #${sessionId} started for program "${program.name}" (model: ${session.model})${staggerDelay > 0 ? `, stagger delay: ${staggerDelay / 1000}s` : ""}`);
+  const STARTUP_DELAY_MS = 30_000;
+  const staggerDelay = STARTUP_DELAY_MS + (activeSessions.size - 1) * SESSION_STAGGER_MS;
+  console.log(`[research] Session #${sessionId} started for program "${program.name}" (model: ${session.model}), first experiment in ${staggerDelay / 1000}s`);
 
   setTimeout(() => {
     if (!activeSessions.has(sessionId)) return;
