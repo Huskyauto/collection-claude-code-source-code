@@ -242,32 +242,36 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
 
-  function listenWithRetry(retriesLeft: number) {
-    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+  async function clearPort(p: number) {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync(`lsof -ti :${p} | xargs -r kill -9 2>/dev/null || true`, { timeout: 5000 });
+    } catch {}
+  }
+
+  async function listenWithRetry(retriesLeft: number) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const onError = (err: any) => { httpServer.removeListener("listening", onListen); reject(err); };
+        const onListen = () => { httpServer.removeListener("error", onError); resolve(); };
+        httpServer.once("error", onError);
+        httpServer.once("listening", onListen);
+        httpServer.listen({ port, host: "0.0.0.0", reusePort: true });
+      });
       log(`serving on port ${port}`);
-    });
-    httpServer.once("error", async (err: any) => {
+    } catch (err: any) {
       if (err.code === "EADDRINUSE" && retriesLeft > 0) {
-        log(`Port ${port} in use (${retriesLeft} retries left), killing stale process...`, "startup");
-        try {
-          const { execSync } = await import("node:child_process");
-          const pids = execSync(`lsof -ti :${port} 2>/dev/null || true`, { timeout: 5000 }).toString().trim();
-          for (const pid of pids.split("\n").filter(Boolean)) {
-            const pidNum = parseInt(pid, 10);
-            if (!isNaN(pidNum) && pidNum !== process.pid) {
-              try { process.kill(pidNum, "SIGKILL"); log(`Killed stale PID ${pidNum}`, "startup"); } catch {}
-            }
-          }
-        } catch {}
-        httpServer.close();
-        await new Promise(r => setTimeout(r, 1000));
-        listenWithRetry(retriesLeft - 1);
+        log(`Port ${port} in use (${retriesLeft} retries left), killing stale processes...`, "startup");
+        await clearPort(port);
+        await new Promise(r => setTimeout(r, 1500));
+        httpServer.close(() => {});
+        await listenWithRetry(retriesLeft - 1);
       } else {
         throw err;
       }
-    });
+    }
   }
-  listenWithRetry(3);
+  await listenWithRetry(3);
 
   let shuttingDown = false;
   async function gracefulShutdown(signal: string) {

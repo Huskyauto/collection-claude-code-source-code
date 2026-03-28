@@ -3148,7 +3148,81 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
           return { playlists: (d.items || []).map((p: any) => ({ playlistId: p.id, title: p.snippet?.title, description: p.snippet?.description, videoCount: p.contentDetails?.itemCount, publishedAt: p.snippet?.publishedAt })) };
         }
         case "upload_video": {
-          return { error: "Video upload requires multipart upload which is not yet implemented. Use the browser tool to upload via YouTube Studio, or provide a Google Drive link and the agent can share it." };
+          if (!params.filePath && !params.driveFileId) return { error: "filePath (local) or driveFileId (Google Drive file ID) is required" };
+          if (!params.title) return { error: "title is required for video upload" };
+
+          let videoBuffer: Buffer;
+
+          if (params.driveFileId) {
+            const { downloadFromDrive } = await import("./google-drive");
+            const dlResult = await downloadFromDrive({ fileId: params.driveFileId });
+            if (!dlResult.success || !dlResult.path) return { error: `Failed to download file from Google Drive: ${dlResult.error || params.driveFileId}` };
+            const fsMod2 = await import("fs");
+            videoBuffer = fsMod2.readFileSync(dlResult.path);
+          } else {
+            const fsMod = await import("fs");
+            if (!fsMod.existsSync(params.filePath)) return { error: `File not found: ${params.filePath}` };
+            videoBuffer = fsMod.readFileSync(params.filePath);
+          }
+
+          const metadata = {
+            snippet: {
+              title: params.title,
+              description: params.text || params.description || "",
+              tags: params.tags || [],
+              categoryId: params.categoryId || "22",
+            },
+            status: {
+              privacyStatus: params.privacyStatus || "private",
+              selfDeclaredMadeForKids: false,
+            },
+          };
+
+          const initResp = await fetch(
+            "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${ytToken}`,
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-Upload-Content-Length": String(videoBuffer.length),
+                "X-Upload-Content-Type": "video/*",
+              },
+              body: JSON.stringify(metadata),
+            }
+          );
+
+          if (!initResp.ok) {
+            const errText = await initResp.text();
+            return { error: `YouTube upload init failed: ${initResp.status} ${errText}` };
+          }
+
+          const uploadUrl = initResp.headers.get("location");
+          if (!uploadUrl) return { error: "YouTube did not return a resumable upload URL" };
+
+          const uploadResp = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "video/*",
+              "Content-Length": String(videoBuffer.length),
+            },
+            body: videoBuffer,
+          });
+
+          if (!uploadResp.ok) {
+            const errText = await uploadResp.text();
+            return { error: `YouTube video upload failed: ${uploadResp.status} ${errText}` };
+          }
+
+          const uploadData = await uploadResp.json();
+          return {
+            success: true,
+            videoId: uploadData.id,
+            title: uploadData.snippet?.title,
+            status: uploadData.status?.uploadStatus,
+            privacyStatus: uploadData.status?.privacyStatus,
+            url: `https://www.youtube.com/watch?v=${uploadData.id}`,
+          };
         }
         default:
           return { error: `Unknown YouTube action: ${params.action}. Available: channel_info, list_videos, video_details, search_videos, list_comments, reply_comment, update_video, list_playlists` };
