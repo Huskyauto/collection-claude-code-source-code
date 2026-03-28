@@ -621,17 +621,37 @@ async function generateCodeProposal(
   const targetFiles = CODE_PROPOSAL_TARGETS[programName] || [];
   if (targetFiles.length === 0) return;
 
+  console.log(`[research] v5-PROPOSAL: Generating code proposal for score ${score} finding...`);
+
   const fs = await import("fs/promises");
+  const pathMod = await import("path");
   const fileSnippets: string[] = [];
+
+  const searchPaths = [
+    process.cwd(),
+    "/home/runner/workspace",
+    pathMod.resolve(__dirname, ".."),
+  ];
+
   for (const f of targetFiles) {
-    try {
-      const content = await fs.readFile(f, "utf-8");
-      const lines = content.split("\n");
-      fileSnippets.push(`--- ${f} (${lines.length} lines) ---\n${lines.slice(0, 60).join("\n")}\n... (truncated)`);
-    } catch { /* file might not exist */ }
+    for (const base of searchPaths) {
+      try {
+        const fullPath = pathMod.join(base, f);
+        const content = await fs.readFile(fullPath, "utf-8");
+        const lines = content.split("\n");
+        const snippet = lines.slice(0, 120).join("\n");
+        fileSnippets.push(`--- ${f} (${lines.length} lines) ---\n${snippet}\n... (truncated after 120 lines)`);
+        break;
+      } catch { /* try next path */ }
+    }
   }
 
-  if (fileSnippets.length === 0) return;
+  const hasSource = fileSnippets.length > 0;
+  console.log(`[research] v5-PROPOSAL: Found ${fileSnippets.length}/${targetFiles.length} source files, generating proposal...`);
+
+  const sourceSection = hasSource
+    ? `\n\nRELEVANT SOURCE FILES:\n${fileSnippets.join("\n\n")}`
+    : `\n\nTARGET FILES (source not available, propose based on standard patterns):\n${targetFiles.map(f => `- ${f}`).join("\n")}`;
 
   const availableModels = await getAvailableModels();
   const { result: resp } = await executeWithFailover(
@@ -644,30 +664,43 @@ async function generateCodeProposal(
             role: "system",
             content: `You are a senior TypeScript engineer working on VisionClaw, a multi-agent AI platform built with Express + React + Drizzle ORM + PostgreSQL.
 
-Your job: Given a research finding, determine IF it warrants a code change, and if so, produce a concrete code proposal.
+PLATFORM ARCHITECTURE:
+- server/chat-engine.ts — Main chat pipeline, handles message processing, scaffolding injection, tool calls
+- server/trust-engine.ts — Trust score system, 9 categories, agent autonomy levels, trust events
+- server/safety-layer.ts — Input/output validation, content filtering, injection detection (if it exists)
+- server/process-governor.ts — Governance rules engine, evaluators, automated compliance actions
+- server/research-engine.ts — Autonomous research system, hypothesis generation and scoring
+- server/providers.ts — LLM provider management, model routing, failover
+- server/tools.ts — Tool registry, 89+ agent tools, execution pipeline
+- server/routes.ts — Express API routes, authentication, request handling
+- server/heartbeat.ts — Scheduled tasks, cron engine, proactive actions
+- server/model-failover.ts — Model fallback chains, error recovery
+
+Your job: Given a HIGH-SCORING research finding (score ${score}/10), produce a CONCRETE code proposal that improves VisionClaw.
 
 RULES:
-- Only propose changes if the finding has a CLEAR, SPECIFIC implementation path
-- Output MUST be valid TypeScript that fits the existing codebase patterns
-- Show the exact file, the code to find (old), and the replacement (new)
-- Include a 1-paragraph rationale explaining why this change improves the platform
-- If the finding is informational only (no code change needed), respond with just: NO_CODE_CHANGE
+- This is a high-value finding — bias toward producing code, not NO_CODE_CHANGE
+- Output MUST be valid TypeScript that fits Express + Drizzle + React patterns
+- Show the exact file, a descriptive OLD_CODE placeholder (or existing code if available), and the NEW_CODE
+- If source files are provided, match existing patterns exactly
+- If source files are NOT provided, write NEW_CODE as a standalone addition (use OLD_CODE: // END OF FILE or a logical insertion point)
+- Include a clear rationale explaining the security/performance/reliability improvement
 - Never propose changes to shared/schema.ts or package.json
-- Keep changes surgical — small, focused diffs only
-- Prefer adding to existing files over creating new files
+- Keep changes surgical — focused, self-contained additions
+- Prefer adding new functions/middleware to existing files
 
-FORMAT (if proposing a change):
+FORMAT:
 TITLE: <short descriptive title>
 FILE: <target file path>
 DESCRIPTION: <what this change does in 2-3 sentences>
 RATIONALE: <why this matters for VisionClaw>
 OLD_CODE:
 \`\`\`typescript
-<exact existing code to replace>
+<exact existing code to replace, or // END OF FILE for appended additions>
 \`\`\`
 NEW_CODE:
 \`\`\`typescript
-<replacement code>
+<replacement or new code>
 \`\`\`
 RISK: LOW|MEDIUM|HIGH`,
           },
@@ -677,14 +710,12 @@ RISK: LOW|MEDIUM|HIGH`,
 Hypothesis: ${hypothesis}
 Approach: ${approach}
 Result: ${result}
+${sourceSection}
 
-RELEVANT SOURCE FILES:
-${fileSnippets.join("\n\n")}
-
-Based on this finding, should we modify the VisionClaw codebase? If yes, produce a concrete code proposal. If the finding is purely informational, respond NO_CODE_CHANGE.`,
+Produce a concrete code proposal to implement this finding in VisionClaw.`,
           },
         ],
-        max_completion_tokens: 2000,
+        max_completion_tokens: 3000,
       });
     },
     session.tenantId,
@@ -726,25 +757,35 @@ Based on this finding, should we modify the VisionClaw codebase? If yes, produce
     oldCodeFound: false,
   };
 
-  try {
-    const fileContent = await fs.readFile(normalizedFile, "utf-8");
-    validationResult.fileExists = true;
+  let resolvedFilePath: string | null = null;
+  for (const base of searchPaths) {
+    const candidate = pathMod.join(base, normalizedFile);
+    try {
+      await fs.access(candidate);
+      resolvedFilePath = candidate;
+      break;
+    } catch { /* try next */ }
+  }
 
-    const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
-    const fileContentNormalized = fileContent.replace(/\s+/g, " ");
-    validationResult.oldCodeFound = fileContentNormalized.includes(oldCodeNormalized);
+  if (resolvedFilePath) {
+    try {
+      const fileContent = await fs.readFile(resolvedFilePath, "utf-8");
+      validationResult.fileExists = true;
 
-    if (validationResult.oldCodeFound) {
-      validationResult.valid = true;
-    } else {
-      validationResult.error = "OLD_CODE block not found in target file (code may have changed)";
-    }
-  } catch (err: any) {
-    if (err.code === "ENOENT") {
-      validationResult.error = `Target file ${normalizedFile} does not exist`;
-    } else {
+      const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
+      const fileContentNormalized = fileContent.replace(/\s+/g, " ");
+      validationResult.oldCodeFound = fileContentNormalized.includes(oldCodeNormalized);
+
+      if (validationResult.oldCodeFound) {
+        validationResult.valid = true;
+      } else {
+        validationResult.error = "OLD_CODE block not found in target file (code may have changed)";
+      }
+    } catch (err: any) {
       validationResult.error = `Validation error: ${err.message}`;
     }
+  } else {
+    validationResult.error = "Source files not available in production — manual review required";
   }
 
   const codeDiff = `--- ${normalizedFile}\n+++ ${normalizedFile} (proposed)\n\n- OLD CODE:\n${oldCode}\n\n+ NEW CODE:\n${newCode}`;
