@@ -158,7 +158,7 @@ export async function startResearchSession(params: {
 
   activeSessions.set(sessionId, session);
 
-  db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND tenant_id = ${tenantId} AND expires_at < NOW()`).catch(() => {});
+  db.execute(sql`DELETE FROM agent_knowledge WHERE source = 'autoresearch' AND expires_at < NOW()`).catch(() => {});
 
   const staggerDelay = (activeSessions.size - 1) * SESSION_STAGGER_MS;
   console.log(`[research] Session #${sessionId} started for program "${program.name}" (model: ${session.model})${staggerDelay > 0 ? `, stagger delay: ${staggerDelay / 1000}s` : ""}`);
