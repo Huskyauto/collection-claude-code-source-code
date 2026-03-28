@@ -163,10 +163,7 @@ function cleanTextForSpeech(text: string): string {
   cleaned = cleaned.replace(/"[^"]{0,20}":\s*"[^"]*"/g, "");
   cleaned = cleaned.replace(/"[^"]{0,20}":\s*\d+/g, "");
   cleaned = cleaned.replace(/"[^"]{0,20}":\s*(true|false|null)/g, "");
-  cleaned = cleaned.replace(/\b[A-Z_]{2,}\b/g, (m) => {
-    const keepWords = new Set(["OK", "AI", "API", "CEO", "CTO", "LLC", "FAQ", "PDF", "URL"]);
-    return keepWords.has(m) ? m : "";
-  });
+  cleaned = cleaned.replace(/\b[A-Z_]{3,}_[A-Z_]{2,}\b/g, "");
   cleaned = cleaned.replace(/\b(O\(n[^)]*\))/gi, "");
   cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]*\)/g, "");
   cleaned = cleaned.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
@@ -182,7 +179,7 @@ function cleanTextForSpeech(text: string): string {
   cleaned = cleaned.replace(/<[^>]+>/g, "");
   cleaned = cleaned.replace(/https?:\/\/\S+/g, "");
   cleaned = cleaned.replace(/\b\w+_\w+\b/g, (m) => m.replace(/_/g, " "));
-  cleaned = cleaned.replace(/\b[a-f0-9]{8,}\b/gi, "");
+  cleaned = cleaned.replace(/\b[a-f0-9]{16,}\b/gi, "");
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
   cleaned = cleaned.replace(/[ \t]+/g, " ");
   cleaned = cleaned.replace(/^\s*$/gm, "");

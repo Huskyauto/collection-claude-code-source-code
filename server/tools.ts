@@ -3068,18 +3068,21 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     }
     case "youtube": {
       if (params.action && typeof params.action === "string") {
-        const xmlArgPattern = /<arg_key>(\w+)<\/?\w*>(?:<arg_value>)?([^<]*?)(?:<\/?\w*>)?$/g;
-        let cleanAction = params.action;
+        const allowedYtKeys = new Set(["maxResults", "videoId", "commentId", "query", "order", "pageToken", "title", "description", "tags", "text", "parentId", "playlistId", "categoryId", "privacyStatus"]);
         const matches = [...params.action.matchAll(/<arg_key>(\w+)<\/?\w*>(?:<arg_value>)?([^<]*)/g)];
         if (matches.length > 0) {
-          cleanAction = params.action.replace(/<arg_key>.*$/, "").trim();
+          const cleanAction = params.action.replace(/<arg_key>.*$/, "").trim();
+          const extracted: Record<string, string> = {};
           for (const m of matches) {
-            if (m[1] && m[2] !== undefined) {
-              params[m[1]] = m[2].replace(/<\/?\w+>/g, "").trim();
+            const key = m[1];
+            const val = (m[2] || "").replace(/<\/?\w+>/g, "").trim();
+            if (key && allowedYtKeys.has(key)) {
+              extracted[key] = val;
+              params[key] = val;
             }
           }
           params.action = cleanAction;
-          console.log(`[youtube] Cleaned malformed params: action="${cleanAction}", extracted:`, Object.fromEntries(matches.map(m => [m[1], params[m[1]]])));
+          console.log(`[youtube] Cleaned malformed params: action="${cleanAction}", extracted:`, extracted);
         }
       }
 

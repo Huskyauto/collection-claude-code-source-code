@@ -2632,17 +2632,23 @@ async function seedGovernanceRules() {
   ];
 
   let inserted = 0;
+  let skipped = 0;
   for (const r of RULES) {
     try {
-      await db.execute(sql`
+      const res = await db.execute(sql`
         INSERT INTO governance_rules (tenant_id, category, rule_name, description, condition, action, action_config, escalate_to_human, priority, enabled)
         SELECT 1, ${r.c}, ${r.n}, ${r.d}, ${r.cond}::jsonb, ${r.a}, ${r.ac}::jsonb, ${r.e}, ${r.p}, true
         WHERE NOT EXISTS (SELECT 1 FROM governance_rules WHERE tenant_id = 1 AND rule_name = ${r.n})
       `);
-      inserted++;
-    } catch {}
+      const rowCount = (res as any).rowCount ?? (res as any).rows?.length ?? 0;
+      if (rowCount > 0) inserted++;
+      else skipped++;
+    } catch (err: any) {
+      console.warn(`[seed] Governance rule "${r.n}" failed: ${err.message}`);
+    }
   }
-  if (inserted > 0) console.log(`[seed] Seeded ${inserted} governance rules (${RULES.length} total defined)`);
+  if (inserted > 0) console.log(`[seed] Seeded ${inserted} governance rules (${skipped} already existed, ${RULES.length} total defined)`);
+  else if (skipped > 0) console.log(`[seed] All ${RULES.length} governance rules already exist`);
 }
 
 async function seedAgenticInfrastructure() {
