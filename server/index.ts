@@ -241,16 +241,33 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
+
+  function listenWithRetry(retriesLeft: number) {
+    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
       log(`serving on port ${port}`);
-    },
-  );
+    });
+    httpServer.once("error", async (err: any) => {
+      if (err.code === "EADDRINUSE" && retriesLeft > 0) {
+        log(`Port ${port} in use (${retriesLeft} retries left), killing stale process...`, "startup");
+        try {
+          const { execSync } = await import("node:child_process");
+          const pids = execSync(`lsof -ti :${port} 2>/dev/null || true`, { timeout: 5000 }).toString().trim();
+          for (const pid of pids.split("\n").filter(Boolean)) {
+            const pidNum = parseInt(pid, 10);
+            if (!isNaN(pidNum) && pidNum !== process.pid) {
+              try { process.kill(pidNum, "SIGKILL"); log(`Killed stale PID ${pidNum}`, "startup"); } catch {}
+            }
+          }
+        } catch {}
+        httpServer.close();
+        await new Promise(r => setTimeout(r, 1000));
+        listenWithRetry(retriesLeft - 1);
+      } else {
+        throw err;
+      }
+    });
+  }
+  listenWithRetry(3);
 
   let shuttingDown = false;
   async function gracefulShutdown(signal: string) {

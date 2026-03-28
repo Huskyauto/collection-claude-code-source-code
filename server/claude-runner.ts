@@ -513,6 +513,79 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   }
 }
 
+async function killPortHolder(port: number): Promise<boolean> {
+  try {
+    const { execSync } = await import("node:child_process");
+    const pids = execSync(`lsof -ti :${port} 2>/dev/null || true`, { timeout: 5000 }).toString().trim();
+    if (!pids) return false;
+    for (const pid of pids.split("\n").filter(Boolean)) {
+      const pidNum = parseInt(pid, 10);
+      if (isNaN(pidNum) || pidNum === process.pid) continue;
+      try {
+        process.kill(pidNum, "SIGTERM");
+        console.log(`[claude-runner] Killed stale process ${pidNum} on port ${port}`);
+      } catch {}
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function attemptListen(maxRetries: number = 3): Promise<boolean> {
+  let attempt = 0;
+
+  function tryBind(): Promise<boolean> {
+    return new Promise((resolve) => {
+      attempt++;
+      bridgeServer = createServer((req, res) => {
+        handleRequest(req, res).catch((err) => {
+          console.error("[claude-runner] Unhandled request error:", err.message);
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: { message: "Internal bridge error", type: "server_error" } }));
+          }
+        });
+      });
+
+      bridgeServer.listen(BRIDGE_PORT, "127.0.0.1", () => {
+        bridgeRunning = true;
+        bridgeHealthy = true;
+        console.log(`[claude-runner] Bridge listening on 127.0.0.1:${BRIDGE_PORT}`);
+        resolve(true);
+      });
+
+      bridgeServer.on("error", async (err: any) => {
+        if (err.code === "EADDRINUSE" && attempt < maxRetries) {
+          console.warn(`[claude-runner] Port ${BRIDGE_PORT} in use (attempt ${attempt}/${maxRetries}), killing stale process...`);
+          bridgeServer?.close();
+          bridgeServer = null;
+          const killed = await killPortHolder(BRIDGE_PORT);
+          if (killed) {
+            const waitMs = 500 * attempt;
+            console.log(`[claude-runner] Waiting ${waitMs}ms for port to free...`);
+            await new Promise(r => setTimeout(r, waitMs));
+          } else {
+            await new Promise(r => setTimeout(r, 1000));
+          }
+          resolve(tryBind());
+        } else {
+          if (err.code === "EADDRINUSE") {
+            console.error(`[claude-runner] Port ${BRIDGE_PORT} still in use after ${maxRetries} attempts, bridge disabled`);
+          } else {
+            console.error("[claude-runner] Bridge server error:", err.message);
+          }
+          bridgeRunning = false;
+          bridgeHealthy = false;
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  return tryBind();
+}
+
 export async function startClaudeRunnerBridge(): Promise<boolean> {
   if (bridgeRunning) return true;
 
@@ -529,35 +602,7 @@ export async function startClaudeRunnerBridge(): Promise<boolean> {
     return false;
   }
 
-  return new Promise((resolve) => {
-    bridgeServer = createServer((req, res) => {
-      handleRequest(req, res).catch((err) => {
-        console.error("[claude-runner] Unhandled request error:", err.message);
-        if (!res.headersSent) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: { message: "Internal bridge error", type: "server_error" } }));
-        }
-      });
-    });
-
-    bridgeServer.listen(BRIDGE_PORT, "127.0.0.1", () => {
-      bridgeRunning = true;
-      bridgeHealthy = true;
-      console.log(`[claude-runner] Bridge listening on 127.0.0.1:${BRIDGE_PORT}`);
-      resolve(true);
-    });
-
-    bridgeServer.on("error", (err: any) => {
-      if (err.code === "EADDRINUSE") {
-        console.warn(`[claude-runner] Port ${BRIDGE_PORT} in use, bridge disabled`);
-      } else {
-        console.error("[claude-runner] Bridge server error:", err.message);
-      }
-      bridgeRunning = false;
-      bridgeHealthy = false;
-      resolve(false);
-    });
-  });
+  return attemptListen(3);
 }
 
 export function isClaudeRunnerAvailable(): boolean {
