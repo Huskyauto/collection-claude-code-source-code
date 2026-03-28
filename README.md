@@ -2,7 +2,7 @@
 
 **Built by AI Buddy LLC, Illinois**
 
-VisionClaw is an enterprise-grade agentic AI platform that operates as a fully autonomous AI corporation. It features 14 specialized AI personas forming a complete corporate team, 8+ connected AI providers (plus Claude Runner CLI bridge), 87+ tools, and rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards — now powered by a full 6-tier Agency Expansion Framework with earned autonomy, trust scoring, and an autonomous self-tuning engine.
+VisionClaw is an enterprise-grade agentic AI platform that operates as a fully autonomous AI corporation. It features 14 specialized AI personas forming a complete corporate team, 8+ connected AI providers (plus Claude Runner CLI bridge), 89+ tools, 23 active skills, and rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards — now powered by a full 6-tier Agency Expansion Framework with earned autonomy, trust scoring, governance-wired scaffolding, and an autonomous self-tuning engine.
 
 ---
 
@@ -44,14 +44,15 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 | AI Personas | 14 specialized roles |
 | AI Models | 36 models across 8+ providers |
 | AI Providers | 8+ connected (OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter, DeepSeek, Meta Llama, Claude Runner CLI) |
-| Tools | 87+ (communication, research, code, browsing, finance, agentic ops, Google Workspace, virtual browser) |
+| Tools | 89+ (communication, research, code, browsing, finance, agentic ops, Google Workspace, virtual browser) |
+| Active Skills | 23 (8 business operations + 15 platform skills) |
 | Governance Rules | 40 rules across 7 categories (including agency_expansion) |
 | Trust Score Categories | 9 categories, 40 scores across 13 agents |
 | Express Lanes | 12 approved agent-to-agent direct handoff routes |
 | Proactive Triggers | 32 triggers across 9 personas |
 | Decision Protocols | 5 collective intelligence protocols |
 | Evaluators | 9 real-time system evaluators |
-| Operation Scaffolds | 65 structured scaffolds across 12 departments |
+| Operation Scaffolds | 65 governance-wired scaffolds across 12 departments |
 | Server Modules | 120+ TypeScript files |
 | Frontend Pages | 38+ |
 | Database Tables | 33+ |
@@ -278,7 +279,7 @@ GPT-5.4 (maps to OpenAI GPT-4.1 via OAuth) is the primary model for balanced, po
 - **Execution Budget Warnings** — Alerts when tool loops approach cost limits
 - **Fallback Suggestions** — Recommends alternative tools on failure
 
-### 87+ AI Tools
+### 89+ AI Tools
 - **Communication:** Email (AgentMail), WhatsApp, Discord, Telegram, channel messaging
 - **Research:** Web search, Firecrawl extraction, Jina AI reader, deep research sessions
 - **Finance:** Market news (10+ sources), stock price data (A-Share and HK), ticker search, market overview indices
@@ -571,6 +572,28 @@ All engines fall back to hardcoded defaults if the auto-tuner hasn't loaded yet.
 - **Each Scaffold Includes:** Step sequences, required tools, expected deliverables, quality gates, escalation conditions
 - **Task Classification Engine:** Auto-routes incoming tasks to the correct department and scaffold
 - **Integrated into:** Chat engine (Felix prompt), Heartbeat (delegation), CEO Orchestrator (planning), Tool Router (tool selection)
+- **Governance-Wired Scaffolding:** Every operation scaffold and cross-department workflow now includes inline governance rules — trust score checks, never-auto action enforcement, express lane awareness, PAB verification, blocker escalation protocol, and autonomy level thresholds. Felix delegation context includes full governance rules for routing decisions.
+
+---
+
+## Agent Skills System
+
+**23 active skills** injected into agent system prompts via `## ACTIVE SKILLS` block. Skills teach agents exactly which tools to use, in what order, with what parameters for specific business domains. All skills with `personaId=null` load for every persona.
+
+### Business Operations Skills (8 skills, IDs 52-59)
+| Skill | Category | What It Teaches |
+|---|---|---|
+| Document & Delivery Pipeline | operations | create_pdf → Google Drive → send_email workflow, deliver_product one-step delivery |
+| Research & Competitive Intelligence | research | deep_research, firecrawl, web_search, competitor analysis, due diligence, trend monitoring |
+| Project Management & Planning | operations | Project lifecycle, delegation to specialist personas, milestone tracking, orchestration |
+| Financial Analysis & Reporting | finance | Revenue analysis, budgets, cash flow, ROI, pricing strategy, financial report templates |
+| Content Marketing & Brand Building | marketing | Brand voice, content calendars, social media strategy, email marketing, performance KPIs |
+| Legal & Compliance Essentials | legal | Contract drafting, ToS/privacy policy, compliance checklists, contract review workflows |
+| Sales & Client Relations | sales | Prospecting, cold outreach, proposals, deal tracking, client onboarding, account management |
+| Business Operations & Strategy | operations | Business Model Canvas, SWOT, OKR framework, SOPs, KPI dashboards, hiring |
+
+### Platform Skills (15 skills, IDs 1-48)
+- Reasoning & Logic, Code Generation, Web Research, Writing & Editing, Data Analysis, Email Drafting, Math & Calculations, Summarization, Homepage Audit, Small Business AI Prompts, De-AI-ify Text, Content Idea Generator, AI Discoverability Audit, Morning Briefing, Self-Diagnostics
 
 ---
 
@@ -762,4 +785,4 @@ Proprietary — AI Buddy LLC. All rights reserved.
 
 ---
 
-*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring 36 AI models across 8+ providers, a self-improving agency framework that learns from operational experience, 120+ server modules, 38+ frontend pages, OAuth-first cost-optimized routing with GPT-5.4 priority, and Claude Runner CLI bridge integration for $0 Anthropic inference.*
+*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring 36 AI models across 8+ providers, 89+ tools, 23 active skills, a self-improving agency framework that learns from operational experience, governance-wired scaffolding across 65 operations, 120+ server modules, 38+ frontend pages, OAuth-first cost-optimized routing with GPT-5.4 priority, and Claude Runner CLI bridge integration for $0 Anthropic inference.*

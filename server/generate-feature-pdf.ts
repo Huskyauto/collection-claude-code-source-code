@@ -121,21 +121,22 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["AI Personas", "14 specialized roles"],
       ["AI Models", "36 models across 8+ providers"],
       ["AI Providers", "8+ connected (+ Claude Runner CLI bridge)"],
-      ["AI Tools", "87+ capabilities"],
+      ["AI Tools", "89+ capabilities"],
+      ["Active Skills", "23 (8 business ops + 15 platform)"],
       ["Governance Rules", "40 rules across 7 categories"],
       ["Trust Scores", "9 categories, 40 scores across 13 agents"],
       ["Express Lanes", "12 agent-to-agent direct handoff routes"],
       ["Proactive Triggers", "32 triggers across 9 personas"],
       ["Decision Protocols", "5 collective intelligence protocols"],
       ["Evaluators", "9 real-time system evaluators"],
-      ["Operation Scaffolds", "65 across 12 departments"],
+      ["Op Scaffolds", "65 governance-wired, 12 departments"],
       ["Server Modules", "120+ TypeScript files"],
       ["Frontend Pages", "38+"],
       ["Database Tables", "33+"],
       ["Design Patterns", "6 book-inspired patterns"],
       ["Comm Channels", "AgentMail, WhatsApp, Discord, Telegram"],
       ["YouTube", "OAuth channel management"],
-      ["Auto-Project", "Automatic project detection from conversations"],
+      ["Auto-Project", "Automatic project detection"],
       ["Context Guard", "Zero-loss compaction w/ archive"],
     ];
     drawSubheading("Key Metrics");
@@ -470,10 +471,43 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Enumerates all configured API keys and OAuth subscriptions");
     drawBullet("Lists server capabilities: FFmpeg, pgvector, Node.js, Object Storage, Chromium");
     drawBullet("Shows connected services: Google Drive, AgentMail, YouTube, Telegram, Discord");
-    drawBullet("Categorizes all 87+ tools with descriptions");
+    drawBullet("Categorizes all 89+ tools with descriptions");
     drawBullet("Lists all available AI models grouped by provider");
     drawBullet("5-minute cache to avoid regeneration overhead");
     drawBullet("Prevents personas from asking users to set up already-configured services");
+
+    // === SECTION 14C: AGENT SKILLS SYSTEM ===
+    drawHeading("Section 14C: Agent Skills System (23 Active)");
+    drawText("Skills are injected into agent system prompts via the ## ACTIVE SKILLS block. Each skill teaches agents exactly which tools to use, in what order, with what parameters for specific business domains. Skills with personaId=null load for every persona.");
+    y -= 6;
+
+    drawSubheading("Business Operations Skills (8 skills)");
+    const bizSkills = [
+      ["Document & Delivery", "create_pdf -> Drive -> send_email, deliver_product one-step delivery"],
+      ["Research & Intel", "deep_research, firecrawl, competitor analysis, due diligence, trends"],
+      ["Project Management", "Project lifecycle, delegation, milestones, orchestration"],
+      ["Financial Analysis", "Revenue, budgets, cash flow, ROI, pricing, financial reports"],
+      ["Content Marketing", "Brand voice, content calendars, social media, email marketing, KPIs"],
+      ["Legal & Compliance", "Contracts, ToS/privacy, compliance checklists, contract review"],
+      ["Sales & Client", "Prospecting, outreach, proposals, deal tracking, onboarding"],
+      ["Business Ops", "Business Model Canvas, SWOT, OKR, SOPs, KPI dashboards, hiring"],
+    ];
+    drawTableRow(["Skill", "What It Teaches"], [130, 380], true);
+    for (const s of bizSkills) drawTableRow(s, [130, 380]);
+
+    y -= 6;
+    drawSubheading("Platform Skills (15 skills)");
+    drawBullet("Reasoning & Logic, Code Generation, Web Research, Writing & Editing, Data Analysis");
+    drawBullet("Email Drafting, Math & Calculations, Summarization, Homepage Audit, Small Business AI");
+    drawBullet("De-AI-ify Text, Content Idea Generator, AI Discoverability Audit, Morning Briefing, Self-Diagnostics");
+
+    y -= 6;
+    drawSubheading("Governance-Wired Scaffolding");
+    drawBullet("All 65 operation scaffolds now include inline governance rules in every prompt");
+    drawBullet("Trust score checks, never-auto action enforcement, express lane awareness");
+    drawBullet("PAB verification, blocker escalation protocol, autonomy level thresholds");
+    drawBullet("Felix delegation context includes full governance rules for routing decisions");
+    drawBullet("Cross-department workflows carry governance for multi-agent coordination");
 
     // === SECTION 15: PAYMENTS ===
     drawHeading("Section 15: Payments & Billing");
