@@ -394,23 +394,27 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   const tierModels: Record<string, { provider: string; model: string }[]> = {
     fast: [
-      { provider: "openrouter", model: "z-ai/glm-4.7-flash" },
-      { provider: "openrouter", model: "z-ai/glm-5-turbo" },
       { provider: "google", model: "gemini-2.5-flash" },
       { provider: "google", model: "gemini-3-flash-preview" },
       { provider: "openai", model: "gpt-4.1-mini" },
+      { provider: "openrouter", model: "z-ai/glm-4.7-flash" },
+      { provider: "openrouter", model: "z-ai/glm-5-turbo" },
       { provider: "replit", model: "gpt-5-mini" },
     ],
     balanced: [
+      { provider: "google", model: "gemini-3-flash-preview" },
+      { provider: "google", model: "gemini-2.5-flash" },
+      { provider: "openai", model: "gpt-4.1" },
       { provider: "openrouter", model: "z-ai/glm-5-turbo" },
       { provider: "openrouter", model: "z-ai/glm-4.7" },
       { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
       { provider: "openrouter", model: "meta-llama/llama-4-maverick" },
-      { provider: "google", model: "gemini-3-flash-preview" },
-      { provider: "openai", model: "gpt-4.1" },
       { provider: "replit", model: "gpt-5.4" },
     ],
     powerful: [
+      { provider: "google", model: "gemini-3.1-pro-preview" },
+      { provider: "google", model: "gemini-3-pro-preview" },
+      { provider: "openai", model: "gpt-4.1" },
       { provider: "openrouter", model: "z-ai/glm-5" },
       { provider: "openrouter", model: "nvidia/nemotron-3-super-120b-a12b" },
       { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
@@ -422,15 +426,13 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
       { provider: "openrouter", model: "meta-llama/llama-4-maverick" },
       { provider: "openrouter", model: "google/gemini-3-flash-preview" },
       { provider: "openrouter", model: "minimax/minimax-m2.7" },
-      { provider: "google", model: "gemini-3.1-pro-preview" },
-      { provider: "openai", model: "gpt-4.1" },
       { provider: "anthropic", model: "claude-sonnet-4-20250514" },
       { provider: "xai", model: "grok-4" },
       { provider: "replit", model: "gpt-5.4" },
     ],
     reasoning: [
-      { provider: "openrouter", model: "deepseek/deepseek-r1" },
       { provider: "openai", model: "o4-mini-openai" },
+      { provider: "openrouter", model: "deepseek/deepseek-r1" },
       { provider: "replit", model: "o4-mini" },
     ],
   };
