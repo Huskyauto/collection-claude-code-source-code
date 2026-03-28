@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { executeWithFailover } from "./model-failover";
-import { getAvailableModels } from "./providers";
+import { getAvailableModels, replitOpenai } from "./providers";
 import { storage } from "./storage";
 
 const NIGHTLY_PROGRAM_NAMES = new Set([
