@@ -2587,6 +2587,64 @@ const DEFAULT_EVENT_SUBSCRIPTIONS = [
   { eventType: "content.published", personaName: "Atlas", action: "process", priority: 5, enabled: false },
 ];
 
+async function seedGovernanceRules() {
+  const RULES = [
+    { n: "disable-dead-subscriptions", c: "resource_management", d: "Auto-disable event subscriptions with zero matching activity for 30+ days", cond: '{"check":"subscription_activity","value":0,"metric":"activity_count","operator":"equals","lookback_days":30}', a: "disable_subscription", ac: '{"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "enable-justified-subscriptions", c: "resource_management", d: "Auto-enable subscriptions when real business activity is detected", cond: '{"check":"subscription_activity","value":0,"metric":"activity_count","operator":"greater_than"}', a: "enable_subscription", ac: '{"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 7 },
+    { n: "kill-failing-tasks", c: "resource_management", d: "Auto-disable heartbeat tasks with 100% failure rate over 7 days (5+ attempts)", cond: '{"check":"task_failure_rate","value":1,"metric":"failure_rate","operator":"equals","min_attempts":5,"lookback_days":7}', a: "disable_task", ac: '{"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 8 },
+    { n: "block-task-cascades", c: "resource_management", d: "Block agent-created tasks that spawn more tasks from within heartbeat context", cond: '{"check":"delegation_source","value":["persona_heartbeat","task_heartbeat"],"metric":"source_type","operator":"in"}', a: "block_delegation", ac: '{"log_reason":true}', e: false, p: 9 },
+    { n: "daily-token-budget-warning", c: "cost_control", d: "Throttle non-essential tasks when daily AI token spend exceeds 80% of budget", cond: '{"check":"daily_spend","value":80,"metric":"spend_percent","operator":"greater_than"}', a: "throttle_tasks", ac: '{"keep_types":["delegation","process_governance","agentic_engine"],"throttle_types":["reflection","self_improvement","content"]}', e: false, p: 7 },
+    { n: "daily-token-budget-critical", c: "cost_control", d: "Escalate when daily AI token spend exceeds 200% of budget", cond: '{"check":"daily_spend","value":200,"metric":"spend_percent","operator":"greater_than"}', a: "escalate", ac: '{"message":"Daily AI spend has exceeded 2x the configured budget. Non-essential tasks have been paused.","pause_non_essential":true}', e: true, p: 10 },
+    { n: "auto-restart-stalled-agents", c: "operations", d: "Re-enable agents stalled for 24+ hours with pending queue items", cond: '{"check":"desk_status","value":24,"metric":"stalled_hours","operator":"greater_than","has_pending":true}', a: "restart_agent", ac: '{"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "watchlist-alert-routing", c: "operations", d: "Auto-route watchlist alerts to the most relevant persona", cond: '{"check":"watchlist_alert","value":0,"metric":"unacknowledged","operator":"greater_than"}', a: "route_alert", ac: '{"routing":{"customer":"Apollo","industry":"Neptune","competitor":"Radar","regulation":"Cassandra","technology":"Forge"}}', e: false, p: 5 },
+    { n: "provider-key-failure-escalate", c: "security", d: "Escalate when all provider keys for a model tier fail simultaneously", cond: '{"check":"provider_health","value":0,"metric":"tier_available","operator":"equals"}', a: "escalate", ac: '{"message":"All AI provider keys for a model tier have failed."}', e: true, p: 10 },
+    { n: "auth-anomaly-detection", c: "security", d: "Escalate on 10+ failed login attempts in 1 hour", cond: '{"check":"auth_failures","value":10,"metric":"failed_attempts","operator":"greater_than","window_hours":1}', a: "escalate", ac: '{"action":"block_source","message":"Potential brute-force login attempt detected."}', e: true, p: 10 },
+    { n: "slow-response-detection", c: "performance", d: "Investigate when average agent response time exceeds 30 seconds", cond: '{"check":"response_time","value":30000,"metric":"avg_duration_ms","operator":"greater_than","window_hours":1}', a: "investigate", ac: '{"assign_to":"Agent Blueprint","notify_channel":"#system-alerts"}', e: false, p: 5 },
+    { n: "queue-depth-warning", c: "performance", d: "Alert when any agent desk has 10+ pending queue items", cond: '{"check":"desk_queue","value":10,"metric":"queue_depth","operator":"greater_than"}', a: "rebalance", ac: '{"strategy":"redistribute","notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "content-review-enforcement", c: "compliance", d: "Ensure all Scribe content goes through Proof before publishing", cond: '{"check":"content_pipeline","value":0,"metric":"unreviewed_content","operator":"greater_than","source_persona":"Scribe"}', a: "enforce_review", ac: '{"block_publish":true,"require_persona":"Proof"}', e: false, p: 8 },
+    { n: "autonomy-override-escalate", c: "compliance", d: "Escalate when an agent attempts blocked actions 3+ times in 24h", cond: '{"check":"autonomy_violation","value":3,"metric":"blocked_attempts","operator":"greater_than","window_hours":24}', a: "escalate", ac: '{"message":"An agent has repeatedly attempted a blocked action."}', e: true, p: 9 },
+    { n: "cascading-failure-detection", c: "security", d: "Detect when 3+ agents fail in sequence within 30 minutes", cond: '{"check":"cascading_failures","value":2,"metric":"distinct_failing_agents","operator":"greater_than","window_minutes":30}', a: "escalate", ac: '{"message":"Cascading failure detected: 3+ agents failing in sequence.","pause_non_essential":true}', e: true, p: 10 },
+    { n: "rogue-agent-detection", c: "security", d: "Detect agent with 5+ out-of-scope actions in 24 hours", cond: '{"check":"agent_scope_violations","value":5,"metric":"out_of_scope_actions","operator":"greater_than","window_hours":24}', a: "escalate", ac: '{"message":"Possible rogue agent behavior detected.","disable_agent":true}', e: true, p: 10 },
+    { n: "delegation-chain-depth-limit", c: "security", d: "Prevent delegation chains deeper than 2 levels", cond: '{"check":"delegation_depth","value":2,"metric":"max_chain_depth","operator":"greater_than"}', a: "block_delegation", ac: '{"max_depth":2,"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 9 },
+    { n: "memory-integrity-check", c: "security", d: "Detect anomalous memory writes — 20+ entries in single session", cond: '{"check":"memory_write_rate","value":20,"metric":"writes_per_session","operator":"greater_than","window_hours":1}', a: "investigate", ac: '{"assign_to":"Agent Blueprint","cap_writes":true,"notify_channel":"#system-alerts"}', e: false, p: 7 },
+    { n: "agent-action-boundaries", c: "compliance", d: "Enforce agents only use tools assigned to their persona", cond: '{"check":"tool_boundary_violations","value":3,"metric":"unauthorized_tool_attempts","operator":"greater_than","window_hours":24}', a: "investigate", ac: '{"assign_to":"Agent Blueprint","restrict_tools":true}', e: false, p: 8 },
+    { n: "emergency-kill-switch", c: "security", d: "Disable all non-essential operations in critical state", cond: '{"check":"system_critical_state","value":0,"metric":"critical_failures","operator":"greater_than"}', a: "kill_switch", ac: '{"message":"Emergency kill switch activated.","protected_personas":[5,6]}', e: true, p: 10 },
+    { n: "purpose-binding-enforcement", c: "compliance", d: "Monitor for persona drift from defined specialization", cond: '{"check":"purpose_drift","value":0.5,"metric":"off_topic_ratio","operator":"greater_than","window_hours":48}', a: "investigate", ac: '{"assign_to":"Chief of Staff","notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "segregation-of-duties", c: "compliance", d: "No single agent controls end-to-end sensitive workflows", cond: '{"check":"duty_segregation","value":0,"metric":"single_agent_sensitive_workflows","operator":"greater_than"}', a: "block_delegation", ac: '{"sensitive_actions":["payment_action","publish_content","send_email","execute_shell"],"require_different_agent":true}', e: false, p: 8 },
+    { n: "conflict-of-interest-prevention", c: "compliance", d: "Agents cannot approve or review their own work", cond: '{"check":"self_approval","value":0,"metric":"self_approved_actions","operator":"greater_than"}', a: "block_delegation", ac: '{"enforce_different_reviewer":true}', e: false, p: 8 },
+    { n: "pii-handling-enforcement", c: "compliance", d: "Block PII exposure in external-facing outputs", cond: '{"check":"pii_exposure","value":0,"metric":"pii_in_output","context":"external","operator":"greater_than"}', a: "block_delegation", ac: '{"scan_outputs":true,"block_external":true,"notify_channel":"#system-alerts"}', e: false, p: 9 },
+    { n: "change-management-audit", c: "operations", d: "Track all changes to agent configurations", cond: '{"check":"config_changes","value":0,"metric":"unlogged_changes","operator":"greater_than"}', a: "log_change", ac: '{"track":["persona_config","autonomy_rules","governance_rules","tool_assignments","event_subscriptions"]}', e: false, p: 5 },
+    { n: "audit-log-retention", c: "compliance", d: "Ensure governance logs are retained properly", cond: '{"check":"log_retention","value":365,"metric":"oldest_log_days","operator":"less_than"}', a: "investigate", ac: '{"assign_to":"Agent Blueprint","notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "per-agent-token-budget", c: "cost_control", d: "Throttle agents consuming more than 30% of daily total", cond: '{"check":"agent_spend_ratio","value":30,"metric":"agent_percent_of_total","operator":"greater_than"}', a: "throttle_tasks", ac: '{"cap_percent":30,"notify_channel":"#system-alerts","throttle_agent":true}', e: false, p: 7 },
+    { n: "business-hours-scheduling", c: "operations", d: "Reduce non-essential agent activity during off-hours", cond: '{"check":"time_of_day","value":true,"metric":"off_hours","operator":"equals"}', a: "throttle_tasks", ac: '{"keep_types":["process_governance","agentic_engine","cloud_backup"],"throttle_types":["reflection","self_improvement","content","delegation"],"reduce_frequency":true}', e: false, p: 4 },
+    { n: "agent-workload-balance", c: "operations", d: "Detect severe task distribution imbalance across agents", cond: '{"check":"workload_balance","value":5,"metric":"max_vs_avg_ratio","operator":"greater_than"}', a: "rebalance", ac: '{"strategy":"redistribute_to_underloaded","notify_channel":"#system-alerts"}', e: false, p: 5 },
+    { n: "model-failover-health", c: "performance", d: "Investigate when 40%+ of requests require failover", cond: '{"check":"failover_rate","value":40,"metric":"failover_percent","operator":"greater_than","window_hours":1}', a: "investigate", ac: '{"assign_to":"Agent Blueprint","notify_channel":"#system-alerts"}', e: false, p: 6 },
+    { n: "governance_framework_review", c: "compliance", d: "Review governance frameworks when review date has passed", cond: '{"check":"framework_review_due"}', a: "review_frameworks", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 3 },
+    { n: "trust_score_update", c: "agency_expansion", d: "Log trust score changes for audit trail", cond: '{"check":"trust_score_update"}', a: "log_trust_change", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 3 },
+    { n: "trust_score_critical_drop", c: "agency_expansion", d: "Lock agents whose trust scores drop to critical levels (<=25)", cond: '{"check":"trust_score_critical","threshold":25}', a: "lock_agent_autonomy", ac: '{"notify_channel":"#system-alerts"}', e: true, p: 9 },
+    { n: "proactive_action_quality_monitor", c: "agency_expansion", d: "Alert when negative proactive outcome ratio exceeds 30%", cond: '{"check":"proactive_action_quality","threshold":0.3}', a: "suspend_proactive", ac: '{"notify_channel":"#system-alerts"}', e: true, p: 6 },
+    { n: "proactive_action_budget_enforcement", c: "agency_expansion", d: "Enforce daily PAB limits per agent", cond: '{"check":"proactive_action_budget"}', a: "enforce_pab_limit", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 5 },
+    { n: "express_lane_health_monitor", c: "agency_expansion", d: "Monitor and alert on auto-suspended express lanes", cond: '{"check":"express_lane_health"}', a: "alert_lane_health", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 5 },
+    { n: "express_lane_volume_cap", c: "agency_expansion", d: "Enforce daily volume caps on express lanes", cond: '{"check":"express_lane_volume","cap":10}', a: "cap_lane_volume", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 4 },
+    { n: "environmental_signal_escalation", c: "agency_expansion", d: "Escalate URGENT/CRITICAL signals not handled within 1 hour", cond: '{"check":"environmental_signal_escalation"}', a: "escalate_signal", ac: '{"notify_channel":"#system-alerts"}', e: true, p: 8 },
+    { n: "collective_intelligence_budget", c: "agency_expansion", d: "Enforce daily limits on expensive CI protocols", cond: '{"check":"collective_intelligence_budget"}', a: "cap_ci_protocols", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 5 },
+    { n: "earned_autonomy_audit", c: "agency_expansion", d: "Periodic audit of earned autonomy levels", cond: '{"check":"earned_autonomy_audit"}', a: "audit_autonomy", ac: '{"notify_channel":"#system-alerts"}', e: false, p: 3 },
+  ];
+
+  let inserted = 0;
+  for (const r of RULES) {
+    try {
+      await db.execute(sql`
+        INSERT INTO governance_rules (tenant_id, category, rule_name, description, condition, action, action_config, escalate_to_human, priority, enabled)
+        SELECT 1, ${r.c}, ${r.n}, ${r.d}, ${r.cond}::jsonb, ${r.a}, ${r.ac}::jsonb, ${r.e}, ${r.p}, true
+        WHERE NOT EXISTS (SELECT 1 FROM governance_rules WHERE tenant_id = 1 AND rule_name = ${r.n})
+      `);
+      inserted++;
+    } catch {}
+  }
+  if (inserted > 0) console.log(`[seed] Seeded ${inserted} governance rules (${RULES.length} total defined)`);
+}
+
 async function seedAgenticInfrastructure() {
   try {
     const channelCheck = await db.execute(sql`SELECT COUNT(*) as cnt FROM agent_channels WHERE tenant_id = 1`);
@@ -3265,16 +3323,7 @@ export async function seedDatabase() {
       `).catch((e: any) => console.log("[seed] governance_frameworks seed error:", e.message));
     }
 
-    await db.execute(sql`
-      INSERT INTO governance_rules (tenant_id, category, rule_name, description, condition, action, action_config, escalate_to_human, priority, enabled)
-      SELECT 1, 'compliance', 'governance_framework_review',
-        'Automatically review governance frameworks when their review date has passed. Uses AI to check for framework updates, new principles, and suggested rule changes.',
-        '{"check": "framework_review_due"}'::jsonb,
-        'review_frameworks',
-        '{"notify_channel": "#system-alerts"}'::jsonb,
-        false, 3, true
-      WHERE NOT EXISTS (SELECT 1 FROM governance_rules WHERE tenant_id = 1 AND rule_name = 'governance_framework_review')
-    `).catch(() => {});
+    await seedGovernanceRules().catch((e: any) => console.log("[seed] governance rules seed error:", e.message));
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS model_registry_updates (
