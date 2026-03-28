@@ -15,7 +15,7 @@ import {
   FlaskConical, Plus, Play, Square, Trash2, Eye, CheckCircle2,
   XCircle, AlertTriangle, Moon, Loader2, BarChart3, Clock, Beaker,
   TrendingUp, ArrowRight, PlayCircle, Calendar, Settings2, Pencil,
-  Code2, ThumbsUp, ThumbsDown, FileCode, ShieldCheck, Brain,
+  Code2, ThumbsUp, ThumbsDown, FileCode, ShieldCheck, Brain, Copy, Check,
 } from "lucide-react";
 
 const COST_MODELS = [
@@ -363,6 +363,24 @@ function ScheduleForm({
 
 function ExperimentRow({ exp }: { exp: any }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const parts: string[] = [];
+    parts.push(`Hypothesis: ${exp.hypothesis}`);
+    if (exp.approach) parts.push(`\nApproach:\n${exp.approach}`);
+    if (exp.result) parts.push(`\nResult:\n${exp.result}`);
+    if (exp.metric_value) parts.push(`\nScore: ${exp.metric_value}/10`);
+    if (exp.model) parts.push(`Model: ${exp.model}`);
+    navigator.clipboard.writeText(parts.join("\n")).then(() => {
+      setCopied(true);
+      toast({ title: "Copied to clipboard" });
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div
       className="border rounded-lg p-3 hover:bg-muted/30 transition-colors cursor-pointer"
@@ -386,6 +404,18 @@ function ExperimentRow({ exp }: { exp: any }) {
       </div>
       {expanded && exp.result && (
         <div className="mt-3 pt-3 border-t">
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              onClick={handleCopy}
+              data-testid={`button-copy-experiment-${exp.id}`}
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy Details"}
+            </Button>
+          </div>
           {exp.approach && (
             <div className="mb-2">
               <p className="text-xs font-medium text-muted-foreground mb-1">Approach</p>
