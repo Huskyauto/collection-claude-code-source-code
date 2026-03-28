@@ -155,6 +155,8 @@ export async function initPgVector(): Promise<void> {
     if (result.memories > 0 || result.knowledge > 0) {
       console.log(`[pgvector] Backfilled ${result.memories} memory + ${result.knowledge} knowledge embeddings`);
     }
+
+    backfillMissingKnowledgeEmbeddings().catch(() => {});
   } catch (err: any) {
     console.warn("[pgvector] Setup failed (non-fatal, keyword search will be used):", err.message?.substring(0, 100));
     _pgvectorReady = false;
@@ -238,6 +240,7 @@ export async function vectorSearchKnowledge(
       title: r.title,
       content: r.content,
       category: r.category,
+      priority: r.priority ?? 3,
       similarity: Math.round(r.similarity * 1000) / 1000,
     }));
 }
@@ -274,6 +277,31 @@ export async function storeEmbeddingVec(table: "memory_entries" | "agent_knowled
   if (!_pgvectorReady) return;
   const vec = vecLiteral(embedding);
   await db.execute(sql`UPDATE ${sql.raw(table)} SET embedding_vec = ${sql.raw(`'${vec}'::vector`)}, embedding = ${JSON.stringify(embedding)}::jsonb WHERE id = ${id}`);
+}
+
+async function backfillMissingKnowledgeEmbeddings(): Promise<void> {
+  const rows = await db.execute(sql`
+    SELECT id, title, content FROM agent_knowledge
+    WHERE embedding IS NULL AND source = 'autoresearch'
+      AND (expires_at IS NULL OR expires_at > NOW())
+    LIMIT 50
+  `);
+  const entries = (rows as any).rows || rows;
+  if (!entries || entries.length === 0) return;
+  console.log(`[pgvector] Backfilling ${entries.length} research findings with embeddings...`);
+  let count = 0;
+  for (const entry of entries) {
+    try {
+      const text = `${entry.title} ${entry.content}`.slice(0, 6000);
+      const emb = await generateEmbedding(text);
+      if (emb) {
+        await storeEmbeddingVec("agent_knowledge", entry.id, emb);
+        count++;
+      }
+      await new Promise(r => setTimeout(r, 200));
+    } catch {}
+  }
+  if (count > 0) console.log(`[pgvector] Backfilled ${count} research finding embeddings`);
 }
 
 export async function backfillEmbeddingVecs(): Promise<{ memories: number; knowledge: number }> {

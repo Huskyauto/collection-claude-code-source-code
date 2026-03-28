@@ -550,7 +550,7 @@ async function injectKeepedFinding(
 
   console.log(`[research] v5-INJECT: title=${knowledgeTitle.substring(0, 60)}, cat=${mapping.category}, pri=${priority}, persona=${personaId}`);
   try {
-    await db.execute(sql`
+    const insertResult = await db.execute(sql`
       INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
       VALUES (
         ${knowledgeTitle},
@@ -561,8 +561,25 @@ async function injectKeepedFinding(
         ${"autoresearch"},
         ${expiresAt}::timestamp
       )
+      RETURNING id
     `);
-    console.log(`[research] v5-INJECT: SUCCESS — finding stored in agent_knowledge`);
+    const insertedId = (insertResult as any).rows?.[0]?.id;
+    console.log(`[research] v5-INJECT: SUCCESS — finding #${insertedId} stored in agent_knowledge`);
+
+    if (insertedId) {
+      try {
+        const { generateEmbedding } = await import("./embeddings");
+        const { storeEmbeddingVec } = await import("./embeddings");
+        const embText = `${knowledgeTitle} ${knowledgeContent}`.slice(0, 6000);
+        const embedding = await generateEmbedding(embText);
+        if (embedding) {
+          await storeEmbeddingVec("agent_knowledge", insertedId, embedding);
+          console.log(`[research] v5-INJECT: Embedding stored for finding #${insertedId} (${embedding.length}d vector)`);
+        }
+      } catch (embErr: any) {
+        console.warn(`[research] v5-INJECT: Embedding generation skipped: ${embErr.message}`);
+      }
+    }
   } catch (injectErr: any) {
     console.error(`[research] v5-INJECT: FAILED —`, injectErr.message);
     console.error(`[research] v5-INJECT: QUERY:`, injectErr.query ?? "no .query");
