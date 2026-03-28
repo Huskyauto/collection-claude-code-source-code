@@ -13,7 +13,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - **Ask before** major architectural changes, new external dependencies, or large refactors.
 - **GitHub push**: Always use `bash /tmp/push-gh.sh` which runs a secret scanner (10+ patterns), verifies `.replit`/`browser-config.json` are untracked, then pushes. Script auto-created on app startup by `server/index.ts`. Both `routes.ts` (manual backup) and `heartbeat.ts` (auto-backup) use it. If secrets detected, push is BLOCKED.
 - **Git-excluded files** (tracked before March 2026, now untracked): `.replit`, `data/browser-config.json`, `attached_assets/`, `uploads/`, `project-assets/`, `data/lobster-workflows/`.
-- Cost-conscious ($600+ spent on AI calls). Minimize unnecessary AI token usage. Claude Runner bridge active for $0 per-token Anthropic routing when Max plan authenticated.
+- Cost-conscious ($600+ spent on AI calls). Minimize unnecessary AI token usage. Claude Runner bridge active for $0 per-token Anthropic routing when Max plan authenticated. Cost-aware auto-routing always prefers free models (Replit OpenAI, Gemini Integration, Claude Runner) before cheap (OpenRouter) before paid (xAI, Perplexity). All 36 models tagged with costClass (free/cheap/paid). Self-healing port management on both Express (5000) and Claude Runner (7779) — auto-kills stale processes and retries.
 - **HARD RULE**: ALL files/images/screenshots go to Google Drive via `uploadAndShare()`. Local URLs banned.
 - **ALWAYS update BOTH env var AND `provider_keys` DB TABLE when rotating API keys**.
 - **heartbeat log status**: Uses `"error"` not `"failed"` — status checks must use `!== "success"` not `=== "failed"`.

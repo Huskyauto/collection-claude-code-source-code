@@ -143,6 +143,7 @@ Chat Request → Provider Router → Claude Runner Bridge (127.0.0.1:7779)
 - **Client Disconnect Cleanup** — Orphaned processes killed on client abort
 - **Graceful Fallback** — Falls back to standard Anthropic API when bridge unavailable
 - **Auto-Start** — Bridge initializes on server boot; no manual setup needed
+- **Self-Healing Port Recovery** — Detects stale processes on port 7779, kills them automatically, and retries binding (up to 3 attempts with escalating wait times)
 
 ### Cost Savings
 
@@ -196,13 +197,23 @@ GPT-5.4 (maps to OpenAI GPT-4.1 via OAuth) is the primary model for balanced, po
 
 - **Task Complexity Classifier** — Analyzes query complexity before routing to appropriate model tier
 - **10 Task Categories** — simple-chat, general, writing, coding, reasoning, research, vision, agentic, translation, data-analysis
-- **OAuth-Aware Routing** — Separates OAuth models from premium paid models; OAuth models never deprioritized
+- **Cost-Aware Auto-Routing** — Every model tagged with costClass (free/cheap/paid); auto-router sorts by cost first for ALL complexity levels, not just simple tasks
+- **Three Free Channels** — Claude Runner ($0 Anthropic via Max plan), Replit OpenAI Integration ($0 GPT-5.4/Mini/o4), Google Gemini Integration ($0 Gemini Pro/Flash)
+- **Dynamic Cost Classification** — Anthropic models automatically reclassified from "free" to "paid" when Claude Runner bridge is down, and back to "free" when it recovers
 - **High-Complexity Coding Router** — Claude Opus 4.6 / Gemini 3.1 Pro automatically selected for complex architecture/debugging
 - **Multimodal-Aware Routing** — Detects images/files, routes to vision-capable models (GLM-4.5V, Gemini 3.1 Pro)
 - **Auto-Thinking Mode** — Enables extended thinking for complex queries
 - **Persona Cost Tier Integration** — Respects per-persona cost budgets
 - **Model Capabilities Registry** — Tracks features per model (vision, function calling, thinking)
 - **Adaptive Model Upgrade/Downgrade** — Per-round complexity assessment in tool loops
+
+### Cost Class Distribution
+
+| Cost Class | Models | Routing |
+|---|---|---|
+| **Free** | GPT-5.4, GPT-4.1, GPT-4.1 Mini, GPT-5 Mini, o4-mini (x2), Claude Sonnet 4/4.6, Claude Opus 4/4.6, Gemini 3.1 Pro, 3 Pro, 3 Flash, 2.5 Flash | Always tried first |
+| **Cheap** | GLM-5, GLM-5 Turbo, GLM-4.7, GLM-4.7 Flash, GLM-4.5V, Nemotron 3 Super, Qwen 3.5 Plus, Qwen 3.5 122B, Kimi K2.5, DeepSeek R1, Llama 4 Maverick, Gemini 3 Flash (OR) | Tried after free exhausted |
+| **Paid** | Grok 4, Grok 3, Grok 3 Mini, Sonar Pro/Sonar/Deep Research/Reasoning Pro, MiniMax M2.7, Mistral Large 3 | Last resort only |
 
 ---
 
@@ -378,6 +389,12 @@ Sliding-window rate limiting per tenant per tool. Prevents runaway agent loops f
 - Atomic CTE-based database write (project + conversation link in single query)
 - In-chat banner notification with project name and link
 - Inline rename on projects page with reactive URL query parameter support
+
+### Self-Healing Port Management
+- **Express Server (port 5000)** — Detects EADDRINUSE on startup, finds and kills stale processes via lsof, retries up to 3 times with 1-second delays
+- **Claude Runner Bridge (port 7779)** — Same self-healing pattern with escalating wait times (500ms, 1s, 1.5s per attempt)
+- **Process Safety** — Never kills its own PID; uses SIGKILL for Express and SIGTERM for Runner to ensure clean recovery
+- **Zero Manual Intervention** — Eliminates the most common restart failure (port conflicts from previous processes)
 
 ### Stability and Monitoring
 - **Stability Watchdog** — Autonomous infrastructure watchdog (Chief of Staff, every 10 min)
