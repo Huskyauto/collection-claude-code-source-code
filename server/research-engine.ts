@@ -289,7 +289,6 @@ INSIGHT: [One key insight that could inform the next experiment]`;
     } else {
       status = "discard";
       session.discardedCount++;
-      session.consecutiveFailures++;
     }
 
     const durationMs = Date.now() - start;
