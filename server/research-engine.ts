@@ -316,9 +316,8 @@ Respond with ONLY a single number from 1-10. Nothing else.` },
       score = Math.max(1, Math.min(10, parsedScore));
       scoringTokens = scoreResp.usage?.total_tokens || 0;
     } catch (scoreErr: any) {
-      console.warn(`[research] Scoring call failed for exp #${session.experimentCount}: ${scoreErr.message}`);
+      console.warn(`[research] Scoring call failed for exp #${session.experimentCount}, defaulting to 5: ${scoreErr.message}`);
       score = 5;
-      session.crashedCount++;
     }
 
     metricValue = String(score);
@@ -514,21 +513,20 @@ async function injectKeepedFinding(
       )
     `);
   } catch (colErr: any) {
-    if (colErr.message?.includes("tenant_id")) {
-      await db.execute(sql`ALTER TABLE agent_knowledge ADD COLUMN IF NOT EXISTS tenant_id INTEGER DEFAULT 1`);
+    if (colErr.code === "42703") {
       await db.execute(sql`
-        INSERT INTO agent_knowledge (title, content, category, priority, persona_id, tenant_id, source, expires_at)
+        INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
         VALUES (
           ${knowledgeTitle},
           ${knowledgeContent},
           ${mapping.category},
           ${priority},
           ${personaId},
-          ${session.tenantId},
           ${"autoresearch"},
           ${expiresAt}::timestamp
         )
       `);
+      console.warn(`[research] Injected without tenant_id (column missing in production — run startup migration)`);
     } else {
       throw colErr;
     }
