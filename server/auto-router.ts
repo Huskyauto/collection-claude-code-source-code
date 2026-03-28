@@ -1,5 +1,21 @@
 import { getClientForModel, getUnhealthyProviders } from "./providers";
 import { MODEL_REGISTRY, getAvailableModels, type ModelInfo } from "./providers";
+import { isClaudeRunnerAvailable } from "./claude-runner";
+
+const COST_RANK: Record<string, number> = { free: 0, cheap: 1, paid: 2 };
+
+function getEffectiveCostClass(model: ModelInfo): "free" | "cheap" | "paid" {
+  if (model.costClass) {
+    if (model.provider === "anthropic" && model.costClass === "free" && !isClaudeRunnerAvailable()) {
+      return "paid";
+    }
+    return model.costClass;
+  }
+  if (model.provider === "replit" || model.provider === "google") return "free";
+  if (model.provider === "anthropic") return isClaudeRunnerAvailable() ? "free" : "paid";
+  if (model.provider === "openai") return "free";
+  return "paid";
+}
 
 export interface RouteDecision {
   modelId: string;
@@ -34,10 +50,11 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
     models: [
       "gemini-3-flash-preview",
       "gpt-4.1",
+      "claude-sonnet-4-20250514",
+      "gpt-5.4",
       "z-ai/glm-5-turbo",
       "qwen/qwen3.5-plus-02-15",
       "minimax/minimax-m2.7",
-      "claude-sonnet-4-20250514",
     ],
     description: "Creative writing, essays, emails, long-form content, editing",
   },
@@ -47,6 +64,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
       "gpt-4.1",
       "claude-opus-4-6",
       "claude-opus-4-20250514",
+      "gpt-5.4",
       "z-ai/glm-5",
       "z-ai/glm-4.7",
     ],
@@ -55,11 +73,11 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   "reasoning": {
     models: [
       "gpt-5.4",
+      "o4-mini",
+      "o4-mini-openai",
       "gemini-3.1-pro-preview",
       "deepseek/deepseek-r1",
       "qwen/qwen3.5-plus-02-15",
-      "o4-mini-openai",
-      "o4-mini",
     ],
     description: "Math, logic, puzzles, multi-step analysis, complex problem solving",
   },
@@ -275,32 +293,42 @@ const OAUTH_MODELS = new Set([
 function pickBestAvailable(preferredModels: string[], available: ModelInfo[], complexity: string): ModelInfo | null {
   const concrete = available.filter(m => !META_MODEL_IDS.has(m.id));
 
-  if (complexity === "low") {
-    const oauthFirst = preferredModels.filter(id => OAUTH_MODELS.has(id));
-    const budget = preferredModels.filter(id => !OAUTH_MODELS.has(id) && !PREMIUM_MODELS.has(id));
-    const ordered = [...oauthFirst, ...budget];
+  const sortedByPreferenceAndCost = preferredModels
+    .map(id => concrete.find(m => m.id === id))
+    .filter((m): m is ModelInfo => !!m)
+    .sort((a, b) => {
+      const costA = COST_RANK[getEffectiveCostClass(a)] ?? 2;
+      const costB = COST_RANK[getEffectiveCostClass(b)] ?? 2;
+      return costA - costB;
+    });
 
-    for (const modelId of ordered) {
-      const found = concrete.find(m => m.id === modelId);
-      if (found) return found;
+  if (sortedByPreferenceAndCost.length > 0) {
+    const choice = sortedByPreferenceAndCost[0];
+    const alt = sortedByPreferenceAndCost.find(m => m.id !== choice.id);
+    if (alt && getEffectiveCostClass(choice) !== "free") {
+      console.log(`[auto-router] Cost-aware pick: ${choice.id} (${getEffectiveCostClass(choice)}), no free option available for category`);
     }
+    return choice;
   }
 
-  for (const modelId of preferredModels) {
-    const found = concrete.find(m => m.id === modelId);
-    if (found) return found;
-  }
+  const fallbackPool = [...concrete].sort((a, b) => {
+    const costA = COST_RANK[getEffectiveCostClass(a)] ?? 2;
+    const costB = COST_RANK[getEffectiveCostClass(b)] ?? 2;
+    return costA - costB;
+  });
 
   if (complexity === "low") {
-    const fast = concrete.find(m => m.tier === "fast");
+    const fast = fallbackPool.find(m => m.tier === "fast");
     if (fast) return fast;
   }
   if (complexity === "high") {
-    const powerful = concrete.find(m => m.tier === "powerful");
+    const powerful = fallbackPool.find(m => m.tier === "powerful" && getEffectiveCostClass(m) === "free");
     if (powerful) return powerful;
+    const cheapPowerful = fallbackPool.find(m => m.tier === "powerful");
+    if (cheapPowerful) return cheapPowerful;
   }
 
-  return concrete.find(m => m.tier === "balanced") || concrete[0] || null;
+  return fallbackPool.find(m => m.tier === "balanced") || fallbackPool[0] || null;
 }
 
 const TIER_RANK: Record<string, number> = { fast: 0, balanced: 1, powerful: 2, reasoning: 3 };

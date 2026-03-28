@@ -16,54 +16,55 @@ export interface ModelInfo {
   tier: "fast" | "balanced" | "powerful" | "reasoning";
   description: string;
   capabilities?: ("vision" | "audio" | "image_gen" | "video" | "code" | "tools")[];
+  costClass?: "free" | "cheap" | "paid";
 }
 
 export const MODEL_REGISTRY: ModelInfo[] = [
-  { id: "auto", label: "Auto Select", provider: "replit", tier: "balanced", description: "Intelligently routes to the best model for each task" },
-  { id: "gpt-5.4", label: "GPT-5.4", provider: "replit", tier: "powerful", description: "Latest flagship - most capable OpenAI model", capabilities: ["vision", "audio", "code", "tools"] },
-  { id: "gpt-5-mini", label: "GPT-5 Mini", provider: "replit", tier: "balanced", description: "Fast and cost-effective", capabilities: ["vision", "code", "tools"] },
-  { id: "o4-mini", label: "o4 Mini", provider: "replit", tier: "reasoning", description: "Reasoning/thinking model", capabilities: ["code", "tools"] },
+  { id: "auto", label: "Auto Select", provider: "replit", tier: "balanced", description: "Intelligently routes to the best model for each task", costClass: "free" },
+  { id: "gpt-5.4", label: "GPT-5.4", provider: "replit", tier: "powerful", description: "Latest flagship - most capable OpenAI model", capabilities: ["vision", "audio", "code", "tools"], costClass: "free" },
+  { id: "gpt-5-mini", label: "GPT-5 Mini", provider: "replit", tier: "balanced", description: "Fast and cost-effective", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "o4-mini", label: "o4 Mini", provider: "replit", tier: "reasoning", description: "Reasoning/thinking model", capabilities: ["code", "tools"], costClass: "free" },
 
-  { id: "gpt-4.1", label: "GPT-4.1", provider: "openai", tier: "powerful", description: "Coding & instruction following", capabilities: ["vision", "code", "tools"] },
-  { id: "gpt-4.1-mini", label: "GPT-4.1 Mini", provider: "openai", tier: "balanced", description: "Balanced speed and intelligence", capabilities: ["vision", "code", "tools"] },
-  { id: "o4-mini-openai", label: "o4 Mini (OpenAI)", provider: "openai", tier: "reasoning", description: "OpenAI reasoning model", capabilities: ["code", "tools"] },
+  { id: "gpt-4.1", label: "GPT-4.1", provider: "openai", tier: "powerful", description: "Coding & instruction following", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "gpt-4.1-mini", label: "GPT-4.1 Mini", provider: "openai", tier: "balanced", description: "Balanced speed and intelligence", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "o4-mini-openai", label: "o4 Mini (OpenAI)", provider: "openai", tier: "reasoning", description: "OpenAI reasoning model", capabilities: ["code", "tools"], costClass: "free" },
 
-  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4 (Latest)", provider: "anthropic", tier: "powerful", description: "Latest Sonnet - best balanced model", capabilities: ["vision", "code", "tools"] },
-  { id: "claude-opus-4-20250514", label: "Claude Opus 4 (Latest)", provider: "anthropic", tier: "powerful", description: "Latest Opus - most capable reasoning and coding", capabilities: ["vision", "code", "tools"] },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", provider: "anthropic", tier: "powerful", description: "Extended thinking, hybrid reasoning", capabilities: ["vision", "code", "tools"] },
-  { id: "claude-opus-4-6", label: "Claude Opus 4.6", provider: "anthropic", tier: "powerful", description: "Deep complex reasoning and coding", capabilities: ["vision", "code", "tools"] },
+  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4 (Latest)", provider: "anthropic", tier: "powerful", description: "Latest Sonnet - best balanced model", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "claude-opus-4-20250514", label: "Claude Opus 4 (Latest)", provider: "anthropic", tier: "powerful", description: "Latest Opus - most capable reasoning and coding", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", provider: "anthropic", tier: "powerful", description: "Extended thinking, hybrid reasoning", capabilities: ["vision", "code", "tools"], costClass: "free" },
+  { id: "claude-opus-4-6", label: "Claude Opus 4.6", provider: "anthropic", tier: "powerful", description: "Deep complex reasoning and coding", capabilities: ["vision", "code", "tools"], costClass: "free" },
 
-  { id: "grok-4", label: "Grok 4", provider: "xai", tier: "powerful", description: "Latest xAI flagship - frontier reasoning and tool use", capabilities: ["vision", "code", "tools"] },
-  { id: "grok-3", label: "Grok 3", provider: "xai", tier: "powerful", description: "xAI flagship model", capabilities: ["vision", "code", "tools"] },
-  { id: "grok-3-mini", label: "Grok 3 Mini", provider: "xai", tier: "fast", description: "Fast xAI model for quick tasks and testing", capabilities: ["code", "tools"] },
+  { id: "grok-4", label: "Grok 4", provider: "xai", tier: "powerful", description: "Latest xAI flagship - frontier reasoning and tool use", capabilities: ["vision", "code", "tools"], costClass: "paid" },
+  { id: "grok-3", label: "Grok 3", provider: "xai", tier: "powerful", description: "xAI flagship model", capabilities: ["vision", "code", "tools"], costClass: "paid" },
+  { id: "grok-3-mini", label: "Grok 3 Mini", provider: "xai", tier: "fast", description: "Fast xAI model for quick tasks and testing", capabilities: ["code", "tools"], costClass: "paid" },
 
-  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", provider: "google", tier: "powerful", description: "Most powerful - agentic workflows, multimodal, complex reasoning", capabilities: ["vision", "audio", "video", "code", "tools"] },
-  { id: "gemini-3-pro-preview", label: "Gemini 3 Pro", provider: "google", tier: "powerful", description: "Powerful agentic model and vibe-coding", capabilities: ["vision", "audio", "video", "code", "tools"] },
-  { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", provider: "google", tier: "balanced", description: "Hybrid reasoning, good for daily use and high-volume", capabilities: ["vision", "audio", "video", "code", "tools"] },
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "google", tier: "balanced", description: "Fast and capable, great cost-to-quality ratio", capabilities: ["vision", "audio", "code", "tools"] },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", provider: "google", tier: "powerful", description: "Most powerful - agentic workflows, multimodal, complex reasoning", capabilities: ["vision", "audio", "video", "code", "tools"], costClass: "free" },
+  { id: "gemini-3-pro-preview", label: "Gemini 3 Pro", provider: "google", tier: "powerful", description: "Powerful agentic model and vibe-coding", capabilities: ["vision", "audio", "video", "code", "tools"], costClass: "free" },
+  { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", provider: "google", tier: "balanced", description: "Hybrid reasoning, good for daily use and high-volume", capabilities: ["vision", "audio", "video", "code", "tools"], costClass: "free" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "google", tier: "balanced", description: "Fast and capable, great cost-to-quality ratio", capabilities: ["vision", "audio", "code", "tools"], costClass: "free" },
 
-  { id: "sonar-pro", label: "Sonar Pro", provider: "perplexity", tier: "powerful", description: "Deep web research with citations" },
-  { id: "sonar", label: "Sonar", provider: "perplexity", tier: "balanced", description: "Fast web search with citations" },
-  { id: "sonar-reasoning-pro", label: "Sonar Reasoning Pro", provider: "perplexity", tier: "reasoning", description: "Multi-step research with reasoning" },
-  { id: "sonar-deep-research", label: "Sonar Deep Research", provider: "perplexity", tier: "powerful", description: "Exhaustive multi-source research" },
+  { id: "sonar-pro", label: "Sonar Pro", provider: "perplexity", tier: "powerful", description: "Deep web research with citations", costClass: "paid" },
+  { id: "sonar", label: "Sonar", provider: "perplexity", tier: "balanced", description: "Fast web search with citations", costClass: "paid" },
+  { id: "sonar-reasoning-pro", label: "Sonar Reasoning Pro", provider: "perplexity", tier: "reasoning", description: "Multi-step research with reasoning", costClass: "paid" },
+  { id: "sonar-deep-research", label: "Sonar Deep Research", provider: "perplexity", tier: "powerful", description: "Exhaustive multi-source research", costClass: "paid" },
 
-  { id: "z-ai/glm-5", label: "GLM-5", provider: "openrouter", tier: "powerful", description: "Z.ai flagship — #1 Chatbot Arena, agentic planning, 80K ctx - $0.72/M in", capabilities: ["vision", "code", "tools"] },
-  { id: "z-ai/glm-5-turbo", label: "GLM-5 Turbo", provider: "openrouter", tier: "balanced", description: "Fast GLM-5 variant — optimized for long agent chains & tool use", capabilities: ["code", "tools"] },
-  { id: "z-ai/glm-4.7", label: "GLM-4.7", provider: "openrouter", tier: "powerful", description: "SWE-bench 77.8, AIME 95.7, 203K ctx — $0.39/M in, $1.75/M out", capabilities: ["vision", "code", "tools"] },
-  { id: "z-ai/glm-4.7-flash", label: "GLM-4.7 Flash", provider: "openrouter", tier: "fast", description: "30B SOTA agentic coder, 202K ctx — $0.06/M in, ultra-cheap", capabilities: ["code", "tools"] },
-  { id: "z-ai/glm-4.5v", label: "GLM-4.5V", provider: "openrouter", tier: "powerful", description: "106B MoE vision — SOTA video understanding, OCR, document parsing", capabilities: ["vision", "code", "tools"] },
+  { id: "z-ai/glm-5", label: "GLM-5", provider: "openrouter", tier: "powerful", description: "Z.ai flagship — #1 Chatbot Arena, agentic planning, 80K ctx - $0.72/M in", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
+  { id: "z-ai/glm-5-turbo", label: "GLM-5 Turbo", provider: "openrouter", tier: "balanced", description: "Fast GLM-5 variant — optimized for long agent chains & tool use", capabilities: ["code", "tools"], costClass: "cheap" },
+  { id: "z-ai/glm-4.7", label: "GLM-4.7", provider: "openrouter", tier: "powerful", description: "SWE-bench 77.8, AIME 95.7, 203K ctx — $0.39/M in, $1.75/M out", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
+  { id: "z-ai/glm-4.7-flash", label: "GLM-4.7 Flash", provider: "openrouter", tier: "fast", description: "30B SOTA agentic coder, 202K ctx — $0.06/M in, ultra-cheap", capabilities: ["code", "tools"], costClass: "cheap" },
+  { id: "z-ai/glm-4.5v", label: "GLM-4.5V", provider: "openrouter", tier: "powerful", description: "106B MoE vision — SOTA video understanding, OCR, document parsing", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
 
-  { id: "nvidia/nemotron-3-super-120b-a12b", label: "Nemotron 3 Super", provider: "openrouter", tier: "powerful", description: "120B MoE (12B active), 1M ctx, Mamba-Transformer hybrid — $0.10/M in", capabilities: ["code", "tools"] },
+  { id: "nvidia/nemotron-3-super-120b-a12b", label: "Nemotron 3 Super", provider: "openrouter", tier: "powerful", description: "120B MoE (12B active), 1M ctx, Mamba-Transformer hybrid — $0.10/M in", capabilities: ["code", "tools"], costClass: "cheap" },
 
-  { id: "qwen/qwen3.5-plus-02-15", label: "Qwen 3.5 Plus", provider: "openrouter", tier: "powerful", description: "Flagship 397B MoE, 1M ctx, native multimodal — $0.26/M in", capabilities: ["vision", "code", "tools"] },
-  { id: "qwen/qwen3.5-122b-a10b", label: "Qwen 3.5 122B", provider: "openrouter", tier: "powerful", description: "122B MoE (10B active), 262K ctx — near-flagship quality - $0.26/M in", capabilities: ["vision", "code", "tools"] },
+  { id: "qwen/qwen3.5-plus-02-15", label: "Qwen 3.5 Plus", provider: "openrouter", tier: "powerful", description: "Flagship 397B MoE, 1M ctx, native multimodal — $0.26/M in", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
+  { id: "qwen/qwen3.5-122b-a10b", label: "Qwen 3.5 122B", provider: "openrouter", tier: "powerful", description: "122B MoE (10B active), 262K ctx — near-flagship quality - $0.26/M in", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
 
-  { id: "minimax/minimax-m2.7", label: "MiniMax M2.7", provider: "openrouter", tier: "powerful", description: "Latest MiniMax model - enhanced reasoning & agentic performance", capabilities: ["tools"] },
-  { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5", provider: "openrouter", tier: "powerful", description: "1T params MoE, 262K context, 1500 parallel tools - $0.45/M in", capabilities: ["tools"] },
-  { id: "deepseek/deepseek-r1", label: "DeepSeek R1", provider: "openrouter", tier: "reasoning", description: "Deep reasoning model - top math/code benchmarks", capabilities: ["code"] },
-  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (OR)", provider: "openrouter", tier: "powerful", description: "Google's latest frontier model via OpenRouter", capabilities: ["vision", "audio", "video", "code", "tools"] },
-  { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", provider: "openrouter", tier: "powerful", description: "Meta's open-source flagship - vision + tools", capabilities: ["vision", "code", "tools"] },
-  { id: "mistralai/mistral-large-2512", label: "Mistral Large 3", provider: "openrouter", tier: "powerful", description: "Apache 2.0, 41B active (675B total), 262K context", capabilities: ["code", "tools"] },
+  { id: "minimax/minimax-m2.7", label: "MiniMax M2.7", provider: "openrouter", tier: "powerful", description: "Latest MiniMax model - enhanced reasoning & agentic performance", capabilities: ["tools"], costClass: "paid" },
+  { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5", provider: "openrouter", tier: "powerful", description: "1T params MoE, 262K context, 1500 parallel tools - $0.45/M in", capabilities: ["tools"], costClass: "cheap" },
+  { id: "deepseek/deepseek-r1", label: "DeepSeek R1", provider: "openrouter", tier: "reasoning", description: "Deep reasoning model - top math/code benchmarks", capabilities: ["code"], costClass: "cheap" },
+  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (OR)", provider: "openrouter", tier: "powerful", description: "Google's latest frontier model via OpenRouter", capabilities: ["vision", "audio", "video", "code", "tools"], costClass: "cheap" },
+  { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", provider: "openrouter", tier: "powerful", description: "Meta's open-source flagship - vision + tools", capabilities: ["vision", "code", "tools"], costClass: "cheap" },
+  { id: "mistralai/mistral-large-2512", label: "Mistral Large 3", provider: "openrouter", tier: "powerful", description: "Apache 2.0, 41B active (675B total), 262K context", capabilities: ["code", "tools"], costClass: "paid" },
 ];
 
 export function isModelMultimodal(modelId: string): boolean {
