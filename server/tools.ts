@@ -3076,6 +3076,21 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const ytHeaders = { Authorization: `Bearer ${ytToken}`, "Content-Type": "application/json" };
       const maxR = Math.min(params.maxResults || 10, 50);
 
+      if (!params.action) {
+        const r = await fetch(`${ytBase}/channels?part=snippet,statistics&mine=true`, { headers: ytHeaders });
+        if (!r.ok) return { error: `YouTube API error: ${r.status}` };
+        const d = await r.json();
+        const ch = d.items?.[0];
+        return {
+          connected: true,
+          channel: ch?.snippet?.title,
+          subscribers: ch?.statistics?.subscriberCount,
+          videoCount: ch?.statistics?.videoCount,
+          viewCount: ch?.statistics?.viewCount,
+          message: "YouTube is connected and working. Use 'action' parameter for specific operations: channel_info, list_videos, video_details, search_videos, list_comments, reply_comment, update_video, list_playlists, upload_video",
+        };
+      }
+
       switch (params.action) {
         case "channel_info": {
           const r = await fetch(`${ytBase}/channels?part=snippet,statistics,contentDetails&mine=true`, { headers: ytHeaders });
