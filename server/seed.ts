@@ -2587,6 +2587,104 @@ const DEFAULT_EVENT_SUBSCRIPTIONS = [
   { eventType: "content.published", personaName: "Atlas", action: "process", priority: 5, enabled: false },
 ];
 
+async function seedNightlyAutoresearch() {
+  const AUTORESEARCH_PROGRAMS = [
+    {
+      name: "Nightly AI Model & Provider Intelligence",
+      personaId: 9,
+      objective: "Scan for newly released or updated AI models, providers, and API changes. Check OpenAI, Anthropic, Google, xAI, Meta, Mistral, DeepSeek, Cohere, and open-source model hubs (HuggingFace trending, Ollama library). For each experiment: identify one new model or significant update, assess its capabilities (context window, pricing, speed, specialties), and recommend whether VisionClaw should add it to the model registry. Include the model ID format, provider endpoint, and estimated cost per 1M tokens.",
+      constraints: "Only recommend models with public API access or open weights. Skip models in private beta unless waitlist is open. Verify pricing from official sources. Do not recommend models that duplicate existing capabilities without clear improvement.",
+      metrics: "Discovery novelty (is this actually new?), Practical value for VisionClaw agents, Cost-effectiveness vs current models, Integration feasibility",
+      strategy: "balanced",
+      maxExperiments: 12,
+    },
+    {
+      name: "Nightly AI Tools & Techniques Scanner",
+      personaId: 5,
+      objective: "Research new AI engineering techniques, frameworks, and tools that could improve VisionClaw's agent platform. Scan: arXiv (cs.AI, cs.CL, cs.MA), GitHub trending AI repos, AI engineering blogs (Simon Willison, Lilian Weng, Chip Huyen, LangChain blog, LlamaIndex blog), and product launches. Focus on: prompt engineering advances, RAG improvements, agent orchestration patterns, memory systems, tool-use frameworks, evaluation methods, and cost optimization techniques. Each experiment should produce one actionable finding with a concrete implementation recommendation.",
+      constraints: "Must be directly applicable to multi-agent platforms. Skip pure research without practical application. Prefer techniques that work with existing provider APIs. No recommendations requiring GPU infrastructure we dont have.",
+      metrics: "Applicability to VisionClaw, Implementation effort estimate, Expected improvement magnitude, Evidence quality",
+      strategy: "aggressive",
+      maxExperiments: 15,
+    },
+    {
+      name: "Nightly Competitive Platform Analysis",
+      personaId: 9,
+      objective: "Track competitive AI agent platforms, automation tools, and AI-powered business tools. Monitor: AutoGPT, CrewAI, LangGraph, OpenAI Assistants API, Anthropic tool use patterns, Google Vertex AI Agent Builder, Microsoft Copilot Studio, Relevance AI, Lindy AI, Zapier AI, Make.com AI features. For each experiment, investigate one competitor or platform update: new features, pricing changes, user feedback, architectural patterns. Identify features VisionClaw should adopt or differentiate against.",
+      constraints: "Use publicly available information. Focus on features relevant to small business users. Each finding must end with a specific recommendation: build, watch, or ignore.",
+      metrics: "Competitive intelligence value, Actionability, Timeliness, Strategic relevance",
+      strategy: "balanced",
+      maxExperiments: 10,
+    },
+    {
+      name: "Nightly Agent Architecture Research",
+      personaId: 3,
+      objective: "Research advances in multi-agent system architecture, coordination patterns, and autonomous agent design. Topics: agent-to-agent communication protocols, shared memory architectures, hierarchical planning, tool composition patterns, error recovery strategies, context window optimization, token-efficient prompting, structured output techniques, streaming patterns, and agent evaluation frameworks. Each experiment should analyze one technique and propose how to integrate it into VisionClaw's existing architecture (chat-engine, heartbeat, trust engine, scaffolding).",
+      constraints: "Must map to VisionClaw's TypeScript/Node.js stack. Prefer patterns that work with OpenAI-compatible APIs. Consider our 14-persona architecture. No recommendations requiring Kubernetes or distributed systems beyond our single-server deployment.",
+      metrics: "Architecture fit, Performance improvement potential, Implementation complexity, Risk assessment",
+      strategy: "balanced",
+      maxExperiments: 10,
+    },
+    {
+      name: "Nightly Security & Safety Intelligence",
+      personaId: 14,
+      objective: "Monitor AI security developments, prompt injection techniques, jailbreak patterns, and safety frameworks. Track: OWASP AI Security, NIST AI RMF updates, new prompt injection vectors, data poisoning techniques, AI-specific CVEs, PII detection advances, and responsible AI guidelines. Each experiment should identify one security concern or defense technique relevant to multi-agent platforms and recommend specific mitigations for VisionClaw's safety layer, trust engine, and governance system.",
+      constraints: "Focus on defensive techniques, not offensive capabilities. Prioritize threats relevant to business AI platforms. Must be implementable without external security infrastructure. Consider our existing safety-layer.ts and trust-engine.ts.",
+      metrics: "Threat relevance, Mitigation practicality, Urgency level, Coverage gap identification",
+      strategy: "conservative",
+      maxExperiments: 8,
+    },
+  ];
+
+  let inserted = 0;
+  let skipped = 0;
+  const insertedIds: number[] = [];
+
+  for (const prog of AUTORESEARCH_PROGRAMS) {
+    try {
+      const existing = await db.execute(sql`
+        SELECT id FROM research_programs WHERE tenant_id = 1 AND name = ${prog.name}
+      `);
+      const rows = (existing as any).rows || existing;
+      if (rows.length > 0) {
+        skipped++;
+        insertedIds.push(rows[0].id);
+        continue;
+      }
+
+      const res = await db.execute(sql`
+        INSERT INTO research_programs (tenant_id, persona_id, name, objective, constraints, metrics, exploration_strategy, model, max_experiments_per_session)
+        VALUES (1, ${prog.personaId}, ${prog.name}, ${prog.objective}, ${prog.constraints}, ${prog.metrics}, ${prog.strategy}, 'gemini-2.5-flash', ${prog.maxExperiments})
+        RETURNING id
+      `);
+      const resRows = (res as any).rows || res;
+      if (resRows[0]?.id) insertedIds.push(resRows[0].id);
+      inserted++;
+    } catch (err: any) {
+      console.warn(`[seed] Autoresearch program "${prog.name}" failed: ${err.message}`);
+    }
+  }
+
+  const schedExists = await db.execute(sql`
+    SELECT id FROM research_schedules WHERE tenant_id = 1 AND name = 'Nightly Autoresearch'
+  `).catch(() => ({ rows: [] }));
+  const schedRows = (schedExists as any).rows || schedExists;
+
+  if (schedRows.length === 0) {
+    const nextRun = new Date();
+    nextRun.setHours(2, 0, 0, 0);
+    if (nextRun.getTime() < Date.now()) nextRun.setDate(nextRun.getDate() + 1);
+
+    await db.execute(sql`
+      INSERT INTO research_schedules (tenant_id, name, cron_expression, timezone, is_enabled, run_all, next_run_at)
+      VALUES (1, 'Nightly Autoresearch', '0 2 * * *', 'America/Chicago', true, true, ${nextRun})
+    `).catch((e: any) => console.warn(`[seed] Autoresearch schedule failed: ${e.message}`));
+  }
+
+  if (inserted > 0) console.log(`[seed] Autoresearch: seeded ${inserted} nightly research programs, ${skipped} already existed`);
+  else if (skipped > 0) console.log(`[seed] Autoresearch: all ${AUTORESEARCH_PROGRAMS.length} nightly programs already exist`);
+}
+
 async function seedGovernanceRules() {
   const RULES = [
     { n: "disable-dead-subscriptions", c: "resource_management", d: "Auto-disable event subscriptions with zero matching activity for 30+ days", cond: '{"check":"subscription_activity","value":0,"metric":"activity_count","operator":"equals","lookback_days":30}', a: "disable_subscription", ac: '{"log_reason":true,"notify_channel":"#system-alerts"}', e: false, p: 6 },
@@ -3363,6 +3461,8 @@ export async function seedDatabase() {
     } catch (e: any) {
       console.log("[seed] Trust score init:", e.message);
     }
+
+    await seedNightlyAutoresearch();
 
     const existingPrograms = await db.execute(sql`SELECT COUNT(*) as count FROM research_programs WHERE tenant_id = 1`).catch(() => ({ rows: [{ count: "0" }] }));
     const progCount = parseInt(((existingPrograms as any).rows || existingPrograms)?.[0]?.count || "0");
