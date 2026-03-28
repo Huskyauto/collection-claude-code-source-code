@@ -551,15 +551,16 @@ async function injectKeepedFinding(
   const ttlDays = mapping.category === "security" ? 30 : 14;
   const expiresAt = new Date(Date.now() + ttlDays * 86_400_000).toISOString();
 
-  console.log(`[research] Injecting finding into agent_knowledge (v2 - no tenant_id)...`);
+  console.log(`[research] v3: Injecting finding into agent_knowledge with tenant_id=1...`);
   await db.execute(sql`
-    INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
+    INSERT INTO agent_knowledge (title, content, category, priority, persona_id, tenant_id, source, expires_at)
     VALUES (
       ${knowledgeTitle},
       ${knowledgeContent},
       ${mapping.category},
       ${priority},
       ${personaId},
+      1,
       ${"autoresearch"},
       ${expiresAt}::timestamp
     )
