@@ -429,8 +429,11 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
       { provider: "xai", model: "grok-4" },
     ],
     reasoning: [
-      { provider: "openai", model: "o4-mini-openai" },
+      { provider: "replit", model: "gpt-5.4" },
+      { provider: "google", model: "gemini-3.1-pro-preview" },
       { provider: "openrouter", model: "deepseek/deepseek-r1" },
+      { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
+      { provider: "openai", model: "o4-mini-openai" },
       { provider: "replit", model: "o4-mini" },
     ],
   };
@@ -456,7 +459,7 @@ export function getModelForTier(tier: "fast" | "balanced" | "powerful" | "reason
     fast: "gemini-2.5-flash",
     balanced: "gemini-2.5-flash",
     powerful: "gpt-5.4",
-    reasoning: "o4-mini",
+    reasoning: "gpt-5.4",
   };
   return tierMap[tier] || "gemini-2.5-flash";
 }

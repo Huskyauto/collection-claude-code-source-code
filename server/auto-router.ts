@@ -54,12 +54,12 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   },
   "reasoning": {
     models: [
+      "gpt-5.4",
       "gemini-3.1-pro-preview",
-      "o4-mini-openai",
       "deepseek/deepseek-r1",
       "qwen/qwen3.5-plus-02-15",
+      "o4-mini-openai",
       "o4-mini",
-      "gpt-5.4",
     ],
     description: "Math, logic, puzzles, multi-step analysis, complex problem solving",
   },
