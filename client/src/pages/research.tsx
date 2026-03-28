@@ -15,6 +15,7 @@ import {
   FlaskConical, Plus, Play, Square, Trash2, Eye, CheckCircle2,
   XCircle, AlertTriangle, Moon, Loader2, BarChart3, Clock, Beaker,
   TrendingUp, ArrowRight, PlayCircle, Calendar, Settings2, Pencil,
+  Code2, ThumbsUp, ThumbsDown, FileCode, ShieldCheck, Brain,
 } from "lucide-react";
 
 const COST_MODELS = [
@@ -560,6 +561,7 @@ export default function ResearchPage() {
   const experimentsQuery = useQuery({ queryKey: ["/api/research/experiments"] });
   const personasQuery = useQuery({ queryKey: ["/api/personas"] });
   const schedulesQuery = useQuery({ queryKey: ["/api/research/schedules"] });
+  const proposalsQuery = useQuery({ queryKey: ["/api/research/code-proposals"], refetchInterval: 30000 });
 
   const stats = (statsQuery.data || { programs: 0, totalSessions: 0, activeSessions: 0, totalExperiments: 0, experimentsKept: 0, experimentsDiscarded: 0 }) as any;
   const programs = (programsQuery.data || []) as any[];
@@ -567,6 +569,7 @@ export default function ResearchPage() {
   const experiments = (experimentsQuery.data || []) as any[];
   const personas = (personasQuery.data || []) as any[];
   const schedules = (schedulesQuery.data || []) as any[];
+  const proposals = (proposalsQuery.data || []) as any[];
 
   const createProgram = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/research/programs", data),
@@ -666,6 +669,18 @@ export default function ResearchPage() {
     },
   });
 
+  const reviewProposal = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest("PATCH", `/api/research/code-proposals/${id}`, { status }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/research/code-proposals"] });
+      toast({ title: `Proposal ${vars.status}` });
+    },
+  });
+
+  const [expandedProposal, setExpandedProposal] = useState<number | null>(null);
+  const pendingProposalCount = proposals.filter((p: any) => p.status === "ready" || p.status === "pending" || p.status === "needs_review").length;
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -721,6 +736,12 @@ export default function ResearchPage() {
             </TabsTrigger>
             <TabsTrigger value="schedules" data-testid="tab-schedules">
               <Calendar className="w-4 h-4 mr-1" /> Schedules
+            </TabsTrigger>
+            <TabsTrigger value="proposals" data-testid="tab-proposals" className="relative">
+              <Code2 className="w-4 h-4 mr-1" /> Code Proposals
+              {pendingProposalCount > 0 && (
+                <span className="ml-1.5 bg-orange-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{pendingProposalCount}</span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -979,6 +1000,160 @@ export default function ResearchPage() {
                 )}
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          <TabsContent value="proposals" className="space-y-4 mt-4">
+            {proposalsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : proposals.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Code2 className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground" data-testid="text-no-proposals">No Code Proposals Yet</h3>
+                  <p className="text-sm text-muted-foreground/70 mt-2 max-w-md mx-auto">
+                    When nightly research discovers high-scoring findings (8+/10) that could improve the platform,
+                    the agents will generate concrete code proposals here for your review.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground" data-testid="text-proposal-count">
+                    {proposals.length} proposal{proposals.length !== 1 ? "s" : ""} — {pendingProposalCount} awaiting review
+                  </p>
+                </div>
+
+                {proposals.map((proposal: any) => {
+                  const isExpanded = expandedProposal === proposal.id;
+                  const validation = proposal.validation_result || {};
+                  const personaName = personas.find((p: any) => p.id === proposal.persona_id)?.name || "Unknown";
+
+                  return (
+                    <Card
+                      key={proposal.id}
+                      className={`transition-all ${
+                        proposal.status === "approved" ? "border-green-500/30 bg-green-500/5" :
+                        proposal.status === "rejected" ? "border-red-500/30 bg-red-500/5 opacity-60" :
+                        proposal.status === "applied" ? "border-blue-500/30 bg-blue-500/5" :
+                        proposal.status === "ready" ? "border-orange-500/30" :
+                        "border-yellow-500/30"
+                      }`}
+                      data-testid={`card-proposal-${proposal.id}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <CardTitle className="text-sm font-medium leading-tight">{proposal.title}</CardTitle>
+                              <Badge variant={
+                                proposal.status === "ready" ? "default" :
+                                proposal.status === "approved" ? "default" :
+                                proposal.status === "applied" ? "default" :
+                                proposal.status === "rejected" ? "destructive" :
+                                "secondary"
+                              } className={`text-[10px] ${
+                                proposal.status === "ready" ? "bg-orange-500" :
+                                proposal.status === "approved" ? "bg-green-500" :
+                                proposal.status === "applied" ? "bg-blue-500" :
+                                ""
+                              }`} data-testid={`badge-status-${proposal.id}`}>
+                                {proposal.status === "ready" ? "Ready for Review" :
+                                 proposal.status === "needs_review" ? "Needs Review" :
+                                 proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Brain className="w-3 h-3" /> {personaName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <FileCode className="w-3 h-3" /> {proposal.target_file}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> {new Date(proposal.created_at).toLocaleDateString()}
+                              </span>
+                              {validation.valid && (
+                                <span className="flex items-center gap-1 text-green-600">
+                                  <ShieldCheck className="w-3 h-3" /> Validated
+                                </span>
+                              )}
+                              {validation.valid === false && (
+                                <span className="flex items-center gap-1 text-yellow-600">
+                                  <AlertTriangle className="w-3 h-3" /> {validation.error?.substring(0, 40)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedProposal(isExpanded ? null : proposal.id)}
+                              data-testid={`button-expand-${proposal.id}`}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            {(proposal.status === "ready" || proposal.status === "pending" || proposal.status === "needs_review") && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => reviewProposal.mutate({ id: proposal.id, status: "approved" })}
+                                  disabled={reviewProposal.isPending}
+                                  data-testid={`button-approve-${proposal.id}`}
+                                >
+                                  <ThumbsUp className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => reviewProposal.mutate({ id: proposal.id, status: "rejected" })}
+                                  disabled={reviewProposal.isPending}
+                                  data-testid={`button-reject-${proposal.id}`}
+                                >
+                                  <ThumbsDown className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      {isExpanded && (
+                        <CardContent className="pt-0 space-y-3">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
+                            <p className="text-sm" data-testid={`text-description-${proposal.id}`}>{proposal.description}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Rationale</p>
+                            <p className="text-sm" data-testid={`text-rationale-${proposal.id}`}>{proposal.rationale}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Code Diff</p>
+                            <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto" data-testid={`code-diff-${proposal.id}`}>
+                              {proposal.code_diff}
+                            </pre>
+                          </div>
+                          {validation && (
+                            <div className="flex items-center gap-4 text-xs pt-1 border-t border-border/50">
+                              <span>File exists: {validation.fileExists ? <CheckCircle2 className="w-3.5 h-3.5 inline text-green-500" /> : <XCircle className="w-3.5 h-3.5 inline text-red-500" />}</span>
+                              <span>Code match: {validation.oldCodeFound ? <CheckCircle2 className="w-3.5 h-3.5 inline text-green-500" /> : <XCircle className="w-3.5 h-3.5 inline text-red-500" />}</span>
+                              {proposal.source_session_id && <span>Session: #{proposal.source_session_id}</span>}
+                            </div>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
