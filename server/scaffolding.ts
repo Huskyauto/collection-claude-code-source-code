@@ -2011,6 +2011,23 @@ export function formatScaffoldForPrompt(scaffold: OperationScaffold): string {
   }
   prompt += `\n`;
 
+  prompt += `GOVERNANCE RULES:\n`;
+  prompt += `- Check your trust score before acting autonomously. If trust < 60, get approval first.\n`;
+  prompt += `- NEVER auto-execute: payment_action, browser_form_submit, execute_shell_destructive, kill_switch, production_data_delete — these always require CEO approval.\n`;
+  prompt += `- Express lanes allow direct delegation between approved persona pairs without Felix routing. Check if one exists before going through Felix.\n`;
+  prompt += `- You have a Proactive Action Budget (PAB). Before taking unsolicited actions, verify you have remaining PAB for the day.\n`;
+  prompt += `- All files and documents MUST go to Google Drive. Never reference local file paths in deliverables.\n`;
+  prompt += `- If you encounter a blocker, escalate immediately via project notes (noteType="blocker") rather than silently failing.\n`;
+  prompt += `- For complex decisions, use collective intelligence protocols: Specialist+Critique for medium, Chain of Debates for high, Full Council for critical.\n`;
+  prompt += `\n`;
+
+  prompt += `AUTONOMY LEVELS:\n`;
+  prompt += `- full_auto (trust >= 80): Execute without asking. Just do it and report results.\n`;
+  prompt += `- notify_after (trust 60-79): Execute, then notify the CEO what you did.\n`;
+  prompt += `- approve_before (trust 30-59): Propose your plan and wait for approval before executing.\n`;
+  prompt += `- blocked (trust < 30): Cannot act autonomously. Request help from Felix.\n`;
+  prompt += `\n`;
+
   prompt += `HANDOFF INSTRUCTIONS:\n`;
   prompt += `When complete, return with:\n`;
   prompt += `- Summary of what was done\n`;
@@ -2036,6 +2053,15 @@ export function formatCrossWorkflowForPrompt(
       prompt += `  - ${task.agent}: ${task.instruction}\n`;
     }
   }
+  prompt += `\n`;
+
+  prompt += `CROSS-DEPARTMENT GOVERNANCE:\n`;
+  prompt += `- Each agent operates within their trust-based autonomy level. Do not override another agent's trust boundaries.\n`;
+  prompt += `- NEVER auto-execute: payment_action, browser_form_submit, execute_shell_destructive, kill_switch, production_data_delete.\n`;
+  prompt += `- Use express lanes for direct agent-to-agent delegation when available. Otherwise route through Felix.\n`;
+  prompt += `- All deliverables go to Google Drive. Share Drive links, never local file paths.\n`;
+  prompt += `- If any step in the orchestration fails, log it as a blocker (project noteType="blocker") and continue with remaining parallel steps.\n`;
+  prompt += `- For disagreements between agents, escalate to collective intelligence (Specialist+Critique or Chain of Debates).\n`;
   prompt += `================================\n`;
 
   return prompt;
@@ -2080,7 +2106,18 @@ export function buildClassificationContext(): string {
     ctx += `  "${input}" → ${dept} → ${op} → ${agent}\n`;
   }
 
-  ctx += `\nWhen delegating, include the operation scaffold in the task prompt to give the agent structured guidance.\n`;
+  ctx += `\nWhen delegating, include the operation scaffold in the task prompt to give the agent structured guidance.\n\n`;
+
+  ctx += `DELEGATION GOVERNANCE RULES:\n`;
+  ctx += `- Before delegating, check the target agent's trust score. If trust < 30 (blocked), handle the task yourself or escalate.\n`;
+  ctx += `- Use express lanes for direct delegation between approved agent pairs (bypasses Felix routing). Check findLanesForAgent() for available lanes.\n`;
+  ctx += `- Each agent has a Proactive Action Budget (PAB). Do not assign proactive work to agents who have exhausted their daily PAB.\n`;
+  ctx += `- NEVER delegate these actions without CEO approval: payment_action, browser_form_submit, execute_shell_destructive, kill_switch, production_data_delete.\n`;
+  ctx += `- All deliverables MUST go to Google Drive. Instruct agents to use create_pdf (auto-uploads) or google_drive (manual upload). No local file paths.\n`;
+  ctx += `- For complex decisions requiring multiple perspectives, use collective intelligence protocols instead of single-agent delegation.\n`;
+  ctx += `- If an agent fails a task 3 times consecutively on the same express lane, the lane auto-suspends. Reroute through standard delegation.\n`;
+  ctx += `- When a task is blocked, the agent should log it as a project note (noteType="blocker") and notify you immediately.\n`;
+  ctx += `- Trust score thresholds: full_auto >= 80, notify_after 60-79, approve_before 30-59, blocked < 30.\n`;
   ctx += `=================================\n`;
 
   return ctx;
