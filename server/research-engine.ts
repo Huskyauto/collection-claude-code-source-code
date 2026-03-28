@@ -550,39 +550,18 @@ async function injectKeepedFinding(
   const ttlDays = mapping.category === "security" ? 30 : 14;
   const expiresAt = new Date(Date.now() + ttlDays * 86_400_000).toISOString();
 
-  try {
-    await db.execute(sql`
-      INSERT INTO agent_knowledge (title, content, category, priority, persona_id, tenant_id, source, expires_at)
-      VALUES (
-        ${knowledgeTitle},
-        ${knowledgeContent},
-        ${mapping.category},
-        ${priority},
-        ${personaId},
-        ${session.tenantId},
-        ${"autoresearch"},
-        ${expiresAt}::timestamp
-      )
-    `);
-  } catch (colErr: any) {
-    if (colErr.code === "42703") {
-      await db.execute(sql`
-        INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
-        VALUES (
-          ${knowledgeTitle},
-          ${knowledgeContent},
-          ${mapping.category},
-          ${priority},
-          ${personaId},
-          ${"autoresearch"},
-          ${expiresAt}::timestamp
-        )
-      `);
-      console.warn(`[research] Injected without tenant_id (column missing in production — run startup migration)`);
-    } else {
-      throw colErr;
-    }
-  }
+  await db.execute(sql`
+    INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
+    VALUES (
+      ${knowledgeTitle},
+      ${knowledgeContent},
+      ${mapping.category},
+      ${priority},
+      ${personaId},
+      ${"autoresearch"},
+      ${expiresAt}::timestamp
+    )
+  `);
 
   if (programName === "Nightly AI Model & Provider Intelligence" && score >= 8) {
     const modelMatch = result.match(/model[_\s]?id[:\s]*["`']?([a-zA-Z0-9\-_./]+)["`']?/i);
