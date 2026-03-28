@@ -259,22 +259,26 @@ async function llmClassify(message: string): Promise<{ category: string; complex
 const META_MODEL_IDS = new Set(["auto"]);
 
 const PREMIUM_MODELS = new Set([
-  "gpt-5.4", "gpt-4.1",
   "claude-sonnet-4-20250514", "claude-opus-4-20250514",
   "claude-sonnet-4-6", "claude-opus-4-6",
   "grok-4", "grok-3",
+  "minimax/minimax-m2.7", "mistralai/mistral-large-2512",
+]);
+
+const OAUTH_MODELS = new Set([
+  "gpt-5.4", "gpt-4.1", "gpt-4.1-mini", "gpt-5-mini",
   "o4-mini", "o4-mini-openai",
   "gemini-3.1-pro-preview", "gemini-3-pro-preview",
-  "minimax/minimax-m2.7", "mistralai/mistral-large-2512",
+  "gemini-3-flash-preview", "gemini-2.5-flash",
 ]);
 
 function pickBestAvailable(preferredModels: string[], available: ModelInfo[], complexity: string): ModelInfo | null {
   const concrete = available.filter(m => !META_MODEL_IDS.has(m.id));
 
-  if (complexity === "low" || complexity === "medium") {
-    const budgetFirst = preferredModels.filter(id => !PREMIUM_MODELS.has(id));
-    const premium = preferredModels.filter(id => PREMIUM_MODELS.has(id));
-    const ordered = complexity === "low" ? budgetFirst : [...budgetFirst, ...premium];
+  if (complexity === "low") {
+    const oauthFirst = preferredModels.filter(id => OAUTH_MODELS.has(id));
+    const budget = preferredModels.filter(id => !OAUTH_MODELS.has(id) && !PREMIUM_MODELS.has(id));
+    const ordered = [...oauthFirst, ...budget];
 
     for (const modelId of ordered) {
       const found = concrete.find(m => m.id === modelId);

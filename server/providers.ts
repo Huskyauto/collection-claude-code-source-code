@@ -442,6 +442,10 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   for (const c of candidates) {
     if (subscriptionProviders.has(c.provider)) return c.model;
+    if (c.provider === "replit") {
+      const mapped = mapReplitToOpenAI(c.model);
+      if (mapped && subscriptionProviders.has("openai")) return c.model;
+    }
   }
 
   for (const c of candidates) {
