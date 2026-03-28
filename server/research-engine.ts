@@ -511,13 +511,10 @@ const PROGRAM_PERSONA_MAP: Record<string, { personaSlug: string; category: strin
   "Nightly Security & Safety Intelligence": { personaSlug: "Luna", category: "security" },
 };
 
-async function resolvePersonaId(personaSlug: string, tenantId: number): Promise<number | null> {
-  const result = await db.execute(sql`SELECT id FROM personas WHERE name = ${personaSlug} AND tenant_id = ${tenantId} LIMIT 1`);
+async function resolvePersonaId(personaSlug: string, _tenantId: number): Promise<number | null> {
+  const result = await db.execute(sql`SELECT id FROM personas WHERE name = ${personaSlug} LIMIT 1`);
   const rows = (result as any).rows || result;
-  if (rows[0]?.id) return rows[0].id;
-  const fallback = await db.execute(sql`SELECT id FROM personas WHERE name = ${personaSlug} LIMIT 1`);
-  const fbRows = (fallback as any).rows || fallback;
-  return fbRows[0]?.id || null;
+  return rows[0]?.id || null;
 }
 
 async function injectKeepedFinding(
