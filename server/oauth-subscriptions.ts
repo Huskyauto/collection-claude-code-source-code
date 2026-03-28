@@ -903,13 +903,70 @@ export async function exchangeYouTubeCode(
   }
 }
 
+export async function seedYouTubeIfMissing(tenantId: number = 1): Promise<void> {
+  try {
+    const existing = await db.execute(sql`
+      SELECT id FROM oauth_subscriptions WHERE provider = 'youtube' AND tenant_id = ${tenantId}
+    `);
+    const rows = (existing as any).rows || existing;
+    if (rows.length > 0) return;
+
+    const refreshTokenPlain = process.env.YOUTUBE_REFRESH_TOKEN;
+    const clientId = process.env.YOUTUBE_CLIENT_ID;
+    const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+    if (!refreshTokenPlain || !clientId || !clientSecret) {
+      console.log("[youtube] Seed skipped: missing YOUTUBE_REFRESH_TOKEN, YOUTUBE_CLIENT_ID, or YOUTUBE_CLIENT_SECRET");
+      return;
+    }
+
+    const resp = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshTokenPlain,
+      }).toString(),
+    });
+
+    if (!resp.ok) {
+      console.error(`[youtube] Seed token refresh failed: ${resp.status} ${await resp.text()}`);
+      return;
+    }
+
+    const data = await resp.json();
+    const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+    const encAccess = encryptApiKey(data.access_token);
+    const encRefresh = encryptApiKey(refreshTokenPlain);
+    const scope = "https://www.googleapis.com/auth/youtubepartner https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload";
+
+    await db.execute(sql`
+      INSERT INTO oauth_subscriptions (provider, tenant_id, access_token, refresh_token, expires_at, is_active, scope, email, token_type)
+      VALUES ('youtube', ${tenantId}, ${encAccess}, ${encRefresh}, ${expiresAt}, true, ${scope}, 'Robert Washburn', 'Bearer')
+    `);
+    console.log(`[youtube] Seeded YouTube OAuth for tenant ${tenantId} (token valid for ${data.expires_in}s)`);
+  } catch (err: any) {
+    console.error("[youtube] Seed error:", err.message);
+  }
+}
+
 export async function getYouTubeAccessToken(tenantId: number): Promise<string | null> {
   try {
-    const result = await db.execute(sql`
+    let result = await db.execute(sql`
       SELECT access_token, refresh_token, expires_at FROM oauth_subscriptions
       WHERE provider = 'youtube' AND tenant_id = ${tenantId} AND is_active = TRUE
     `);
-    const rows = (result as any).rows || result;
+    let rows = (result as any).rows || result;
+
+    if (!rows || rows.length === 0) {
+      await seedYouTubeIfMissing(tenantId);
+      result = await db.execute(sql`
+        SELECT access_token, refresh_token, expires_at FROM oauth_subscriptions
+        WHERE provider = 'youtube' AND tenant_id = ${tenantId} AND is_active = TRUE
+      `);
+      rows = (result as any).rows || result;
+    }
     if (!rows || rows.length === 0) return null;
 
     const row = rows[0];
