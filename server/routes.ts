@@ -1574,7 +1574,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       } catch {}
     }
     const modelAllowed = await validateModelForTenant(requestedModel, tenantId);
-    const finalModel = modelAllowed ? requestedModel : "deepseek/deepseek-v3.2";
+    const finalModel = modelAllowed ? requestedModel : "z-ai/glm-5-turbo";
     const conv = await storage.createConversation({
       title: parsed.data.title || "New Chat",
       model: finalModel,
@@ -1665,7 +1665,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (updateData.model) {
       const modelAllowed = await validateModelForTenant(updateData.model, tenantId);
       if (!modelAllowed) {
-        updateData.model = "deepseek/deepseek-v3.2";
+        updateData.model = "z-ai/glm-5-turbo";
       }
     }
     if (updateData.thinkingLevel !== undefined) {
@@ -1861,7 +1861,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (model !== "auto") {
       const modelAllowed = await validateModelForTenant(model, tenantId);
       if (!modelAllowed) {
-        model = "deepseek/deepseek-v3.2";
+        model = "z-ai/glm-5-turbo";
       }
     }
     let autoRouteDecision: { modelId: string; label: string; reason: string; category: string } | null = null;
@@ -6947,7 +6947,7 @@ Keep it concise — this is a morning briefing, not a novel. Use bullet points. 
         storage.getKnowledge(persona?.id, 100, 0, convTenantId),
       ]);
 
-      const model = "deepseek/deepseek-v3.2";
+      const model = "z-ai/glm-5-turbo";
       const registeredModel = MODEL_REGISTRY.find((m) => m.id === model);
       if (!registeredModel) return res.status(500).json({ error: "No model available" });
 
@@ -7177,7 +7177,7 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
       if (!name?.trim() || !objective?.trim()) return res.status(400).json({ error: "Name and objective required" });
       const result = await db.execute(sql`
         INSERT INTO research_programs (tenant_id, persona_id, name, objective, constraints, metrics, exploration_strategy, model, max_experiments_per_session)
-        VALUES (${tenantId}, ${personaId || null}, ${name.trim()}, ${objective.trim()}, ${constraints || ""}, ${metrics || ""}, ${explorationStrategy || "balanced"}, ${model || "deepseek/deepseek-v3.2"}, ${maxExperimentsPerSession || 20})
+        VALUES (${tenantId}, ${personaId || null}, ${name.trim()}, ${objective.trim()}, ${constraints || ""}, ${metrics || ""}, ${explorationStrategy || "balanced"}, ${model || "z-ai/glm-5-turbo"}, ${maxExperimentsPerSession || 20})
         RETURNING *
       `);
       res.json(((result as any).rows || result)[0]);

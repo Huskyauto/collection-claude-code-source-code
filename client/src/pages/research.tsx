@@ -18,10 +18,12 @@ import {
 } from "lucide-react";
 
 const COST_MODELS = [
-  { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2 (Fast/Cheap)", cost: "$" },
-  { id: "qwen/qwen3.5-flash-02-23", label: "Qwen 3.5 Flash (Fastest)", cost: "$" },
-  { id: "deepseek/deepseek-r1", label: "DeepSeek R1 (Reasoning)", cost: "$$" },
-  { id: "mistralai/mistral-large-2512", label: "Mistral Large (Quality)", cost: "$$" },
+  { id: "z-ai/glm-5-turbo", label: "GLM-5 Turbo (Fast)", cost: "$" },
+  { id: "z-ai/glm-5", label: "GLM-5 (Flagship)", cost: "$$" },
+  { id: "z-ai/glm-4.7", label: "GLM-4.7 (Code/Science)", cost: "$$" },
+  { id: "nvidia/nemotron-3-super-120b-a12b", label: "Nemotron 3 Super (Reasoning)", cost: "$$" },
+  { id: "deepseek/deepseek-r1", label: "DeepSeek R1 (Deep Reasoning)", cost: "$$" },
+  { id: "mistralai/mistral-large-2512", label: "Mistral Large 3 (Quality)", cost: "$$" },
 ];
 
 const STRATEGIES = [
@@ -132,7 +134,7 @@ function ProgramForm({
   const [constraints, setConstraints] = useState(initial?.constraints || "");
   const [metrics, setMetrics] = useState(initial?.metrics || "");
   const [strategy, setStrategy] = useState(initial?.exploration_strategy || "balanced");
-  const [model, setModel] = useState(initial?.model || "deepseek/deepseek-v3.2");
+  const [model, setModel] = useState(initial?.model || "z-ai/glm-5-turbo");
   const [maxExp, setMaxExp] = useState(String(initial?.max_experiments_per_session || 20));
   const [personaId, setPersonaId] = useState(String(initial?.persona_id || ""));
 

@@ -2802,7 +2802,7 @@ export async function seedDatabase() {
         constraints TEXT NOT NULL DEFAULT '',
         metrics TEXT NOT NULL DEFAULT '',
         exploration_strategy TEXT NOT NULL DEFAULT 'balanced',
-        model TEXT DEFAULT 'deepseek/deepseek-v3.2',
+        model TEXT DEFAULT 'z-ai/glm-5-turbo',
         max_experiments_per_session INTEGER DEFAULT 20,
         is_active BOOLEAN NOT NULL DEFAULT true,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -3291,12 +3291,12 @@ export async function seedDatabase() {
 
     await db.execute(sql`
       INSERT INTO heartbeat_tasks (name, description, type, cron_expression, enabled, prompt_content, model, persona_id, created_by, tenant_id, next_run_at)
-      SELECT 'Quarterly Governance Research', 'Agent Blueprint scans for new AI governance frameworks, standards, and regulations. Discovers new frameworks and adds them to the governance knowledge base.', 'quarterly_intelligence', '0 3 1 */3 *', true, 'governance', 'deepseek/deepseek-v3.2', 5, 'system', 1, NOW() + INTERVAL '3 months'
+      SELECT 'Quarterly Governance Research', 'Agent Blueprint scans for new AI governance frameworks, standards, and regulations. Discovers new frameworks and adds them to the governance knowledge base.', 'quarterly_intelligence', '0 3 1 */3 *', true, 'governance', 'z-ai/glm-5-turbo', 5, 'system', 1, NOW() + INTERVAL '3 months'
       WHERE NOT EXISTS (SELECT 1 FROM heartbeat_tasks WHERE name = 'Quarterly Governance Research' AND tenant_id = 1)
     `).catch(() => {});
     await db.execute(sql`
       INSERT INTO heartbeat_tasks (name, description, type, cron_expression, enabled, prompt_content, model, persona_id, created_by, tenant_id, next_run_at)
-      SELECT 'Quarterly Model Registry Refresh', 'Agent Blueprint scans for new LLM models, ID changes, and deprecations. Finds high-value open-source models and queues changes for human review.', 'quarterly_intelligence', '0 3 15 */3 *', true, 'model registry', 'deepseek/deepseek-v3.2', 5, 'system', 1, NOW() + INTERVAL '3 months'
+      SELECT 'Quarterly Model Registry Refresh', 'Agent Blueprint scans for new LLM models, ID changes, and deprecations. Finds high-value open-source models and queues changes for human review.', 'quarterly_intelligence', '0 3 15 */3 *', true, 'model registry', 'z-ai/glm-5-turbo', 5, 'system', 1, NOW() + INTERVAL '3 months'
       WHERE NOT EXISTS (SELECT 1 FROM heartbeat_tasks WHERE name = 'Quarterly Model Registry Refresh' AND tenant_id = 1)
     `).catch(() => {});
 
@@ -3318,27 +3318,27 @@ export async function seedDatabase() {
          'Research and develop empathetic, evidence-based intervention scripts for people experiencing emotional eating episodes. Cover the top triggers: stress/anxiety, loneliness/boredom, late-night cravings, celebration/reward eating, and shame spirals after a binge. Each experiment should produce a ready-to-use 2-4 sentence intervention message that redirects without judgment. Reference CBT, DBT, and mindfulness techniques. Founder Robert Washburn lost 220 lbs — use his lived experience as inspiration for authentic voice.',
          'Never shame or guilt the reader. No diet culture language (no cheat days, no clean eating, no good/bad foods). Must feel like a supportive friend, not a clinician. Keep messages under 100 words. Must work at 2 AM when someone is standing at the fridge.',
          'Empathy and warmth score, Practical actionability, Authenticity (does it feel real, not generic)',
-         'aggressive', 'deepseek/deepseek-v3.2', 25),
+         'aggressive', 'z-ai/glm-5-turbo', 25),
         (1, 4, 'AI Buddy Content Marketing Pipeline',
          'Generate content frameworks for the AI Buddy Weight Loss Protocol + 90-Day AI Companion product (ai-buddyhealth.com). Create social media posts, blog outlines, email sequences, and ad copy angles targeting adults struggling with emotional eating. Focus on the transformation story: Robert Washburn, 61, lost 220 lbs in 2+ years. Each experiment should produce one complete, ready-to-publish content piece or framework.',
          'Must comply with FTC guidelines — no income or specific weight loss guarantees. Use transformation language but not before/after claims that could trigger ad platform bans. Target platforms: Instagram, Facebook, TikTok, email. Voice should be warm, relatable, and non-preachy.',
          'Hook strength (would you stop scrolling?), Emotional resonance, Call-to-action clarity, Platform appropriateness',
-         'balanced', 'deepseek/deepseek-v3.2', 20),
+         'balanced', 'z-ai/glm-5-turbo', 20),
         (1, 9, 'Competitive Intelligence — Weight Loss & Emotional Eating Market',
          'Deep analysis of the weight loss and emotional eating support market. Map competitors (Noom, BetterHelp, WW/WeightWatchers, Calibrate, Found, Optavia, coaching apps). For each experiment, investigate one competitor or market segment: pricing models, customer complaints (Reddit, Trustpilot), feature gaps, positioning. Identify specific opportunities where AI Buddy can differentiate — especially around real-time emotional support, AI companionship, and the 90-day structured program model.',
          'Use publicly available information only. Focus on actionable gaps, not just descriptions. Each finding must end with a specific recommendation for AI Buddy.',
          'Specificity of insight, Actionability of recommendation, Evidence quality',
-         'conservative', 'deepseek/deepseek-v3.2', 20),
+         'conservative', 'z-ai/glm-5-turbo', 20),
         (1, 11, 'AI Buddy Revenue & Pricing Strategy',
          'Research optimal pricing strategies for the AI Buddy Weight Loss Protocol + 90-Day AI Companion digital product. Investigate: one-time purchase vs subscription vs hybrid models, price anchoring techniques for health/wellness digital products, upsell paths (premium AI companion tiers, group coaching add-ons, partner supplements/products), affiliate and referral program structures that work in weight loss. Each experiment should propose and evaluate one pricing or revenue model with projected unit economics.',
          'Price range should be accessible ($27-$197 for core product). Must account for AI compute costs of the companion. Consider that the target audience may have limited disposable income. No MLM or predatory structures.',
          'Revenue potential, Customer accessibility, Scalability, Differentiation from competitors',
-         'balanced', 'deepseek/deepseek-v3.2', 15),
+         'balanced', 'z-ai/glm-5-turbo', 15),
         (1, 7, 'Daily Companion Message Library',
          'Build a 90-day library of daily AI companion messages for the AI Buddy weight loss program. Each experiment should generate a week (7 days) of messages covering: morning motivation, midday check-in prompt, and evening reflection. Messages should progress through phases: Week 1-2 (Building Awareness), Week 3-6 (Building Habits), Week 7-10 (Overcoming Plateaus), Week 11-13 (Sustaining & Identity Shift). Include specific prompts that invite the user to respond, creating a conversation dynamic.',
          'Messages must be conversational, not clinical. Max 3 sentences per message. Each message should feel like it comes from a friend who genuinely cares and has been through it. Reference seasonal and situational triggers (holidays, weekends, work stress). Never assume the user is failing.',
          'Conversational warmth, Phase-appropriateness, Engagement (would someone reply to this?), Variety across the week',
-         'balanced', 'deepseek/deepseek-v3.2', 20),
+         'balanced', 'z-ai/glm-5-turbo', 20),
         (1, 14, 'AI Buddy Legal & Compliance Framework',
          'Research legal requirements and compliance frameworks for launching a weight loss AI companion product. Cover: FDA regulations on health claims for digital products, FTC advertising guidelines for weight loss testimonials, state-specific health coaching regulations, terms of service requirements, privacy policy for health data (HIPAA applicability for non-clinical AI), liability disclaimers, trademark protection strategy for AI Buddy brand. Each experiment should produce a specific legal checklist or template section.',
          'Must be conservative on health claims — err on side of caution. Distinguish between lifestyle coaching and medical advice. Address the AI-specific liability question (if the AI gives bad advice). Illinois-specific business requirements for AI Buddy LLC.',

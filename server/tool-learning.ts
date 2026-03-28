@@ -14,8 +14,8 @@ async function getToolGenClient(): Promise<{ client: any; model: string }> {
       const { client } = await getClientForModel("gpt-4.1-mini");
       return { client, model: "gpt-4.1-mini" };
     } catch {
-      const { client } = await getClientForModel("deepseek/deepseek-v3.2");
-      return { client, model: "deepseek/deepseek-v3.2" };
+      const { client } = await getClientForModel("z-ai/glm-5-turbo");
+      return { client, model: "z-ai/glm-5-turbo" };
     }
   }
 }

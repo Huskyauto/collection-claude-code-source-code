@@ -5,7 +5,7 @@ import { getAvailableModels } from "./providers";
 import { storage } from "./storage";
 
 const RESEARCH_COST_MODELS = [
-  "deepseek/deepseek-v3.2",
+  "z-ai/glm-5-turbo",
   "gemini-2.5-flash",
   "gpt-4.1-mini",
   "gemini-3-flash-preview",

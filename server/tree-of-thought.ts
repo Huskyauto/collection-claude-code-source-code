@@ -71,7 +71,7 @@ function safeNum(val: any, fallback: number): number {
 }
 
 async function getToTClient(tenantId?: number): Promise<{ client: OpenAI; modelId: string }> {
-  const fastModels = ["gemini-2.5-flash", "deepseek/deepseek-v3.2", "gpt-4.1-mini", "gpt-5-mini"];
+  const fastModels = ["gemini-2.5-flash", "z-ai/glm-4.7-flash", "z-ai/glm-5-turbo", "gpt-4.1-mini"];
 
   for (const mid of fastModels) {
     try {
@@ -184,7 +184,7 @@ export async function treeOfThought(
 
   if (branches.length >= 3) {
     try {
-      const balancedModels = ["deepseek/deepseek-v3.2", "qwen/qwen3.5-plus-02-15", "gpt-5-mini"];
+      const balancedModels = ["z-ai/glm-5-turbo", "qwen/qwen3.5-plus-02-15", "z-ai/glm-4.7"];
       for (const mid of balancedModels) {
         try {
           const r = await getClientForModel(mid, tenantId);

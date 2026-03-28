@@ -12,7 +12,7 @@ export interface RouteDecision {
 const TASK_CATEGORIES: Record<string, { models: string[]; description: string }> = {
   "simple-chat": {
     models: [
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
       "gpt-4.1-mini",
@@ -22,7 +22,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   },
   "general": {
     models: [
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "qwen/qwen3.5-plus-02-15",
       "gemini-2.5-flash",
       "gpt-5-mini",
@@ -32,7 +32,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   },
   "writing": {
     models: [
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "qwen/qwen3.5-plus-02-15",
       "minimax/minimax-m2.7",
       "gemini-3-flash-preview",
@@ -45,7 +45,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
     models: [
       "claude-opus-4-6",
       "claude-opus-4-20250514",
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "minimax/minimax-m2.7",
       "gemini-3-flash-preview",
       "gpt-5.4",
@@ -80,7 +80,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
       "gemini-3-flash-preview",
       "gemini-2.5-flash",
       "google/gemini-3-flash-preview",
-      "qwen/qwen2.5-vl-72b-instruct",
+      "z-ai/glm-4.5v",
       "gpt-5.4",
     ],
     description: "Image analysis, visual understanding, OCR, describe images",
@@ -99,7 +99,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   "translation": {
     models: [
       "qwen/qwen3.5-plus-02-15",
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "gemini-2.5-flash",
       "gpt-4.1-mini",
     ],
@@ -108,7 +108,7 @@ const TASK_CATEGORIES: Record<string, { models: string[]; description: string }>
   "data-analysis": {
     models: [
       "deepseek/deepseek-r1",
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "qwen/qwen3.5-plus-02-15",
       "gemini-3-flash-preview",
       "gpt-5.4",
@@ -184,7 +184,7 @@ async function llmClassify(message: string): Promise<{ category: string; complex
     const truncated = message.length > 500 ? message.slice(0, 500) + "..." : message;
 
     const classifierModels = [
-      "deepseek/deepseek-v3.2",
+      "z-ai/glm-5-turbo",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
       "gpt-4.1-mini",
@@ -507,7 +507,7 @@ export async function autoRouteModel(userMessage: string): Promise<RouteDecision
 
   if (!chosen) {
     return {
-      modelId: "deepseek/deepseek-v3.2",
+      modelId: "z-ai/glm-5-turbo",
       label: "DeepSeek V3.2",
       reason: "No preferred models available, using budget default",
       category: "general",
