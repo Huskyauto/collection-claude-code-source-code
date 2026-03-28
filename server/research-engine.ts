@@ -194,7 +194,7 @@ async function runExperiment(session: ActiveSession): Promise<void> {
     ? `\n\nPrevious experiments in this session:\n${session.previousResults.map((r, i) => `${i + 1}. [${r.status}] ${r.hypothesis}${r.metric_value ? ` → score: ${r.metric_value}` : ""}${r.result ? ` → ${r.result.substring(0, 150)}` : ""}`).join("\n")}`
     : "\n\nThis is the first experiment in this session. Start with a strong foundational approach.";
 
-  const prompt = `You are an autonomous research agent conducting experiment #${session.experimentCount} of ${session.maxExperiments}.
+  const prompt = `You are an expert research analyst conducting experiment #${session.experimentCount} of ${session.maxExperiments}. Your job is to produce IMPLEMENTATION-READY findings, not theoretical summaries.
 
 RESEARCH OBJECTIVE: ${session.objective}
 
@@ -206,25 +206,30 @@ STRATEGY: ${strategyInstruction}
 ${session.personaName ? `\nYou are operating as ${session.personaName}.` : ""}
 ${previousContext}
 
-INSTRUCTIONS:
-1. Generate a clear HYPOTHESIS for this experiment
-2. Execute the research/analysis — provide SPECIFIC, ACTIONABLE findings with concrete details (file names, function signatures, code patterns, configuration values, exact steps). Generic recommendations score low.
-3. Evaluate your own result against the metrics
-4. Self-score your result on a scale of 1-10 using this rubric:
-   - 1-3: Vague or generic advice anyone could give
-   - 4-5: Reasonable insight but lacks specifics or actionable detail
-   - 6-7: Concrete, actionable finding with specific implementation guidance
-   - 8-9: Highly specific finding with exact code patterns, configurations, or techniques ready to implement
-   - 10: Breakthrough insight with complete implementation plan
+CRITICAL RULES:
+- You MUST produce concrete, specific, implementation-ready findings. NOT high-level summaries.
+- Include actual code snippets, regex patterns, configuration objects, function signatures, or TypeScript interfaces in your RESULT.
+- If recommending a technique, show EXACTLY how to implement it with code examples.
+- Think of yourself as a senior engineer writing a technical design document, not a consultant writing a slide deck.
+- Your analysis and expert knowledge ARE the research. You do not need external data to produce valuable findings.
+
+SCORING RUBRIC (be honest but fair):
+- 1-2: One-sentence platitude with no specifics
+- 3-4: Describes a concept but provides no implementation details
+- 5-6: Includes specific techniques with some implementation guidance
+- 7-8: Provides concrete code patterns, configurations, or step-by-step implementation
+- 9-10: Complete implementation plan with production-ready code examples
+
+A finding that includes TypeScript code examples, specific regex patterns, concrete function signatures, or detailed configuration objects should score 7+.
 
 Respond in this exact format:
-HYPOTHESIS: [Your hypothesis for this experiment]
-APPROACH: [Brief description of your approach]
-RESULT: [Your actual findings — be SPECIFIC and CONCRETE, not generic. Include exact patterns, code examples, configurations, or step-by-step implementation details.]
+HYPOTHESIS: [A specific, testable claim — not a generic statement]
+APPROACH: [Your methodology — what specific techniques or patterns you analyzed]
+RESULT: [Your findings. MUST include at least one of: code snippets, TypeScript interfaces, regex patterns, configuration examples, or concrete implementation steps. Generic descriptions without code/specifics will score below 5.]
 METRIC: [Which metric you're evaluating]
-SCORE: [1-10 self-assessment score — use the rubric above honestly. A well-researched analytical finding with specific implementation details deserves a 6-8.]
+SCORE: [1-10 using the rubric above]
 VERDICT: [KEEP if score >= 6, DISCARD if score < 6]
-INSIGHT: [One key insight that could inform the next experiment]`;
+INSIGHT: [One key insight for the next experiment]`;
 
   let hypothesis = `Experiment #${session.experimentCount}`;
   let approach = "";
