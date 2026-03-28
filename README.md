@@ -42,6 +42,7 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 | Metric | Value |
 |---|---|
 | AI Personas | 14 specialized roles |
+| AI Models | 36 models across 8+ providers |
 | AI Providers | 8+ connected (OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter, DeepSeek, Meta Llama, Claude Runner CLI) |
 | Tools | 87+ (communication, research, code, browsing, finance, agentic ops, Google Workspace, virtual browser) |
 | Governance Rules | 40 rules across 7 categories (including agency_expansion) |
@@ -51,13 +52,14 @@ The system features a 40-rule governance engine, a 6-tier Agency Expansion Frame
 | Decision Protocols | 5 collective intelligence protocols |
 | Evaluators | 9 real-time system evaluators |
 | Operation Scaffolds | 65 structured scaffolds across 12 departments |
-| Server Modules | 110+ TypeScript files |
-| Frontend Pages | 25+ |
+| Server Modules | 120+ TypeScript files |
+| Frontend Pages | 38+ |
 | Database Tables | 33+ |
 | Agentic Design Patterns | 6 book-inspired patterns |
 | Communication Channels | AgentMail, WhatsApp, Discord, Telegram |
 | YouTube Integration | OAuth channel management (upload, analytics, comments) |
 | Context Window Guard | Zero-loss compaction with archive-before-condense |
+| Auto-Project Detection | Automatic project creation from conversation context |
 
 ---
 
@@ -111,10 +113,8 @@ Each persona has unique brand voice, expert rules, operating loops, per-agent re
 | Anthropic | Claude Opus 4.6, Claude Sonnet 4.6, Claude Opus 4, Claude Sonnet 4 |
 | Google Gemini | Gemini 3.1 Pro, Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Flash |
 | xAI | Grok 4, Grok 3, Grok 3 Mini |
-| OpenRouter | DeepSeek R1/V3.2, Llama 4 Maverick/Scout, Qwen 3.5/2.5 VL, Kimi K2.5, MiniMax M2.7, Mistral Large 3 |
+| OpenRouter (14 flagship) | GLM-5, GLM-5 Turbo, GLM-4.7, GLM-4.7 Flash, GLM-4.5V (vision), Nemotron 3 Super (120B), Qwen 3.5 Plus (397B), Qwen 3.5 122B, Kimi K2.5, MiniMax M2.7, Mistral Large 3, DeepSeek R1, Llama 4 Maverick |
 | Perplexity | Sonar Pro, Sonar, Sonar Reasoning Pro, Sonar Deep Research |
-| DeepSeek | DeepSeek V3.2, DeepSeek R1 (via OpenRouter) |
-| Meta | Llama 4 Maverick, Llama 4 Scout (via OpenRouter) |
 | Claude Runner | Claude CLI bridge — all Anthropic models via CLI subprocess (optional) |
 
 ---
@@ -174,18 +174,30 @@ VisionClaw uses a **Bring Your Own Subscription** model where OAuth subscription
 
 ```
 1. Claude Runner Bridge (Anthropic models only, if healthy)
-2. OAuth Subscription Tokens (ChatGPT Plus, Google Gemini)
+2. OAuth Subscription Tokens — GPT-5.4 first, then Google Gemini
 3. Tenant-Specific API Keys
 4. Platform API Keys (env vars / DB)
 5. Replit Built-in AI Integration
 ```
 
+### OAuth-First Tier Routing
+
+GPT-5.4 (maps to OpenAI GPT-4.1 via OAuth) is the primary model for balanced, powerful, and reasoning tiers. Google Gemini models follow. OpenRouter flagship models serve as fallback only after OAuth tokens are exhausted.
+
+| Tier | Priority Order |
+|---|---|
+| Fast | Gemini 2.5 Flash → Gemini 3 Flash → GPT-4.1 Mini → GLM-4.7 Flash |
+| Balanced | **GPT-5.4 (OAuth)** → Gemini 3 Flash → Gemini 2.5 Flash → GLM-5 Turbo |
+| Powerful | **GPT-5.4 (OAuth)** → Gemini 3.1 Pro → Gemini 3 Pro → GLM-5 → Nemotron 3 Super |
+| Reasoning | **GPT-5.4 (OAuth)** → Gemini 3.1 Pro → DeepSeek R1 → Qwen 3.5 Plus |
+
 ### Smart Model Auto-Selection
 
 - **Task Complexity Classifier** — Analyzes query complexity before routing to appropriate model tier
-- **High-Complexity Coding Router** — Claude Opus 4.6 automatically selected for complex architecture/debugging
-- **Budget Model Routing** — Low/medium complexity uses cost-effective models (DeepSeek V3.2, Gemini Flash)
-- **Multimodal-Aware Routing** — Detects images/files, routes to vision-capable models
+- **10 Task Categories** — simple-chat, general, writing, coding, reasoning, research, vision, agentic, translation, data-analysis
+- **OAuth-Aware Routing** — Separates OAuth models from premium paid models; OAuth models never deprioritized
+- **High-Complexity Coding Router** — Claude Opus 4.6 / Gemini 3.1 Pro automatically selected for complex architecture/debugging
+- **Multimodal-Aware Routing** — Detects images/files, routes to vision-capable models (GLM-4.5V, Gemini 3.1 Pro)
 - **Auto-Thinking Mode** — Enables extended thinking for complex queries
 - **Persona Cost Tier Integration** — Respects per-persona cost budgets
 - **Model Capabilities Registry** — Tracks features per model (vision, function calling, thinking)
@@ -356,7 +368,15 @@ Sliding-window rate limiting per tenant per tool. Prevents runaway agent loops f
 - Injected into project conversations for continuity
 - Auto-asset capture detects deliverables and saves to `project-assets/`
 - Auto-transcript system saves full timestamped markdown transcripts to `project-transcripts/`
-- Auto-Project Detection creates projects when user signals intent to build
+
+### Auto-Project Detection
+**File:** `server/auto-project.ts`
+- Automatically creates a project when conversation signals intent to build (4+ messages with project signals)
+- Signal detection across all user messages: keywords like "build", "create", "launch", "design", "develop", "implement"
+- Excludes casual patterns (greetings, general questions, single-word messages)
+- Atomic CTE-based database write (project + conversation link in single query)
+- In-chat banner notification with project name and link
+- Inline rename on projects page with reactive URL query parameter support
 
 ### Stability and Monitoring
 - **Stability Watchdog** — Autonomous infrastructure watchdog (Chief of Staff, every 10 min)
@@ -682,7 +702,7 @@ PostgreSQL with Drizzle ORM, featuring 33+ tables including:
 ## Project Structure
 
 ```
-server/                         # Backend (110+ TypeScript modules)
+server/                         # Backend (120+ TypeScript modules)
   index.ts                      # Server entry point
   routes.ts                     # Express API routes
   chat-engine.ts                # Core AI chat processing with SSE
@@ -707,12 +727,15 @@ server/                         # Backend (110+ TypeScript modules)
   finance-tools.ts              # Finance market intelligence
   browser-tool.ts               # Virtual browser integration
   safety-layer.ts               # IronClaw safety layer
+  auto-router.ts                # 10-category intelligent model auto-selection
+  auto-project.ts               # Automatic project detection from conversations
   stability-watchdog.ts         # Infrastructure watchdog
   health-monitor.ts             # System health checks
-  ...                           # 90+ additional modules
+  generate-feature-pdf.ts       # Comprehensive feature PDF report generator
+  ...                           # 100+ additional modules
 
 client/src/                     # Frontend (React 18 + Vite)
-  pages/                        # 25+ page components
+  pages/                        # 38+ page components
   components/                   # UI components (shadcn/ui)
   hooks/                        # Custom React hooks
   lib/                          # Utilities
@@ -739,4 +762,4 @@ Proprietary — AI Buddy LLC. All rights reserved.
 
 ---
 
-*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring a self-improving agency framework that learns from operational experience, 110+ server modules, and cost-optimized multi-provider LLM routing with Claude Runner CLI bridge integration.*
+*Built with precision by AI Buddy LLC, Illinois. VisionClaw Agent represents the cutting edge of autonomous AI corporation technology, featuring 36 AI models across 8+ providers, a self-improving agency framework that learns from operational experience, 120+ server modules, 38+ frontend pages, OAuth-first cost-optimized routing with GPT-5.4 priority, and Claude Runner CLI bridge integration for $0 Anthropic inference.*

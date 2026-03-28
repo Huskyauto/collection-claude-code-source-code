@@ -119,6 +119,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     const metrics = [
       ["AI Personas", "14 specialized roles"],
+      ["AI Models", "36 models across 8+ providers"],
       ["AI Providers", "8+ connected (+ Claude Runner CLI bridge)"],
       ["AI Tools", "87+ capabilities"],
       ["Governance Rules", "40 rules across 7 categories"],
@@ -128,12 +129,13 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Decision Protocols", "5 collective intelligence protocols"],
       ["Evaluators", "9 real-time system evaluators"],
       ["Operation Scaffolds", "65 across 12 departments"],
-      ["Server Modules", "110+ TypeScript files"],
-      ["Frontend Pages", "25+"],
+      ["Server Modules", "120+ TypeScript files"],
+      ["Frontend Pages", "38+"],
       ["Database Tables", "33+"],
       ["Design Patterns", "6 book-inspired patterns"],
       ["Comm Channels", "AgentMail, WhatsApp, Discord, Telegram"],
       ["YouTube", "OAuth channel management"],
+      ["Auto-Project", "Automatic project detection from conversations"],
       ["Context Guard", "Zero-loss compaction w/ archive"],
     ];
     drawSubheading("Key Metrics");
@@ -211,10 +213,9 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Anthropic", "Claude Opus 4.6, Sonnet 4.6, Opus 4, Sonnet 4"],
       ["Google Gemini", "Gemini 3.1 Pro, 3 Pro, 3 Flash, 2.5 Flash"],
       ["xAI", "Grok 4, Grok 3, Grok 3 Mini"],
-      ["OpenRouter", "DeepSeek R1/V3.2, Llama 4, Qwen 3.5/2.5 VL, Kimi K2.5, MiniMax M2.7, Mistral Large 3"],
+      ["OpenRouter (14)", "GLM-5/Turbo/4.7/Flash/4.5V, Nemotron 3 Super, Qwen 3.5 Plus/122B"],
+      ["OpenRouter (cont)", "Kimi K2.5, MiniMax M2.7, Mistral Large 3, DeepSeek R1, Llama 4"],
       ["Perplexity", "Sonar Pro, Sonar, Sonar Reasoning Pro, Deep Research"],
-      ["DeepSeek", "DeepSeek V3.2, DeepSeek R1 (via OpenRouter)"],
-      ["Meta", "Llama 4 Maverick, Llama 4 Scout (via OpenRouter)"],
       ["Claude Runner", "All Anthropic models via CLI bridge (optional)"],
     ];
     drawTableRow(["Provider", "Models"], [110, 400], true);
@@ -232,27 +233,38 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawSubheading("Subscription-First Routing (BYOS)");
     const byosItems = [
       "OAuth subscription tokens (ChatGPT Plus, Google Gemini) used as PRIMARY inference source",
+      "GPT-5.4 is the primary OAuth model (maps to OpenAI GPT-4.1 via subscription)",
+      "Replit-provider models correctly matched against OpenAI OAuth via mapReplitToOpenAI()",
       "OpenAI OAuth with PKCE - code-paste flow with STS token exchange",
       "Google OAuth with PKCE - redirect flow with generative-language scope",
       "Tiered failover TTLs: 429 rate limit = 2-min cooldown, 401/403 auth = 10-min cooldown",
       "Automatic API key fallback when subscription quota exhausted",
       "YouTube OAuth - Web Application flow with PKCE for YouTube Data API v3",
-      "Drive connector stored as 'google-workspace' (separate from Gemini 'google')",
-      "Token refresh loop every 45 minutes for all active subscriptions (OpenAI, Google, YouTube)",
+      "Token refresh loop every 45 minutes for all active subscriptions",
     ];
     for (const item of byosItems) drawBullet(item);
 
     y -= 4;
+    drawSubheading("OAuth-First Tier Routing");
+    const tierRouting = [
+      "Fast: Gemini 2.5 Flash > Gemini 3 Flash > GPT-4.1 Mini > GLM-4.7 Flash",
+      "Balanced: GPT-5.4 (OAuth) > Gemini 3 Flash > Gemini 2.5 Flash > GLM-5 Turbo",
+      "Powerful: GPT-5.4 (OAuth) > Gemini 3.1 Pro > Gemini 3 Pro > GLM-5 > Nemotron 3 Super",
+      "Reasoning: GPT-5.4 (OAuth) > Gemini 3.1 Pro > DeepSeek R1 > Qwen 3.5 Plus",
+    ];
+    for (const item of tierRouting) drawBullet(item);
+
+    y -= 4;
     drawSubheading("Smart Model Auto-Selection");
     const autoSelect = [
-      "Task Complexity Classifier - analyzes query complexity before routing",
-      "High-complexity coding auto-routes to Claude Opus 4.6 (premium-first)",
-      "Low/medium complexity uses budget models (DeepSeek, Gemini Flash) - cost-optimized",
-      "Multimodal-Aware Routing - detects images/files, routes to vision models",
+      "10-category auto-router: simple-chat, general, writing, coding, reasoning, research, etc.",
+      "OAuth-Aware routing: separates OAuth models from premium paid; OAuth never deprioritized",
+      "High-complexity coding auto-routes to Claude Opus 4.6 / Gemini 3.1 Pro",
+      "Multimodal-Aware Routing - detects images/files, routes to vision models (GLM-4.5V, Gemini)",
       "Auto-Thinking Mode - enables extended thinking for complex queries",
       "Persona Cost Tier Integration - respects per-persona cost budgets",
       "Adaptive Model Upgrade/Downgrade - per-round complexity assessment in tool loops",
-      "Failover Cascade: subscription > API keys > Replit built-in",
+      "Failover Cascade: Claude Runner > OAuth subscription > API keys > Replit built-in",
     ];
     for (const item of autoSelect) drawBullet(item);
 
@@ -544,8 +556,18 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Complexity classifier auto-selects protocol based on impact/urgency/reversibility");
     drawBullet("Token budget controls prevent runaway costs during multi-agent deliberation");
 
-    // === SECTION 20: DATABASE ===
-    drawHeading("Section 20: Database Schema (33+ Tables)");
+    // === SECTION 20: AUTO-PROJECT DETECTION ===
+    drawHeading("Section 20: Auto-Project Detection");
+    drawBullet("Automatically creates a project when conversation signals intent to build");
+    drawBullet("Trigger: 4+ messages with at least 1 project signal (build, create, launch, design, etc.)");
+    drawBullet("Excludes casual patterns: greetings, general questions, single-word messages");
+    drawBullet("Atomic CTE-based DB write: project + conversation link in single SQL query");
+    drawBullet("In-chat banner notification with project name and navigation link");
+    drawBullet("Inline rename on projects page with reactive URL query parameter support");
+    drawBullet("Project brain auto-created for continuity tracking");
+
+    // === SECTION 21: DATABASE ===
+    drawHeading("Section 21: Database Schema (33+ Tables)");
     const tableGroups = [
       ["Core", "tenants, conversations, messages, personas"],
       ["Intelligence", "memory_entries, agent_knowledge, daily_notes, compaction_archives"],
