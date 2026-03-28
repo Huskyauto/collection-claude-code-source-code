@@ -3797,7 +3797,7 @@ Rules:
 
     await importDevSnapshot();
 
-    console.log("[seed] Database seeded successfully (build-v4-no-tenantid)");
+    console.log("[seed] Database seeded successfully (build-v5-detailed-errors)");
   } catch (err) {
     console.error("[seed] Seed error:", err);
   }

@@ -551,19 +551,28 @@ async function injectKeepedFinding(
   const ttlDays = mapping.category === "security" ? 30 : 14;
   const expiresAt = new Date(Date.now() + ttlDays * 86_400_000).toISOString();
 
-  console.log(`[research] v4: Injecting finding into agent_knowledge (no tenant_id col — uses DEFAULT 1)...`);
-  await db.execute(sql`
-    INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
-    VALUES (
-      ${knowledgeTitle},
-      ${knowledgeContent},
-      ${mapping.category},
-      ${priority},
-      ${personaId},
-      ${"autoresearch"},
-      ${expiresAt}::timestamp
-    )
-  `);
+  console.log(`[research] v5-INJECT: title=${knowledgeTitle.substring(0, 60)}, cat=${mapping.category}, pri=${priority}, persona=${personaId}`);
+  try {
+    await db.execute(sql`
+      INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
+      VALUES (
+        ${knowledgeTitle},
+        ${knowledgeContent},
+        ${mapping.category},
+        ${priority},
+        ${personaId},
+        ${"autoresearch"},
+        ${expiresAt}::timestamp
+      )
+    `);
+    console.log(`[research] v5-INJECT: SUCCESS — finding stored in agent_knowledge`);
+  } catch (injectErr: any) {
+    console.error(`[research] v5-INJECT: FAILED —`, injectErr.message);
+    console.error(`[research] v5-INJECT: QUERY:`, injectErr.query ?? "no .query");
+    console.error(`[research] v5-INJECT: CODE:`, injectErr.code ?? "no .code");
+    console.error(`[research] v5-INJECT: STACK:`, injectErr.stack?.split("\n").slice(0, 5).join(" | "));
+    throw injectErr;
+  }
 
   if (programName === "Nightly AI Model & Provider Intelligence" && score >= 8) {
     const modelMatch = result.match(/model[_\s]?id[:\s]*["`']?([a-zA-Z0-9\-_./]+)["`']?/i);
