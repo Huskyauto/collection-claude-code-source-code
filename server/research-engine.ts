@@ -41,6 +41,7 @@ interface ActiveSession {
   personaName: string | null;
   previousResults: Array<{ hypothesis: string; status: string; metric_value: string | null; result: string | null }>;
   timer: ReturnType<typeof setInterval> | null;
+  experimentInFlight: boolean;
 }
 
 const activeSessions = new Map<number, ActiveSession>();
@@ -93,6 +94,7 @@ export async function startResearchSession(params: {
     personaName,
     previousResults: [],
     timer: null,
+    experimentInFlight: false,
   };
 
   activeSessions.set(sessionId, session);
@@ -176,6 +178,8 @@ async function endSession(sessionId: number, reason: string): Promise<void> {
 
 async function runExperiment(session: ActiveSession): Promise<void> {
   if (session.experimentCount >= session.maxExperiments) return;
+  if (session.experimentInFlight) return;
+  session.experimentInFlight = true;
 
   const start = Date.now();
   session.experimentCount++;
@@ -335,6 +339,8 @@ INSIGHT: [One key insight that could inform the next experiment]`;
     }
   }
 
+  session.experimentInFlight = false;
+
   await db.execute(sql`
     UPDATE research_sessions SET
       total_experiments = ${session.experimentCount},
@@ -369,13 +375,22 @@ export function getActiveSessionCount(): number {
   return activeSessions.size;
 }
 
-const PROGRAM_PERSONA_MAP: Record<string, { personaId: number; category: string }> = {
-  "Nightly AI Model & Provider Intelligence": { personaId: 9, category: "model_intelligence" },
-  "Nightly AI Tools & Techniques Scanner": { personaId: 5, category: "technique" },
-  "Nightly Competitive Platform Analysis": { personaId: 9, category: "competitive_intel" },
-  "Nightly Agent Architecture Research": { personaId: 3, category: "architecture" },
-  "Nightly Security & Safety Intelligence": { personaId: 14, category: "security" },
+const PROGRAM_PERSONA_MAP: Record<string, { personaSlug: string; category: string }> = {
+  "Nightly AI Model & Provider Intelligence": { personaSlug: "Radar", category: "model_intelligence" },
+  "Nightly AI Tools & Techniques Scanner": { personaSlug: "Blueprint", category: "technique" },
+  "Nightly Competitive Platform Analysis": { personaSlug: "Radar", category: "competitive_intel" },
+  "Nightly Agent Architecture Research": { personaSlug: "Forge", category: "architecture" },
+  "Nightly Security & Safety Intelligence": { personaSlug: "Luna", category: "security" },
 };
+
+async function resolvePersonaId(personaSlug: string, tenantId: number): Promise<number | null> {
+  const result = await db.execute(sql`SELECT id FROM personas WHERE name = ${personaSlug} AND tenant_id = ${tenantId} LIMIT 1`);
+  const rows = (result as any).rows || result;
+  if (rows[0]?.id) return rows[0].id;
+  const fallback = await db.execute(sql`SELECT id FROM personas WHERE name = ${personaSlug} LIMIT 1`);
+  const fbRows = (fallback as any).rows || fallback;
+  return fbRows[0]?.id || null;
+}
 
 async function injectKeepedFinding(
   session: ActiveSession,
@@ -392,6 +407,8 @@ async function injectKeepedFinding(
 
   const mapping = PROGRAM_PERSONA_MAP[programName];
   if (!mapping) return;
+
+  const personaId = await resolvePersonaId(mapping.personaSlug, session.tenantId);
 
   const knowledgeTitle = `[Auto-Research] ${hypothesis.substring(0, 120)}`;
   const knowledgeContent = [
@@ -413,7 +430,7 @@ async function injectKeepedFinding(
       ${knowledgeContent},
       ${mapping.category},
       ${priority},
-      ${mapping.personaId},
+      ${personaId},
       ${session.tenantId},
       ${"autoresearch"},
       ${expiresAt}::timestamp
@@ -436,10 +453,10 @@ async function injectKeepedFinding(
     }
   }
 
-  console.log(`[research] Injected KEEP finding → agent_knowledge (persona=${mapping.personaId}, cat=${mapping.category}, priority=${priority}, ttl=${ttlDays}d)`);
+  console.log(`[research] Injected KEEP finding → agent_knowledge (persona=${mapping.personaSlug}/${personaId}, cat=${mapping.category}, priority=${priority}, ttl=${ttlDays}d)`);
 
   if (score >= 8) {
-    generateCodeProposal(session, programName, hypothesis, result, approach, score, mapping).catch(err => {
+    generateCodeProposal(session, programName, hypothesis, result, approach, score, mapping, personaId).catch(err => {
       console.warn(`[research] Code proposal generation skipped: ${err.message}`);
     });
   }
@@ -453,6 +470,10 @@ const CODE_PROPOSAL_TARGETS: Record<string, string[]> = {
   "Nightly Security & Safety Intelligence": ["server/routes.ts", "server/process-governor.ts"],
 };
 
+const ALLOWED_PROPOSAL_FILES = new Set(
+  Object.values(CODE_PROPOSAL_TARGETS).flat()
+);
+
 async function generateCodeProposal(
   session: ActiveSession,
   programName: string,
@@ -460,16 +481,17 @@ async function generateCodeProposal(
   result: string,
   approach: string,
   score: number,
-  mapping: { personaId: number; category: string },
+  mapping: { personaSlug: string; category: string },
+  personaId: number | null,
 ): Promise<void> {
   const targetFiles = CODE_PROPOSAL_TARGETS[programName] || [];
   if (targetFiles.length === 0) return;
 
-  const fs = await import("fs");
+  const fs = await import("fs/promises");
   const fileSnippets: string[] = [];
   for (const f of targetFiles) {
     try {
-      const content = fs.readFileSync(f, "utf-8");
+      const content = await fs.readFile(f, "utf-8");
       const lines = content.split("\n");
       fileSnippets.push(`--- ${f} (${lines.length} lines) ---\n${lines.slice(0, 60).join("\n")}\n... (truncated)`);
     } catch { /* file might not exist */ }
@@ -553,7 +575,14 @@ Based on this finding, should we modify the VisionClaw codebase? If yes, produce
     return;
   }
 
-  const targetFile = fileMatch[1].trim();
+  const proposedFile = fileMatch[1].trim();
+  const path = await import("path");
+  const normalizedFile = path.normalize(proposedFile).replace(/^\.\//, "");
+  if (!ALLOWED_PROPOSAL_FILES.has(normalizedFile) || normalizedFile.includes("..") || path.isAbsolute(normalizedFile)) {
+    console.warn(`[research] Code proposal rejected: "${normalizedFile}" not in allowlist`);
+    return;
+  }
+
   const oldCode = oldCodeMatch[1].trimEnd();
   const newCode = newCodeMatch[1].trimEnd();
 
@@ -564,37 +593,36 @@ Based on this finding, should we modify the VisionClaw codebase? If yes, produce
   };
 
   try {
-    const fileExists = fs.existsSync(targetFile);
-    validationResult.fileExists = fileExists;
+    const fileContent = await fs.readFile(normalizedFile, "utf-8");
+    validationResult.fileExists = true;
 
-    if (fileExists) {
-      const fileContent = fs.readFileSync(targetFile, "utf-8");
-      const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
-      const fileContentNormalized = fileContent.replace(/\s+/g, " ");
-      validationResult.oldCodeFound = fileContentNormalized.includes(oldCodeNormalized);
+    const oldCodeNormalized = oldCode.replace(/\s+/g, " ").trim();
+    const fileContentNormalized = fileContent.replace(/\s+/g, " ");
+    validationResult.oldCodeFound = fileContentNormalized.includes(oldCodeNormalized);
 
-      if (validationResult.oldCodeFound) {
-        validationResult.valid = true;
-      } else {
-        validationResult.error = "OLD_CODE block not found in target file (code may have changed)";
-      }
+    if (validationResult.oldCodeFound) {
+      validationResult.valid = true;
     } else {
-      validationResult.error = `Target file ${targetFile} does not exist`;
+      validationResult.error = "OLD_CODE block not found in target file (code may have changed)";
     }
   } catch (err: any) {
-    validationResult.error = `Validation error: ${err.message}`;
+    if (err.code === "ENOENT") {
+      validationResult.error = `Target file ${normalizedFile} does not exist`;
+    } else {
+      validationResult.error = `Validation error: ${err.message}`;
+    }
   }
 
-  const codeDiff = `--- ${targetFile}\n+++ ${targetFile} (proposed)\n\n- OLD CODE:\n${oldCode}\n\n+ NEW CODE:\n${newCode}`;
+  const codeDiff = `--- ${normalizedFile}\n+++ ${normalizedFile} (proposed)\n\n- OLD CODE:\n${oldCode}\n\n+ NEW CODE:\n${newCode}`;
 
   await db.execute(sql`
     INSERT INTO code_proposals (tenant_id, persona_id, title, description, target_file, code_diff, rationale, source, source_session_id, validation_result, status)
     VALUES (
       ${session.tenantId},
-      ${mapping.personaId},
+      ${personaId},
       ${titleMatch[1].trim()},
       ${descMatch?.[1]?.trim() || "Auto-generated from research finding"},
-      ${targetFile},
+      ${normalizedFile},
       ${codeDiff},
       ${rationaleMatch?.[1]?.trim() || hypothesis},
       ${"autoresearch"},
@@ -606,5 +634,5 @@ Based on this finding, should we modify the VisionClaw codebase? If yes, produce
 
   const statusLabel = validationResult.valid ? "READY" : "NEEDS REVIEW";
   const risk = riskMatch?.[1]?.toUpperCase() || "UNKNOWN";
-  console.log(`[research] Code proposal created: "${titleMatch[1].trim()}" → ${targetFile} [${statusLabel}, risk: ${risk}]`);
+  console.log(`[research] Code proposal created: "${titleMatch[1].trim()}" → ${normalizedFile} [${statusLabel}, risk: ${risk}]`);
 }

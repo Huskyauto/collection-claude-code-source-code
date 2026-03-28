@@ -7422,6 +7422,7 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
     if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid proposal ID" });
       const result = await db.execute(sql`SELECT * FROM code_proposals WHERE id = ${id} AND tenant_id = ${tenantId}`);
       const rows = (result as any).rows || result;
       if (!rows.length) return res.status(404).json({ error: "Not found" });
@@ -7432,8 +7433,10 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
   app.patch("/api/research/code-proposals/:id", async (req, res) => {
     const tenantId = getTenantFromRequest(req);
     if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid proposal ID" });
       const { status, reviewed_by } = req.body;
       if (!["approved", "rejected", "applied", "pending", "ready", "needs_review"].includes(status)) {
         return res.status(400).json({ error: "Invalid status" });

@@ -676,6 +676,9 @@ export default function ResearchPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/research/code-proposals"] });
       toast({ title: `Proposal ${vars.status}` });
     },
+    onError: (err: any) => {
+      toast({ title: "Failed to update proposal", description: err.message || "Unknown error", variant: "destructive" });
+    },
   });
 
   const [expandedProposal, setExpandedProposal] = useState<number | null>(null);
