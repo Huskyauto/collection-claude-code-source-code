@@ -13,10 +13,10 @@ const NIGHTLY_PROGRAM_NAMES = new Set([
 ]);
 
 const RESEARCH_COST_MODELS = [
-  "z-ai/glm-5-turbo",
+  "gemini-3-flash-preview",
   "gemini-2.5-flash",
   "gpt-4.1-mini",
-  "gemini-3-flash-preview",
+  "z-ai/glm-5-turbo",
 ];
 
 const EXPERIMENT_INTERVAL_MS = 30_000;
@@ -118,6 +118,14 @@ export async function startResearchSession(params: {
   const programs = (progResult as any).rows || progResult;
   const program = Array.isArray(programs) ? programs[0] : programs;
   if (!program) return { sessionId: 0, error: "Research program not found" };
+
+  const knownModel = MODEL_REGISTRY.find(m => m.id === program.model);
+  if (!knownModel && program.model) {
+    const fallback = RESEARCH_COST_MODELS[0];
+    console.warn(`[research] Program "${program.name}" has unknown model "${program.model}", switching to "${fallback}"`);
+    await db.execute(sql`UPDATE research_programs SET model = ${fallback} WHERE id = ${programId}`);
+    program.model = fallback;
+  }
 
   let personaName: string | null = null;
   if (program.persona_id) {

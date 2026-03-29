@@ -2587,6 +2587,24 @@ const DEFAULT_EVENT_SUBSCRIPTIONS = [
   { eventType: "content.published", personaName: "Atlas", action: "process", priority: 5, enabled: false },
 ];
 
+async function fixResearchProgramModels() {
+  const { MODEL_REGISTRY } = await import("./providers");
+  const knownIds = new Set(MODEL_REGISTRY.map((m: any) => m.id));
+  const defaultModel = "gemini-3-flash-preview";
+
+  const rows = await db.execute(sql`SELECT id, name, model FROM research_programs WHERE is_active = true`);
+  const programs = (rows as any).rows || rows;
+  let fixed = 0;
+  for (const p of programs) {
+    if (p.model && !knownIds.has(p.model)) {
+      await db.execute(sql`UPDATE research_programs SET model = ${defaultModel} WHERE id = ${p.id}`);
+      console.log(`[seed] Fixed research program "${p.name}": "${p.model}" → "${defaultModel}"`);
+      fixed++;
+    }
+  }
+  if (fixed > 0) console.log(`[seed] Fixed ${fixed} research programs with unknown models`);
+}
+
 async function seedNightlyAutoresearch() {
   const AUTORESEARCH_PROGRAMS = [
     {
@@ -2654,7 +2672,7 @@ async function seedNightlyAutoresearch() {
 
       const res = await db.execute(sql`
         INSERT INTO research_programs (tenant_id, persona_id, name, objective, constraints, metrics, exploration_strategy, model, max_experiments_per_session)
-        VALUES (1, ${prog.personaId}, ${prog.name}, ${prog.objective}, ${prog.constraints}, ${prog.metrics}, ${prog.strategy}, 'gemini-2.5-flash', ${prog.maxExperiments})
+        VALUES (1, ${prog.personaId}, ${prog.name}, ${prog.objective}, ${prog.constraints}, ${prog.metrics}, ${prog.strategy}, 'gemini-3-flash-preview', ${prog.maxExperiments})
         RETURNING id
       `);
       const resRows = (res as any).rows || res;
@@ -3463,6 +3481,7 @@ export async function seedDatabase() {
     }
 
     await seedNightlyAutoresearch();
+    await fixResearchProgramModels();
 
     const existingPrograms = await db.execute(sql`SELECT COUNT(*) as count FROM research_programs WHERE tenant_id = 1`).catch(() => ({ rows: [{ count: "0" }] }));
     const progCount = parseInt(((existingPrograms as any).rows || existingPrograms)?.[0]?.count || "0");
