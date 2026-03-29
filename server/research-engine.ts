@@ -19,10 +19,115 @@ const RESEARCH_COST_MODELS = [
   "z-ai/glm-5-turbo",
 ];
 
-const EXPERIMENT_INTERVAL_MS = 30_000;
+const BASE_EXPERIMENT_INTERVAL_MS = 30_000;
 const MAX_CONSECUTIVE_FAILURES = 5;
 const SESSION_STAGGER_MS = 15_000;
 const MAX_CONCURRENT_SESSIONS = 2;
+
+let backpressure = {
+  level: 0,
+  consecutiveTimeouts: 0,
+  lastTimeout: 0,
+  intervalMultiplier: 1,
+  pausedUntil: 0,
+};
+
+function getEffectiveInterval(): number {
+  return BASE_EXPERIMENT_INTERVAL_MS * backpressure.intervalMultiplier;
+}
+
+function recordDbTimeout() {
+  backpressure.consecutiveTimeouts++;
+  backpressure.lastTimeout = Date.now();
+
+  if (backpressure.consecutiveTimeouts >= 6) {
+    backpressure.level = 3;
+    backpressure.intervalMultiplier = 4;
+    backpressure.pausedUntil = Date.now() + 5 * 60_000;
+    console.warn(`[research-throttle] LEVEL 3: ${backpressure.consecutiveTimeouts} DB timeouts — pausing ALL research for 5 min, interval 4x`);
+    for (const [sid, sess] of activeSessions) {
+      if (sess.timer) { clearInterval(sess.timer); sess.timer = null; }
+    }
+    setTimeout(() => resumeAfterPause(), 5 * 60_000);
+  } else if (backpressure.consecutiveTimeouts >= 3) {
+    backpressure.level = 2;
+    backpressure.intervalMultiplier = 3;
+    console.warn(`[research-throttle] LEVEL 2: ${backpressure.consecutiveTimeouts} DB timeouts — slowing experiments to 3x interval (${getEffectiveInterval() / 1000}s)`);
+    rescheduleTimers();
+  } else {
+    backpressure.level = 1;
+    backpressure.intervalMultiplier = 2;
+    console.warn(`[research-throttle] LEVEL 1: ${backpressure.consecutiveTimeouts} DB timeouts — slowing experiments to 2x interval (${getEffectiveInterval() / 1000}s)`);
+  }
+}
+
+function recordDbSuccess() {
+  if (backpressure.consecutiveTimeouts > 0) {
+    backpressure.consecutiveTimeouts = Math.max(0, backpressure.consecutiveTimeouts - 1);
+    if (backpressure.consecutiveTimeouts === 0 && backpressure.level > 0) {
+      console.log(`[research-throttle] DB healthy — resuming normal speed`);
+      backpressure.level = 0;
+      backpressure.intervalMultiplier = 1;
+      rescheduleTimers();
+    }
+  }
+}
+
+function rescheduleTimers() {
+  const interval = getEffectiveInterval();
+  for (const [sid, sess] of activeSessions) {
+    if (sess.timer) {
+      clearInterval(sess.timer);
+      sess.timer = setInterval(() => {
+        if (Date.now() < backpressure.pausedUntil) return;
+        if (sess.experimentCount >= sess.maxExperiments) {
+          endSession(sid, "completed").catch(console.error);
+          return;
+        }
+        if (sess.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          endSession(sid, "stopped_failures").catch(console.error);
+          return;
+        }
+        runExperiment(sess).catch(err => console.error(`[research] Experiment error:`, err.message));
+      }, interval);
+    }
+  }
+}
+
+function resumeAfterPause() {
+  if (backpressure.level < 3) return;
+  backpressure.level = 1;
+  backpressure.intervalMultiplier = 2;
+  backpressure.pausedUntil = 0;
+  console.log(`[research-throttle] Pause ended — resuming at 2x interval. Will return to normal after sustained DB health.`);
+  for (const [sid, sess] of activeSessions) {
+    if (!sess.timer) {
+      const interval = getEffectiveInterval();
+      sess.timer = setInterval(() => {
+        if (sess.experimentCount >= sess.maxExperiments) {
+          endSession(sid, "completed").catch(console.error);
+          return;
+        }
+        if (sess.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          endSession(sid, "stopped_failures").catch(console.error);
+          return;
+        }
+        runExperiment(sess).catch(err => console.error(`[research] Experiment error:`, err.message));
+      }, interval);
+    }
+  }
+}
+
+export function getResearchBackpressure() {
+  return {
+    level: backpressure.level,
+    consecutiveTimeouts: backpressure.consecutiveTimeouts,
+    intervalMultiplier: backpressure.intervalMultiplier,
+    paused: Date.now() < backpressure.pausedUntil,
+    activeSessions: activeSessions.size,
+    maxConcurrent: MAX_CONCURRENT_SESSIONS,
+  };
+}
 
 const sessionCompletionListeners = new Map<number, Array<() => void>>();
 
@@ -208,6 +313,7 @@ export async function startResearchSession(params: {
     });
 
     session.timer = setInterval(() => {
+      if (Date.now() < backpressure.pausedUntil) return;
       if (session.experimentCount >= session.maxExperiments) {
         endSession(sessionId, "completed").catch(console.error);
         return;
@@ -219,7 +325,7 @@ export async function startResearchSession(params: {
       runExperiment(session).catch(err => {
         console.error(`[research] Experiment error:`, err.message);
       });
-    }, EXPERIMENT_INTERVAL_MS);
+    }, getEffectiveInterval());
   }, staggerDelay);
 
   return { sessionId };
@@ -370,6 +476,7 @@ async function endSession(sessionId: number, reason: string): Promise<void> {
 async function runExperiment(session: ActiveSession): Promise<void> {
   if (session.experimentCount >= session.maxExperiments) return;
   if (session.experimentInFlight) return;
+  if (Date.now() < backpressure.pausedUntil) return;
   session.experimentInFlight = true;
 
   const start = Date.now();
@@ -541,7 +648,19 @@ Score this finding using the rubric in your instructions. Output your reasoning 
 
     console.log(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: [${status.toUpperCase()}] ${hypothesis.substring(0, 80)} (score: ${metricValue})`);
 
+    recordDbSuccess();
+
   } catch (err: any) {
+    const isTimeout = err.message?.includes("timeout") || err.message?.includes("Connection terminated") || err.message?.includes("ECONNREFUSED");
+    if (isTimeout) {
+      recordDbTimeout();
+      session.crashedCount++;
+      session.consecutiveFailures++;
+      console.error(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: DB TIMEOUT — throttle level ${backpressure.level}`);
+      session.experimentInFlight = false;
+      return;
+    }
+
     const isAuthError = err.message?.includes("401") || err.message?.includes("Missing Authentication") || err.message?.includes("Unauthorized") || err.message?.includes("Invalid API");
     const isTransient = isAuthError || err.message?.includes("429") || err.message?.includes("rate");
 
