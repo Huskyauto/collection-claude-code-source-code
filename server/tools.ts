@@ -383,6 +383,53 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "vibevoice_transcribe",
+      description: "Transcribe audio using Microsoft VibeVoice ASR — a frontier speech-to-text model that handles up to 60 minutes of audio in a single pass. Returns structured transcriptions with speaker diarization (who said what), timestamps, and content. Supports 50+ languages, custom hotwords, and code-switching. Best for meeting recordings, interviews, podcasts, and long-form audio.",
+      parameters: {
+        type: "object",
+        properties: {
+          audio_path: { type: "string", description: "Local file path to the audio file (WAV, MP3, FLAC, WebM, etc.)" },
+          audio_url: { type: "string", description: "URL to download the audio file from" },
+          language: { type: "string", description: "Primary language hint (e.g., 'en', 'zh', 'fr'). Auto-detected if omitted." },
+          hotwords: { type: "array", items: { type: "string" }, description: "Custom hotwords to improve recognition accuracy (e.g., names, technical terms, product names)" },
+          enable_diarization: { type: "boolean", description: "Enable speaker diarization to identify who said what (default: true)" },
+          enable_timestamps: { type: "boolean", description: "Include timestamps in the output (default: true)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "vibevoice_speak",
+      description: "Generate speech audio using Microsoft VibeVoice TTS — a frontier text-to-speech model supporting up to 90 minutes of expressive conversational audio with up to 4 distinct speakers. Best for generating podcast-style conversations, multi-speaker dialogues, narrations, and long-form audio content. Available speakers include Carter, Alyssa, Angelo, Bella, Davis, Elijah, Evelyn, James, Joanna, Kenji, Madeline, Nova.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Text to convert to speech. For single-speaker output." },
+          speakers: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Speaker name (e.g., Carter, Alyssa)" },
+                text: { type: "string", description: "What this speaker says" },
+              },
+              required: ["name", "text"],
+            },
+            description: "Multi-speaker dialogue. Each entry is a speaker turn. Supports up to 4 speakers.",
+          },
+          voice: { type: "string", description: "Voice/speaker name for single-speaker mode (default: Carter)" },
+          output_path: { type: "string", description: "Optional local file path to save the audio output" },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_dashboard",
       description: "Generate an interactive HTML dashboard that will be rendered in a live canvas inside the chat. Use for rich visualizations, status boards, KPI displays, data tables, or any complex visual output that goes beyond a simple chart. The HTML can include inline CSS and JavaScript. Use semantic HTML with the built-in utility classes: .card, .metric, .metric-value, .metric-label, .grid, .badge, .badge-green, .badge-red, .badge-blue, .badge-yellow.",
       parameters: {
@@ -2673,6 +2720,40 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         console.error(`[render_diagram] Failed:`, err.message);
         return { error: `Diagram rendering failed: ${err.message}` };
       }
+    }
+    case "vibevoice_transcribe": {
+      const { vibevoiceTranscribe } = await import("./vibevoice");
+      return await vibevoiceTranscribe({
+        audio_path: params.audio_path,
+        audio_base64: params.audio_base64,
+        audio_url: params.audio_url,
+        language: params.language,
+        hotwords: params.hotwords,
+        enable_diarization: params.enable_diarization,
+        enable_timestamps: params.enable_timestamps,
+      });
+    }
+    case "vibevoice_speak": {
+      const { vibevoiceTTS } = await import("./vibevoice");
+      const result = await vibevoiceTTS({
+        text: params.text,
+        speakers: params.speakers,
+        voice: params.voice,
+        output_path: params.output_path,
+      });
+      if (result.success && result.audio_base64) {
+        const truncatedPreview = result.audio_base64.slice(0, 100) + "...";
+        return {
+          success: true,
+          format: result.format,
+          duration_seconds: result.duration_seconds,
+          speakers_used: result.speakers_used,
+          audio_preview: truncatedPreview,
+          audio_size_bytes: Math.round((result.audio_base64.length * 3) / 4),
+          provider: result.provider,
+        };
+      }
+      return result;
     }
     case "generate_dashboard":
       return { dashboardContent: `\`\`\`html-canvas [${params.title}]\n${params.html}\n\`\`\`` };

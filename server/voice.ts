@@ -147,6 +147,13 @@ async function synthesizeSpeech(text: string, voiceId?: string): Promise<{ buffe
           return { ...(await ttsElevenLabs(text, voiceId)), usedProvider: "elevenlabs" };
         case "edge":
           return { ...(await ttsGoogle(text)), usedProvider: "edge" };
+        case "vibevoice": {
+          const { vibevoiceTTS } = await import("./vibevoice");
+          const vvResult = await vibevoiceTTS({ text, voice: voiceId });
+          if (!vvResult.success || !vvResult.audio_base64) throw new Error(vvResult.error || "VibeVoice TTS failed");
+          const vvFormat = vvResult.format === "wav" ? "pcm" as const : "mp3" as const;
+          return { buffer: Buffer.from(vvResult.audio_base64, "base64"), format: vvFormat, usedProvider: "vibevoice" };
+        }
       }
     } catch (err: any) {
       console.error(`[tts] ${p} failed: ${err.message}`);

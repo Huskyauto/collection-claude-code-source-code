@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-export type TTSProvider = "elevenlabs" | "openai" | "edge";
+export type TTSProvider = "elevenlabs" | "openai" | "edge" | "vibevoice";
 export type TTSAutoMode = "off" | "always" | "inbound" | "tagged";
 
 export interface TTSConfig {

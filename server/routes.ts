@@ -983,6 +983,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/voice/wake", authMiddleware, handleVoiceWakeGet);
   app.post("/api/voice/wake", authMiddleware, handleVoiceWakeSet);
 
+  app.get("/api/vibevoice/info", authMiddleware, async (_req: Request, res: Response) => {
+    const { VIBEVOICE_INFO, VIBEVOICE_SPEAKERS } = await import("./vibevoice");
+    res.json({ ...VIBEVOICE_INFO, speakers: VIBEVOICE_SPEAKERS });
+  });
+
+  app.post("/api/vibevoice/transcribe", authMiddleware, async (req: Request, res: Response) => {
+    const { vibevoiceTranscribe } = await import("./vibevoice");
+    const result = await vibevoiceTranscribe(req.body);
+    res.json(result);
+  });
+
+  app.post("/api/vibevoice/speak", authMiddleware, async (req: Request, res: Response) => {
+    const { vibevoiceTTS } = await import("./vibevoice");
+    const result = await vibevoiceTTS(req.body);
+    if (result.success && result.audio_base64) {
+      const audioBuffer = Buffer.from(result.audio_base64, "base64");
+      res.set("Content-Type", `audio/${result.format || "mp3"}`);
+      res.set("X-VibeVoice-Provider", "vibevoice-tts");
+      res.set("X-VibeVoice-Duration", String(result.duration_seconds || 0));
+      res.send(audioBuffer);
+    } else {
+      res.status(500).json(result);
+    }
+  });
+
   app.post("/api/upload", authMiddleware, (req: Request, res: Response) => {
     upload.single("file")(req, res, async (err: any) => {
       if (err) {
