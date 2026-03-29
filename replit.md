@@ -12,8 +12,10 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - 14 AI personas
 - 36+ models across 8+ providers
 - 40 governance rules
-- 11 research programs
+- 11 research programs (6 AI Buddy business + 5 nightly platform)
+- 7 research schedules (6 weekly Sunday midnight + 1 nightly 2AM)
 - 13 heartbeat tasks
+- 3 project folders (AI Buddy Health, YouTube Channel, VisionClaw Agent Platform)
 
 ## User Preferences
 - **NEVER modify `shared/schema.ts`** without explicit owner approval. Use direct SQL (`psql $DATABASE_URL`) for new tables.
@@ -58,7 +60,9 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 89 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
 - **Process Governor:** A 40-rule governance engine across 7 categories, supported by 25 condition evaluators, an emergency Kill Switch, and a Governance Frameworks Knowledge Base.
 - **Quarterly Intelligence System:** Governance Research Scanner and Model Registry Refresh.
-- **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 11 autonomous research programs (5 nightly + 6 AI Buddy business) run via research schedule. Each program spawns 5-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona with vector embeddings (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table). Model Intelligence findings queue `model_registry_updates`. Startup model validation auto-corrects unknown models. Duplicate-session protection prevents double runs. API: `GET/PATCH /api/research/code-proposals`.
+- **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 11 autonomous research programs (5 nightly + 6 AI Buddy business) run via 7 research schedules. Each program spawns 5-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona with vector embeddings (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table). Model Intelligence findings queue `model_registry_updates`. Startup model validation auto-corrects unknown models. Duplicate-session protection prevents double runs. API: `GET/PATCH /api/research/code-proposals`.
+- **Auto-Deposit Intelligence Loop:** Research findings automatically route to the correct project folder AND knowledge base with vector embeddings. Programs 2-7 (AI Buddy business) → AI Buddy Health project (#13). Programs 8-12 (nightly platform) → VisionClaw Agent Platform project (#17). Each kept finding gets its own knowledge entry with immediate embedding generation for semantic search. The system gets smarter with every completed research session.
+- **Weekly AI Buddy Research Schedule:** 6 AI Buddy business programs run every Sunday at midnight CT, staggered 15 minutes apart to avoid provider overload: Emotional Eating (12:00), Content Marketing (12:15), Competitive Intel (12:30), Revenue Strategy (12:45), Companion Messages (1:00), Legal Framework (1:15). Nightly platform programs continue running at 2 AM daily.
 - **Vector Knowledge Library:** pgvector-powered cross-persona knowledge retrieval. Research findings get text-embedding-3-small vectors at injection time. `buildSystemPrompt` uses semantic similarity to pull relevant findings from ANY persona's research. 2000-char knowledge budget. 30s embedding cache prevents duplicate API calls.
 - **Deep Research:** Defines Research Programs, Autonomous Sessions, Research Scheduling, and AI-generated Session Summaries with Dev-to-Prod Auto-Sync.
 - **Agentic Intelligence Engines:** Decision-Making, Predictive Analytics, and Process Optimization engines.

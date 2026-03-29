@@ -131,7 +131,9 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Evaluators", "9 real-time system evaluators"],
       ["Op Scaffolds", "65 governance-wired, 12 departments"],
       ["Research Programs", "11 autonomous (5 nightly + 6 business)"],
+      ["Research Schedules", "7 automated (6 weekly Sunday + 1 nightly)"],
       ["Heartbeat Tasks", "13 scheduled autonomous operations"],
+      ["Project Folders", "3 (AI Buddy Health, YouTube, VisionClaw Platform)"],
       ["Server Modules", "120 TypeScript files (~60,000 lines)"],
       ["Frontend Pages", "38 React pages"],
       ["Database Tables", "66 PostgreSQL tables"],
@@ -391,7 +393,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     }
 
     // === SECTION 10: TOOLS ===
-    drawHeading("Section 10: 87+ AI Tools");
+    drawHeading("Section 10: 89+ AI Tools");
     const toolCategories = [
       ["Communication", "Email (AgentMail), WhatsApp, Discord, Telegram, channel messaging"],
       ["Research", "Web search, Firecrawl extraction, Jina AI reader, deep research sessions"],
@@ -628,6 +630,37 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Complexity classifier auto-selects protocol based on impact/urgency/reversibility");
     drawBullet("Token budget controls prevent runaway costs during multi-agent deliberation");
 
+    // === SECTION 19B: INTELLIGENCE LOOP ===
+    drawHeading("Section 19B: Auto-Deposit Intelligence Loop");
+    drawSubheading("Automatic Research-to-Knowledge Pipeline");
+    drawBullet("Every completed research session auto-deposits findings into the correct project AND knowledge base");
+    drawBullet("Routing map: Programs 2-7 (AI Buddy business) -> AI Buddy Health project (#13)");
+    drawBullet("Routing map: Programs 8-12 (nightly platform) -> VisionClaw Agent Platform project (#17)");
+    drawBullet("Each kept finding (score >= 6) becomes its own agent_knowledge entry with category metadata");
+    drawBullet("Session summary deposited as project note for long-term project context");
+    drawBullet("Immediate vector embedding generation (text-embedding-3-small) at deposit time");
+    drawBullet("Findings become instantly searchable via semantic similarity by ALL personas");
+    drawBullet("System gets measurably smarter with every completed research session");
+
+    drawSubheading("Weekly AI Buddy Research Schedule");
+    drawBullet("6 programs run every Sunday at midnight CT, staggered 15 minutes apart:");
+    drawBullet("  12:00 AM - Emotional Eating & Health Psychology (#2)");
+    drawBullet("  12:15 AM - Content Marketing & Social Strategy (#3)");
+    drawBullet("  12:30 AM - Competitive Intelligence & Market (#4)");
+    drawBullet("  12:45 AM - Revenue Strategy & Growth (#5)");
+    drawBullet("  1:00 AM  - AI Companion Message Generation (#6)");
+    drawBullet("  1:15 AM  - Legal & Compliance Framework (#7)");
+    drawBullet("Nightly platform programs (5 programs) continue running at 2:00 AM daily");
+    drawBullet("7 total research schedules managed via research_schedules table");
+
+    drawSubheading("Self-Improvement Cycle");
+    drawBullet("Nightly: AI scans for new models, tools, security threats, architecture patterns");
+    drawBullet("Weekly: Business research covers health psychology, marketing, competitors, legal");
+    drawBullet("Auto-inject: Findings land in knowledge base with embeddings for instant retrieval");
+    drawBullet("Cross-persona: Any agent answering questions pulls latest research automatically");
+    drawBullet("Code proposals: High-scoring findings (>= 8) generate actionable code proposals");
+    drawBullet("Closed loop: Research -> Knowledge -> Better Agent Responses -> More Research");
+
     // === SECTION 20: AUTO-PROJECT DETECTION ===
     drawHeading("Section 20: Auto-Project Detection");
     drawBullet("Automatically creates a project when conversation signals intent to build");
@@ -639,7 +672,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Project brain auto-created for continuity tracking");
 
     // === SECTION 21: DATABASE ===
-    drawHeading("Section 21: Database Schema (33+ Tables)");
+    drawHeading("Section 21: Database Schema (66 Tables)");
     const tableGroups = [
       ["Core", "tenants, conversations, messages, personas"],
       ["Intelligence", "memory_entries, agent_knowledge, daily_notes, compaction_archives"],
@@ -651,6 +684,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Autonomy", "autonomy_rules, autonomy_log"],
       ["Analytics", "action_outcomes, outcome_patterns, watchlist_items, watchlist_alerts"],
       ["Agency", "trust_scores, proactive_actions, express_lane_usage, evaluator_snapshots"],
+      ["Research", "research_programs, research_sessions, research_experiments, research_schedules"],
       ["System", "skills, custom_tools, experiments, provider_keys, tenant_provider_keys"],
       ["Config", "mcp_servers, model_registry_updates, personality_files, oauth_subscriptions"],
       ["Payments", "stripe_customers, stripe_subscriptions, stripe_products, stripe_prices"],
