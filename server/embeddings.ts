@@ -59,10 +59,20 @@ function bagCosineSimilarity(a: Map<string, number>, b: Map<string, number>): nu
   return denom === 0 ? 0 : dot / denom;
 }
 
+const _embeddingCache = new Map<string, { embedding: number[]; ts: number }>();
+const CACHE_TTL_MS = 30_000;
+const CACHE_MAX_SIZE = 50;
+
 export async function generateEmbedding(text: string): Promise<number[] | null> {
   try {
     const cleaned = text.slice(0, 8000).replace(/\n+/g, " ").trim();
     if (!cleaned) return null;
+
+    const cacheKey = cleaned.slice(0, 200);
+    const cached = _embeddingCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      return cached.embedding;
+    }
 
     const client = await getOpenAIClient();
     if (!client) return null;
@@ -72,7 +82,15 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       input: cleaned,
     });
 
-    return response.data[0]?.embedding ?? null;
+    const embedding = response.data[0]?.embedding ?? null;
+    if (embedding) {
+      if (_embeddingCache.size >= CACHE_MAX_SIZE) {
+        const oldest = [..._embeddingCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+        if (oldest) _embeddingCache.delete(oldest[0]);
+      }
+      _embeddingCache.set(cacheKey, { embedding, ts: Date.now() });
+    }
+    return embedding;
   } catch (err: any) {
     console.error("[embeddings] Failed to generate:", err.message);
     return null;

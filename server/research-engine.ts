@@ -551,13 +551,14 @@ async function injectKeepedFinding(
   console.log(`[research] v5-INJECT: title=${knowledgeTitle.substring(0, 60)}, cat=${mapping.category}, pri=${priority}, persona=${personaId}`);
   try {
     const insertResult = await db.execute(sql`
-      INSERT INTO agent_knowledge (title, content, category, priority, persona_id, source, expires_at)
+      INSERT INTO agent_knowledge (title, content, category, priority, persona_id, tenant_id, source, expires_at)
       VALUES (
         ${knowledgeTitle},
         ${knowledgeContent},
         ${mapping.category},
         ${priority},
         ${personaId},
+        ${session.tenantId},
         ${"autoresearch"},
         ${expiresAt}::timestamp
       )
