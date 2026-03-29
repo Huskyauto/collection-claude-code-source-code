@@ -44,6 +44,14 @@ const LOW_SIGNAL = new Set([
   "guide", "tutorial", "tips", "opinion", "predictions", "vs",
 ]);
 
+const VALID_SOURCES = new Set(["reddit", "hackernews", "polymarket", "x"]);
+
+const DEPTH_LIMITS: Record<string, { perSource: number; maxTotal: number }> = {
+  quick: { perSource: 10, maxTotal: 25 },
+  default: { perSource: 25, maxTotal: 50 },
+  deep: { perSource: 50, maxTotal: 100 },
+};
+
 function tokenize(text: string): Set<string> {
   const words = text.toLowerCase().replace(/[^\w\s]/g, " ").split(/\s+/);
   return new Set(words.filter(w => w.length > 1 && !STOPWORDS.has(w)));
@@ -92,77 +100,79 @@ function getDateRange(days: number): { from: string; to: string; fromTs: number;
   };
 }
 
-async function searchReddit(topic: string, days: number): Promise<TrendItem[]> {
-  const items: TrendItem[] = [];
+function isWithinDateRange(dateStr: string | undefined, fromTs: number): boolean {
+  if (!dateStr) return true;
+  const ts = new Date(dateStr).getTime() / 1000;
+  return ts >= fromTs;
+}
+
+async function searchReddit(topic: string, days: number, limit: number): Promise<TrendItem[]> {
   const encoded = encodeURIComponent(topic);
-  const timeFilter = days <= 7 ? "week" : "month";
-  const url = `https://www.reddit.com/search.json?q=${encoded}&sort=relevance&t=${timeFilter}&limit=25`;
+  const timeFilter = days <= 7 ? "week" : days <= 30 ? "month" : "year";
+  const fetchLimit = Math.min(limit, 100);
+  const url = `https://www.reddit.com/search.json?q=${encoded}&sort=relevance&t=${timeFilter}&limit=${fetchLimit}`;
+  const { fromTs } = getDateRange(days);
 
   try {
-    const resp = await fetch(url, {
+    const resp = await retryFetch(url, {
       headers: { "User-Agent": USER_AGENT, "Accept": "application/json" },
-      signal: AbortSignal.timeout(15000),
+      retries: 2,
+      delayMs: 2000,
+      timeoutMs: 15000,
     });
 
-    if (!resp.ok) {
-      if (resp.status === 429) {
-        await new Promise(r => setTimeout(r, 3000));
-        const retry = await fetch(url, {
-          headers: { "User-Agent": USER_AGENT, "Accept": "application/json" },
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!retry.ok) return items;
-        const data = await retry.json();
-        return parseRedditResponse(data, topic);
-      }
-      return items;
-    }
-
+    if (!resp.ok) return [];
     const data = await resp.json();
-    return parseRedditResponse(data, topic);
+    return parseRedditResponse(data, topic, fromTs);
   } catch (err: any) {
     console.warn(`[trend-research] Reddit search failed: ${err.message}`);
-    return items;
+    return [];
   }
 }
 
-function parseRedditResponse(data: any, topic: string): TrendItem[] {
+function parseRedditResponse(data: any, topic: string, fromTs: number): TrendItem[] {
   const children = data?.data?.children || [];
   return children
     .filter((c: any) => c.kind === "t3" && c.data)
     .map((c: any) => {
       const d = c.data;
+      const dateStr = new Date(d.created_utc * 1000).toISOString().split("T")[0];
       const relevance = tokenOverlapRelevance(topic, `${d.title} ${d.selftext?.slice(0, 200) || ""}`);
       return {
         source: "reddit",
         title: d.title,
         url: `https://reddit.com${d.permalink}`,
         author: d.author,
-        date: new Date(d.created_utc * 1000).toISOString().split("T")[0],
+        date: dateStr,
         engagement: {
           score: d.score,
           comments: d.num_comments,
         },
         relevance: Math.round(relevance * 100) / 100,
         summary: d.selftext?.slice(0, 200) || undefined,
-      } as TrendItem;
+        _createdUtc: d.created_utc,
+      } as TrendItem & { _createdUtc: number };
     })
-    .filter((item: TrendItem) => item.relevance >= 0.2);
+    .filter((item: any) => item.relevance >= 0.2 && item._createdUtc >= fromTs)
+    .map(({ _createdUtc, ...item }: any) => item as TrendItem);
 }
 
-async function searchHackerNews(topic: string, days: number): Promise<TrendItem[]> {
+async function searchHackerNews(topic: string, days: number, limit: number): Promise<TrendItem[]> {
   const { fromTs, toTs } = getDateRange(days);
   const core = topic.replace(/^(what|how|tell me about|research)\s+(is|are|people saying about)?\s*/i, "").trim();
+  const fetchLimit = Math.min(limit, 100);
   const params = new URLSearchParams({
     query: core,
     tags: "story",
     numericFilters: `created_at_i>${fromTs},created_at_i<${toTs},points>2`,
-    hitsPerPage: "25",
+    hitsPerPage: String(fetchLimit),
   });
 
   try {
-    const resp = await fetch(`https://hn.algolia.com/api/v1/search?${params}`, {
-      signal: AbortSignal.timeout(15000),
+    const resp = await retryFetch(`https://hn.algolia.com/api/v1/search?${params}`, {
+      retries: 2,
+      delayMs: 1000,
+      timeoutMs: 15000,
     });
     if (!resp.ok) return [];
 
@@ -195,7 +205,7 @@ async function searchHackerNews(topic: string, days: number): Promise<TrendItem[
   }
 }
 
-async function searchPolymarket(topic: string): Promise<TrendItem[]> {
+async function searchPolymarket(topic: string, limit: number): Promise<TrendItem[]> {
   const core = topic.replace(/^(what|how|tell me about|research)\s+(is|are|people saying about)?\s*/i, "").trim();
   const queries = [core];
   const words = core.split(/\s+/);
@@ -211,8 +221,10 @@ async function searchPolymarket(topic: string): Promise<TrendItem[]> {
   for (const q of unique) {
     try {
       const params = new URLSearchParams({ q, page: "1", events_status: "active", keep_closed_markets: "0" });
-      const resp = await fetch(`https://gamma-api.polymarket.com/public-search?${params}`, {
-        signal: AbortSignal.timeout(15000),
+      const resp = await retryFetch(`https://gamma-api.polymarket.com/public-search?${params}`, {
+        retries: 1,
+        delayMs: 1000,
+        timeoutMs: 15000,
       });
       if (!resp.ok) continue;
       const data = await resp.json();
@@ -245,25 +257,28 @@ async function searchPolymarket(topic: string): Promise<TrendItem[]> {
     });
   }
 
-  return items.sort((a, b) => b.relevance - a.relevance).slice(0, 10);
+  return items.sort((a, b) => b.relevance - a.relevance).slice(0, limit);
 }
 
-async function searchXviaXAI(topic: string, days: number): Promise<TrendItem[]> {
+async function searchXviaXAI(topic: string, days: number, limit: number): Promise<TrendItem[]> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return [];
 
   const { from, to } = getDateRange(days);
+  const fetchCount = Math.min(limit, 25);
 
   try {
-    const resp = await fetch("https://api.x.ai/v1/responses", {
+    const resp = await retryFetch("https://api.x.ai/v1/responses", {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "grok-3-mini",
         tools: [{ type: "web_search" }],
-        input: `Search X/Twitter for posts about: ${topic}\n\nFocus on posts from ${from} to ${to}. Find 15-25 high-quality, relevant posts.\n\nReturn ONLY valid JSON:\n{"items": [{"text": "Post text", "url": "https://x.com/...", "author_handle": "username", "date": "YYYY-MM-DD", "engagement": {"likes": 100, "reposts": 25}, "why_relevant": "Brief explanation", "relevance": 0.85}]}`,
+        input: `Search X/Twitter for posts about: ${topic}\n\nFocus on posts from ${from} to ${to}. Find ${fetchCount} high-quality, relevant posts.\n\nReturn ONLY valid JSON:\n{"items": [{"text": "Post text", "url": "https://x.com/...", "author_handle": "username", "date": "YYYY-MM-DD", "engagement": {"likes": 100, "reposts": 25}, "why_relevant": "Brief explanation", "relevance": 0.85}]}`,
       }),
-      signal: AbortSignal.timeout(45000),
+      retries: 1,
+      delayMs: 2000,
+      timeoutMs: 45000,
     });
 
     if (!resp.ok) {
@@ -298,7 +313,7 @@ async function searchXviaXAI(topic: string, days: number): Promise<TrendItem[]> 
 }
 
 function deduplicateItems(items: TrendItem[]): TrendItem[] {
-  const seen = new Map<string, TrendItem>();
+  const seen = new Map<string, { ngrams: Set<string>; item: TrendItem }>();
 
   for (const item of items) {
     const normalized = item.title.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -309,19 +324,14 @@ function deduplicateItems(items: TrendItem[]): TrendItem[] {
 
     let isDupe = false;
     for (const [key, existing] of seen) {
-      const existingNormalized = key;
-      const existingNgrams = new Set<string>();
-      for (let i = 0; i < existingNormalized.length - 2; i++) {
-        existingNgrams.add(existingNormalized.substring(i, i + 3));
-      }
-      const intersection = new Set([...ngrams].filter(n => existingNgrams.has(n)));
-      const union = new Set([...ngrams, ...existingNgrams]);
-      const similarity = union.size > 0 ? intersection.size / union.size : 0;
+      const intersection = new Set([...ngrams].filter(n => existing.ngrams.has(n)));
+      const unionSize = ngrams.size + existing.ngrams.size - intersection.size;
+      const similarity = unionSize > 0 ? intersection.size / unionSize : 0;
 
       if (similarity > 0.6) {
-        if (item.relevance > existing.relevance) {
+        if (item.relevance > existing.item.relevance) {
           seen.delete(key);
-          seen.set(normalized, item);
+          seen.set(normalized, { ngrams, item });
         }
         isDupe = true;
         break;
@@ -329,11 +339,11 @@ function deduplicateItems(items: TrendItem[]): TrendItem[] {
     }
 
     if (!isDupe) {
-      seen.set(normalized, item);
+      seen.set(normalized, { ngrams, item });
     }
   }
 
-  return [...seen.values()];
+  return [...seen.values()].map(v => v.item);
 }
 
 function detectConvergence(items: TrendItem[]): { theme: string; sources: string[]; count: number }[] {
@@ -367,28 +377,39 @@ export async function trendResearch(params: {
   depth?: "quick" | "default" | "deep";
   maxResults?: number;
 }): Promise<TrendReport> {
-  const { topic, days = 30, depth = "default", maxResults = 50 } = params;
-  const requestedSources = params.sources || ["reddit", "hackernews", "polymarket", "x"];
+  const topic = (params.topic || "").trim();
+  if (!topic) {
+    return { topic: "", days: 0, sources: [], items: [], convergence: [], summary: "No topic provided.", searchedAt: new Date().toISOString() };
+  }
 
-  console.log(`[trend-research] Searching "${topic}" across ${requestedSources.join(", ")} (${days} days, ${depth})`);
+  const days = Math.max(1, Math.min(365, params.days || 30));
+  const depth = (params.depth && DEPTH_LIMITS[params.depth]) ? params.depth : "default";
+  const limits = DEPTH_LIMITS[depth];
+  const maxResults = Math.max(1, Math.min(200, params.maxResults || limits.maxTotal));
+
+  const rawSources = params.sources || ["reddit", "hackernews", "polymarket", "x"];
+  const requestedSources = rawSources.filter(s => VALID_SOURCES.has(s));
+  if (requestedSources.length === 0) requestedSources.push("reddit", "hackernews");
+
+  console.log(`[trend-research] Searching "${topic}" across ${requestedSources.join(", ")} (${days} days, ${depth}, max ${maxResults})`);
 
   const searches: Promise<TrendItem[]>[] = [];
   const activeSources: string[] = [];
 
   if (requestedSources.includes("reddit")) {
-    searches.push(searchReddit(topic, days));
+    searches.push(searchReddit(topic, days, limits.perSource));
     activeSources.push("reddit");
   }
   if (requestedSources.includes("hackernews")) {
-    searches.push(searchHackerNews(topic, days));
+    searches.push(searchHackerNews(topic, days, limits.perSource));
     activeSources.push("hackernews");
   }
   if (requestedSources.includes("polymarket")) {
-    searches.push(searchPolymarket(topic));
+    searches.push(searchPolymarket(topic, limits.perSource));
     activeSources.push("polymarket");
   }
   if (requestedSources.includes("x")) {
-    searches.push(searchXviaXAI(topic, days));
+    searches.push(searchXviaXAI(topic, days, limits.perSource));
     activeSources.push("x");
   }
 

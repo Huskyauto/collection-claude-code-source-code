@@ -402,7 +402,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: "function" as const,
     function: {
       name: "trend_research",
-      description: "Multi-source trend research tool inspired by /last30days. Searches Reddit, Hacker News, Polymarket prediction markets, and X/Twitter in parallel, then deduplicates, scores by relevance+engagement, and detects cross-platform convergence. All sources are FREE (no API keys needed for Reddit, HN, Polymarket; X uses our existing xAI key). Returns ranked items with engagement data, convergence themes, and a synthesis summary. Use this to research what people are actually saying, upvoting, and betting on about any topic.",
+      description: "Multi-source trend research tool inspired by /last30days. Searches Reddit, Hacker News, Polymarket prediction markets, and X/Twitter in parallel, then deduplicates, scores by relevance+engagement, and detects cross-platform convergence. Reddit/HN/Polymarket are free (no API keys); X search uses xAI API. Returns ranked items with engagement data, convergence themes, and a synthesis summary. Use this to research what people are actually saying, upvoting, and betting on about any topic.",
       parameters: {
         type: "object",
         properties: {
@@ -2656,7 +2656,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       } catch (fcErr: any) {
         console.warn(`[firecrawl_scrape] Firecrawl failed: ${fcErr.message}, falling back to web_fetch`);
         try {
-          const fallbackResult = await executeTool("web_fetch", { url: params.url, _tenantId: tenantId }, tenantId);
+          const fallbackResult = await executeTool("web_fetch", { url: params.url, _tenantId: tenantId });
           return { ...fallbackResult, _fallback: "web_fetch", _firecrawlError: fcErr.message?.slice(0, 100) };
         } catch (fbErr: any) {
           return { error: `Firecrawl failed: ${fcErr.message?.slice(0, 150)}. Fallback web_fetch also failed: ${fbErr.message?.slice(0, 150)}` };
