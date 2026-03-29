@@ -395,78 +395,108 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   const tierModels: Record<string, { provider: string; model: string }[]> = {
     fast: [
-      { provider: "google", model: "gemini-2.5-flash" },
       { provider: "google", model: "gemini-3-flash-preview" },
+      { provider: "google", model: "gemini-2.5-flash" },
       { provider: "openai", model: "gpt-4.1-mini" },
+      { provider: "replit", model: "gpt-5-mini" },
+      { provider: "anthropic", model: "claude-sonnet-4-20250514" },
       { provider: "openrouter", model: "z-ai/glm-4.7-flash" },
       { provider: "openrouter", model: "z-ai/glm-5-turbo" },
-      { provider: "replit", model: "gpt-5-mini" },
     ],
     balanced: [
-      { provider: "replit", model: "gpt-5.4" },
       { provider: "google", model: "gemini-3-flash-preview" },
       { provider: "google", model: "gemini-2.5-flash" },
+      { provider: "replit", model: "gpt-5.4" },
+      { provider: "openai", model: "gpt-4.1" },
+      { provider: "anthropic", model: "claude-sonnet-4-20250514" },
       { provider: "openrouter", model: "z-ai/glm-5-turbo" },
       { provider: "openrouter", model: "z-ai/glm-4.7" },
       { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
       { provider: "openrouter", model: "meta-llama/llama-4-maverick" },
     ],
     powerful: [
-      { provider: "replit", model: "gpt-5.4" },
       { provider: "google", model: "gemini-3.1-pro-preview" },
       { provider: "google", model: "gemini-3-pro-preview" },
-      { provider: "openrouter", model: "z-ai/glm-5" },
-      { provider: "openrouter", model: "nvidia/nemotron-3-super-120b-a12b" },
-      { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
-      { provider: "openrouter", model: "qwen/qwen3.5-122b-a10b" },
+      { provider: "replit", model: "gpt-5.4" },
+      { provider: "openai", model: "gpt-4.1" },
       { provider: "anthropic", model: "claude-opus-4-6" },
       { provider: "anthropic", model: "claude-opus-4-20250514" },
+      { provider: "anthropic", model: "claude-sonnet-4-6" },
+      { provider: "anthropic", model: "claude-sonnet-4-20250514" },
+      { provider: "xai", model: "grok-4" },
+      { provider: "openrouter", model: "z-ai/glm-5" },
+      { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
+      { provider: "openrouter", model: "qwen/qwen3.5-122b-a10b" },
+      { provider: "openrouter", model: "nvidia/nemotron-3-super-120b-a12b" },
       { provider: "openrouter", model: "z-ai/glm-4.7" },
       { provider: "openrouter", model: "moonshotai/kimi-k2.5" },
       { provider: "openrouter", model: "meta-llama/llama-4-maverick" },
       { provider: "openrouter", model: "google/gemini-3-flash-preview" },
       { provider: "openrouter", model: "minimax/minimax-m2.7" },
-      { provider: "anthropic", model: "claude-sonnet-4-20250514" },
-      { provider: "xai", model: "grok-4" },
     ],
     reasoning: [
-      { provider: "replit", model: "gpt-5.4" },
       { provider: "google", model: "gemini-3.1-pro-preview" },
+      { provider: "replit", model: "gpt-5.4" },
+      { provider: "openai", model: "o4-mini-openai" },
+      { provider: "anthropic", model: "claude-opus-4-6" },
+      { provider: "replit", model: "o4-mini" },
       { provider: "openrouter", model: "deepseek/deepseek-r1" },
       { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
-      { provider: "openai", model: "o4-mini-openai" },
-      { provider: "replit", model: "o4-mini" },
     ],
   };
 
   const candidates = tierModels[tier] || tierModels.balanced;
 
   for (const c of candidates) {
-    if (subscriptionProviders.has(c.provider)) return c.model;
+    if (c.provider === "anthropic" && isClaudeRunnerAvailable()) {
+      console.log(`[auto-route] ${tier} → ${c.model} via Claude Runner (OAuth/Max plan)`);
+      return c.model;
+    }
+    if (subscriptionProviders.has(c.provider)) {
+      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} OAuth subscription`);
+      return c.model;
+    }
     if (c.provider === "replit") {
       const mapped = mapReplitToOpenAI(c.model);
-      if (mapped && subscriptionProviders.has("openai")) return c.model;
+      if (mapped && subscriptionProviders.has("openai")) {
+        console.log(`[auto-route] ${tier} → ${c.model} via replit→openai OAuth`);
+        return c.model;
+      }
     }
   }
 
   for (const c of candidates) {
-    if (enabled.has(c.provider)) return c.model;
-    if (hasIntegrationFallback(c.provider)) return c.model;
+    if (c.provider === "anthropic" && isClaudeRunnerAvailable()) {
+      console.log(`[auto-route] ${tier} → ${c.model} via Claude Runner (fallback)`);
+      return c.model;
+    }
+    if (enabled.has(c.provider)) {
+      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} direct key (fallback)`);
+      return c.model;
+    }
+    if (hasIntegrationFallback(c.provider)) {
+      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} integration (fallback)`);
+      return c.model;
+    }
   }
   for (const c of candidates) {
-    if (c.provider === "replit") return c.model;
+    if (c.provider === "replit") {
+      console.log(`[auto-route] ${tier} → ${c.model} via replit proxy (last resort)`);
+      return c.model;
+    }
   }
+  console.log(`[auto-route] ${tier} → ${candidates[candidates.length - 1].model} (no provider matched)`);
   return candidates[candidates.length - 1].model;
 }
 
 export function getModelForTier(tier: "fast" | "balanced" | "powerful" | "reasoning"): string {
   const tierMap: Record<string, string> = {
-    fast: "gemini-2.5-flash",
-    balanced: "gemini-2.5-flash",
-    powerful: "gpt-5.4",
-    reasoning: "gpt-5.4",
+    fast: "gemini-3-flash-preview",
+    balanced: "gemini-3-flash-preview",
+    powerful: "gemini-3.1-pro-preview",
+    reasoning: "gemini-3.1-pro-preview",
   };
-  return tierMap[tier] || "gemini-2.5-flash";
+  return tierMap[tier] || "gemini-3-flash-preview";
 }
 
 const MODEL_MAX_OUTPUT: Record<string, number> = {
