@@ -38,7 +38,7 @@ async function checkResearchSchedules() {
     `);
     const rows = (result as any).rows || result;
     if (!rows || rows.length === 0) return;
-    const { startResearchSession } = await import("./research-engine");
+    const { startResearchSession, awaitSessionCompletion } = await import("./research-engine");
     for (const sched of rows) {
       try {
         if (sched.run_all) {
@@ -46,11 +46,13 @@ async function checkResearchSchedules() {
           const pRows = (programs as any).rows || programs;
           let started = 0;
           for (let pi = 0; pi < pRows.length; pi++) {
-            if (pi > 0) await new Promise(r => setTimeout(r, 15000));
             const r = await startResearchSession({ programId: pRows[pi].id, tenantId: sched.tenant_id });
-            if (r.sessionId) started++;
+            if (r.sessionId && !r.error) {
+              started++;
+              await awaitSessionCompletion(r.sessionId);
+            }
           }
-          console.log(`[research-schedule] "${sched.name}" run-all: started ${started}/${pRows.length} sessions (staggered)`);
+          console.log(`[research-schedule] "${sched.name}" run-all: completed ${started}/${pRows.length} sessions (sequential)`);
         } else if (sched.program_id) {
           const r = await startResearchSession({ programId: sched.program_id, tenantId: sched.tenant_id });
           console.log(`[research-schedule] "${sched.name}" started session ${r.sessionId || "failed: " + r.error}`);
