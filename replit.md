@@ -7,7 +7,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - 120 server-side TypeScript files (~60,000 lines)
 - 38 frontend pages
 - 66 database tables
-- 89 built-in AI tools + custom tool support
+- 91 built-in AI tools + custom tool support
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
@@ -71,7 +71,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Data Protection System:** Comprehensive data safety layer including soft-delete for conversations, message save verification, compaction safety gate, Google Drive backup per tenant, and admin endpoints.
 - **Platform Capabilities Briefing:** Auto-injected system prompt for personas enumerating configured API keys, OAuth subscriptions, server capabilities, connected services, available tools, and AI models.
 - **Finance Market Intelligence Tools:** 4 tools for real-time news, OHLCV stock data, stock search, and market overview, mapped to Cassandra and Radar.
-- **89 AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas.
+- **91 AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas, `strategic_interview` for Socratic requirement gathering, and `export_persona` for portable agent definitions.
 - **23 Active Skills:** 8 business operations skills (Document & Delivery Pipeline, Research & Competitive Intelligence, Project Management, Financial Analysis, Content Marketing, Legal & Compliance, Sales & Client Relations, Business Operations & Strategy) + 15 platform skills, all injected into agent system prompts via `## ACTIVE SKILLS` block.
 - **Project Brain System:** Auto-maintained `.md` knowledge file per project, injected into project conversations.
 - **Project Continuity System:** Auto-transcript system saves full timestamped markdown transcripts. Auto-asset capture detects deliverables and saves them. Prior conversation transcripts and messages are injected for continuity.

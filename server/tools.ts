@@ -1746,6 +1746,38 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "strategic_interview",
+      description: "Conduct a structured Socratic interview to clarify vague or complex requests before execution. Asks focused questions across 7 business dimensions (goal, audience, constraints, differentiation, risks, metrics, scope), scores clarity in real-time, and produces a Strategic Brief when clarity threshold is met. Use when the user says something vague like 'build me an app', 'help with marketing', 'I have a business idea', or any request that needs clarification before diving in. Do NOT use for simple, clear requests.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["start", "answer", "abandon"], description: "start=begin new interview, answer=respond to a question, abandon=cancel interview" },
+          topic: { type: "string", description: "The topic or idea to interview about (required for 'start')" },
+          interview_id: { type: "string", description: "The interview ID (required for 'answer' and 'abandon')" },
+          answer: { type: "string", description: "The user's answer to the current question (required for 'answer')" },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "export_persona",
+      description: "Export any VisionClaw persona as a portable agent definition file. Produces a comprehensive package with the persona's identity (SOUL), trust profile, skills, tools, governance rules, express lanes, and knowledge domains. Output in JSON or markdown format. Use when the user wants to save, share, document, or back up an agent's full configuration.",
+      parameters: {
+        type: "object",
+        properties: {
+          persona_id: { type: "number", description: "ID of the persona to export (1=VisionClaw, 2=Felix, etc.)" },
+          format: { type: "string", enum: ["json", "markdown"], description: "Output format. json=structured data, markdown=human-readable document. Default: markdown" },
+        },
+        required: ["persona_id"],
+      },
+    },
+  },
 ];
 
 import { TEST_MODEL_IDS } from "./providers";
@@ -4385,6 +4417,41 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const { getMarketOverview } = await import("./finance-tools");
       return getMarketOverview();
     }
+    case "strategic_interview": {
+      const { startInterview, processInterviewAnswer, abandonInterview } = await import("./deep-interview");
+      const tenantId = params._tenantId || 1;
+      const conversationId = params._conversationId || 0;
+
+      if (params.action === "start") {
+        if (!params.topic) return { error: "topic is required when action='start'" };
+        const result = startInterview({ tenantId, conversationId, topic: params.topic });
+        return { interview_id: result.interviewId, question: result.firstQuestion, status: "interviewing" };
+      }
+      if (params.action === "answer") {
+        if (!params.interview_id || !params.answer) return { error: "interview_id and answer required when action='answer'" };
+        const result = await processInterviewAnswer({ interviewId: params.interview_id, answer: params.answer });
+        if (result.complete) {
+          return { status: "complete", strategic_brief: result.strategicBrief, clarity_scores: result.clarityScores, overall_clarity: result.overallClarity };
+        }
+        return { status: "interviewing", next_question: result.nextQuestion, clarity_scores: result.clarityScores, overall_clarity: result.overallClarity };
+      }
+      if (params.action === "abandon") {
+        if (params.interview_id) abandonInterview(params.interview_id);
+        return { status: "abandoned" };
+      }
+      return { error: "action must be 'start', 'answer', or 'abandon'" };
+    }
+    case "export_persona": {
+      const { exportPersona, exportToMarkdown } = await import("./persona-export");
+      const tenantId = params._tenantId || 1;
+      if (!params.persona_id) return { error: "persona_id is required" };
+
+      const exported = await exportPersona(params.persona_id, tenantId);
+      if (!exported) return { error: `Persona ${params.persona_id} not found` };
+
+      if (params.format === "json") return exported;
+      return { markdown: exportToMarkdown(exported), format: "visionclaw-agent-v1" };
+    }
     default: {
       if (name.startsWith("custom_")) {
         const { executeCustomTool } = await import("./tool-learning");
@@ -4407,7 +4474,7 @@ export async function getAllToolDefinitions(): Promise<ToolDefinition[]> {
 
 export const PROVIDERS_SUPPORTING_TOOLS = new Set(["replit", "openai", "anthropic", "google", "xai", "openrouter"]);
 
-const SLOW_TOOLS = new Set(["web_fetch", "web_search", "firecrawl_search", "firecrawl_scrape", "firecrawl_crawl", "firecrawl_map", "browser", "analyze_pdf", "exec", "execute_code", "deep_research", "plan_and_execute", "draft_social_post", "orchestrate", "generate_social_image", "compose_social_post", "publish_social_post", "debate", "tree_of_thought", "estimate_cost", "generate_audio", "create_slideshow_video", "produce_video"]);
+const SLOW_TOOLS = new Set(["web_fetch", "web_search", "firecrawl_search", "firecrawl_scrape", "firecrawl_crawl", "firecrawl_map", "browser", "analyze_pdf", "exec", "execute_code", "deep_research", "plan_and_execute", "draft_social_post", "orchestrate", "generate_social_image", "compose_social_post", "publish_social_post", "debate", "tree_of_thought", "estimate_cost", "generate_audio", "create_slideshow_video", "produce_video", "strategic_interview"]);
 const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
 const SLOW_TOOL_TIMEOUT_MS = 120_000;
 const VERY_SLOW_TOOLS = new Set(["produce_video", "deep_research", "orchestrate", "firecrawl_crawl"]);
