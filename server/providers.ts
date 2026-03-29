@@ -379,6 +379,16 @@ setInterval(() => {
   if (pruned > 0) console.log(`[providers] Pruned ${pruned} cached tenant clients`);
 }, 60 * 60 * 1000);
 
+const _lastAutoRouteLog = new Map<string, { model: string; ts: number }>();
+const AUTO_ROUTE_LOG_TTL = 60_000;
+
+function logAutoRoute(tier: string, model: string, via: string) {
+  const last = _lastAutoRouteLog.get(tier);
+  if (last && last.model === model && Date.now() - last.ts < AUTO_ROUTE_LOG_TTL) return;
+  _lastAutoRouteLog.set(tier, { model, ts: Date.now() });
+  console.log(`[auto-route] ${tier} → ${model} via ${via}`);
+}
+
 export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful" | "reasoning", tenantId?: number): Promise<string> {
   const keys = await storage.getProviderKeys();
   const enabled = new Set(keys.filter((k) => k.enabled && k.apiKey).map((k) => k.provider));
@@ -436,10 +446,10 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
     ],
     reasoning: [
       { provider: "google", model: "gemini-3.1-pro-preview" },
-      { provider: "replit", model: "gpt-5.4" },
       { provider: "openai", model: "o4-mini-openai" },
       { provider: "anthropic", model: "claude-opus-4-6" },
       { provider: "replit", model: "o4-mini" },
+      { provider: "replit", model: "gpt-5.4" },
       { provider: "openrouter", model: "deepseek/deepseek-r1" },
       { provider: "openrouter", model: "qwen/qwen3.5-plus-02-15" },
     ],
@@ -449,17 +459,17 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   for (const c of candidates) {
     if (c.provider === "anthropic" && isClaudeRunnerAvailable()) {
-      console.log(`[auto-route] ${tier} → ${c.model} via Claude Runner (OAuth/Max plan)`);
+      logAutoRoute(tier, c.model, "Claude Runner (OAuth/Max plan)");
       return c.model;
     }
     if (subscriptionProviders.has(c.provider)) {
-      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} OAuth subscription`);
+      logAutoRoute(tier, c.model, `${c.provider} OAuth subscription`);
       return c.model;
     }
     if (c.provider === "replit") {
       const mapped = mapReplitToOpenAI(c.model);
       if (mapped && subscriptionProviders.has("openai")) {
-        console.log(`[auto-route] ${tier} → ${c.model} via replit→openai OAuth`);
+        logAutoRoute(tier, c.model, "replit→openai OAuth");
         return c.model;
       }
     }
@@ -467,25 +477,25 @@ export async function getModelForTierAsync(tier: "fast" | "balanced" | "powerful
 
   for (const c of candidates) {
     if (c.provider === "anthropic" && isClaudeRunnerAvailable()) {
-      console.log(`[auto-route] ${tier} → ${c.model} via Claude Runner (fallback)`);
+      logAutoRoute(tier, c.model, "Claude Runner (fallback)");
       return c.model;
     }
     if (enabled.has(c.provider)) {
-      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} direct key (fallback)`);
+      logAutoRoute(tier, c.model, `${c.provider} direct key (fallback)`);
       return c.model;
     }
     if (hasIntegrationFallback(c.provider)) {
-      console.log(`[auto-route] ${tier} → ${c.model} via ${c.provider} integration (fallback)`);
+      logAutoRoute(tier, c.model, `${c.provider} integration (fallback)`);
       return c.model;
     }
   }
   for (const c of candidates) {
     if (c.provider === "replit") {
-      console.log(`[auto-route] ${tier} → ${c.model} via replit proxy (last resort)`);
+      logAutoRoute(tier, c.model, "replit proxy (last resort)");
       return c.model;
     }
   }
-  console.log(`[auto-route] ${tier} → ${candidates[candidates.length - 1].model} (no provider matched)`);
+  logAutoRoute(tier, candidates[candidates.length - 1].model, "no provider matched");
   return candidates[candidates.length - 1].model;
 }
 
