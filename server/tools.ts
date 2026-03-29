@@ -365,6 +365,24 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "render_diagram",
+      description: "Render a Mermaid diagram (flowchart, sequence diagram, architecture map, state diagram, class diagram, gantt chart, etc.) as a PNG image, upload it to Google Drive, and return a shareable link. Use this for system architecture diagrams, process flows, data flow maps, org charts, and technical documentation visuals. Supports all Mermaid diagram types.",
+      parameters: {
+        type: "object",
+        properties: {
+          mermaid_code: { type: "string", description: "Mermaid diagram definition code. Example: 'graph TD\\nA[Start] --> B[Process]\\nB --> C[End]'" },
+          title: { type: "string", description: "Title for the diagram (used for filename and Drive folder)" },
+          theme: { type: "string", enum: ["default", "dark", "forest", "neutral"], description: "Mermaid theme (default: neutral)" },
+          background_color: { type: "string", description: "Background color hex code (default: white '#ffffff')" },
+          folder_label: { type: "string", description: "Google Drive folder name (default: 'Diagrams')" },
+        },
+        required: ["mermaid_code", "title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_dashboard",
       description: "Generate an interactive HTML dashboard that will be rendered in a live canvas inside the chat. Use for rich visualizations, status boards, KPI displays, data tables, or any complex visual output that goes beyond a simple chart. The HTML can include inline CSS and JavaScript. Use semantic HTML with the built-in utility classes: .card, .metric, .metric-value, .metric-label, .grid, .badge, .badge-green, .badge-red, .badge-blue, .badge-yellow.",
       parameters: {
@@ -2596,6 +2614,60 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       return updateMemory(params.id, params.fact, params.category, params.status);
     case "generate_chart":
       return { chartData: { type: params.type, title: params.title, data: params.data, xKey: params.xKey || "name", yKey: params.yKey || "value", colors: params.colors } };
+    case "render_diagram": {
+      const { uploadAndShare } = await import("./google-drive");
+      const fsP = await import("fs/promises");
+      const path = await import("path");
+
+      const theme = params.theme || "neutral";
+      const bgColor = (params.background_color || "#ffffff").replace("#", "");
+      const mermaidCode = params.mermaid_code;
+      const title = params.title || "diagram";
+
+      try {
+        const encoded = Buffer.from(JSON.stringify({
+          code: mermaidCode,
+          mermaid: { theme },
+        })).toString("base64url");
+
+        const mermaidUrl = `https://mermaid.ink/img/${encoded}?bgColor=!${bgColor}`;
+
+        const response = await fetch(mermaidUrl, {
+          headers: { "Accept": "image/png" },
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (!response.ok) {
+          return { error: `Mermaid rendering failed (${response.status}): Check your diagram syntax. Common issues: missing arrows (-->), unclosed brackets, invalid node IDs.` };
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const filename = `${title.replace(/[^a-zA-Z0-9_-]/g, "_")}_${Date.now()}.png`;
+        const outputDir = path.join(process.cwd(), "project-assets");
+        await fsP.mkdir(outputDir, { recursive: true });
+        const filePath = path.join(outputDir, filename);
+        await fsP.writeFile(filePath, buffer);
+
+        console.log(`[render_diagram] Rendered "${title}" (${buffer.length} bytes)`);
+
+        const folderLabel = params.folder_label || "Diagrams";
+        const driveResult = await uploadAndShare(filePath, filename, "image/png", folderLabel);
+
+        return {
+          success: true,
+          title,
+          filename,
+          local_path: filePath,
+          drive_url: driveResult?.webViewLink || null,
+          drive_id: driveResult?.id || null,
+          size_bytes: buffer.length,
+          mermaid_type: mermaidCode.trim().split(/[\s\n]/)[0],
+        };
+      } catch (err: any) {
+        console.error(`[render_diagram] Failed:`, err.message);
+        return { error: `Diagram rendering failed: ${err.message}` };
+      }
+    }
     case "generate_dashboard":
       return { dashboardContent: `\`\`\`html-canvas [${params.title}]\n${params.html}\n\`\`\`` };
     case "delegate_task":
