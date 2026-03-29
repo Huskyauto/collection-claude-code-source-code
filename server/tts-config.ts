@@ -33,7 +33,7 @@ const CONFIG_PATH = path.resolve(process.cwd(), "data", "tts-config.json");
 
 const DEFAULT_CONFIG: TTSConfig = {
   auto: "off",
-  provider: "edge",
+  provider: "vibevoice",
   maxTextLength: 4000,
   summarize: true,
   timeoutMs: 30000,
