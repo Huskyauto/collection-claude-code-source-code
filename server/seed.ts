@@ -2592,6 +2592,15 @@ async function fixResearchProgramModels() {
   const knownIds = new Set(MODEL_REGISTRY.map((m: any) => m.id));
   const defaultModel = "gemini-3-flash-preview";
 
+  if (knownIds.size < 5) {
+    console.warn(`[seed] MODEL_REGISTRY too small (${knownIds.size}), skipping research program model fix`);
+    return;
+  }
+  if (!knownIds.has(defaultModel)) {
+    console.warn(`[seed] Default model "${defaultModel}" not in registry, skipping research program model fix`);
+    return;
+  }
+
   const rows = await db.execute(sql`SELECT id, name, model FROM research_programs WHERE is_active = true`);
   const programs = (rows as any).rows || rows;
   let fixed = 0;

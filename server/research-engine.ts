@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { executeWithFailover } from "./model-failover";
-import { getAvailableModels, replitOpenai } from "./providers";
+import { getAvailableModels, replitOpenai, MODEL_REGISTRY } from "./providers";
 import { storage } from "./storage";
 
 const NIGHTLY_PROGRAM_NAMES = new Set([
@@ -120,11 +120,22 @@ export async function startResearchSession(params: {
   if (!program) return { sessionId: 0, error: "Research program not found" };
 
   const knownModel = MODEL_REGISTRY.find(m => m.id === program.model);
-  if (!knownModel && program.model) {
+  if (!knownModel && program.model && MODEL_REGISTRY.length > 5) {
     const fallback = RESEARCH_COST_MODELS[0];
     console.warn(`[research] Program "${program.name}" has unknown model "${program.model}", switching to "${fallback}"`);
     await db.execute(sql`UPDATE research_programs SET model = ${fallback} WHERE id = ${programId}`);
     program.model = fallback;
+  }
+
+  const existingSession = await db.execute(sql`
+    SELECT id FROM research_sessions
+    WHERE tenant_id = ${tenantId} AND program_id = ${programId} AND status = 'running'
+    LIMIT 1
+  `);
+  const existingRows = (existingSession as any).rows || existingSession;
+  if (existingRows.length > 0) {
+    console.warn(`[research] Program "${program.name}" already has running session #${existingRows[0].id}, skipping`);
+    return { sessionId: existingRows[0].id, error: "Session already running" };
   }
 
   let personaName: string | null = null;
