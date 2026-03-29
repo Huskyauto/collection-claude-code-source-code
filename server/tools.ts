@@ -2413,7 +2413,7 @@ async function handleCheckInbox(limit: number, tenantId?: number) {
   }
 }
 
-async function delegateTask(targetAgent: string, taskName: string, description: string, prompt: string, schedule: string, tenantId?: number, callerContext?: string) {
+async function delegateTask(targetAgent: string, taskName: string, description: string, prompt: string, schedule: string, tenantId?: number, callerContext?: string, currentDepth?: number) {
   if (callerContext === "heartbeat") {
     return { success: false, error: "Delegation is not allowed from heartbeat tasks. Only interactive chat can delegate." };
   }
@@ -2426,6 +2426,7 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
       error: "VIDEO TASKS CANNOT BE DELEGATED. You must call produce_video directly with the script text. Example: produce_video({ script: '...narration text...', title: 'Video Title', email_to: 'user@email.com' }). Use read_file to get the script content first if needed.",
     };
   }
+  const delegationDepth = (currentDepth ?? 0) + 1;
   const persona = await storage.getActivePersona();
 
   const MAX_RETRIES = 2;
@@ -2439,7 +2440,8 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
         prompt,
         schedule || "once",
         attempt === 0 ? "gpt-5-mini" : "gemini-2.5-flash",
-        tenantId || 1
+        tenantId || 1,
+        delegationDepth
       );
       if (result.success) return result;
       if (attempt < MAX_RETRIES && result.error && !result.error.includes("not found") && !result.error.includes("Chain-of-command")) {
@@ -2597,7 +2599,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     case "generate_dashboard":
       return { dashboardContent: `\`\`\`html-canvas [${params.title}]\n${params.html}\n\`\`\`` };
     case "delegate_task":
-      return delegateTask(params.targetAgent, params.taskName, params.description || "", params.prompt, params.schedule || "once", params._tenantId, params._callerContext);
+      return delegateTask(params.targetAgent, params.taskName, params.description || "", params.prompt, params.schedule || "once", params._tenantId, params._callerContext, params._currentDepth);
     case "get_user_info": {
       if (!params._tenantId) return { error: "No user context available" };
       const tenant = await storage.getTenant(params._tenantId);
@@ -3312,7 +3314,8 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const { estimatePlanCost } = await import("./resource-predictor");
       const convId = params._conversationId || 0;
       const tId = params._tenantId || 1;
-      const plan = await generateExecutionPlan(params.objective, convId, tId);
+      const callerDepth = params._currentDepth || 0;
+      const plan = await generateExecutionPlan(params.objective, convId, tId, undefined, callerDepth);
       try {
         const preEstimate = estimatePlanCost(plan.steps?.map((s: any) => ({ tool: s.tool || s.type, description: s.description })) || []);
         console.log(`[resource-predictor] Orchestrate "${params.objective?.slice(0, 40)}": ${preEstimate.estimatedToolCalls} tools, ~$${preEstimate.estimatedCostUsd.toFixed(4)}, ~${preEstimate.estimatedTimeSeconds}s, risk: ${preEstimate.riskLevel}`);

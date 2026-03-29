@@ -1426,7 +1426,8 @@ export async function delegateTaskFromChat(
   prompt: string,
   schedule: string = "once",
   model: string = "gemini-2.5-flash",
-  tenantId: number = 1
+  tenantId: number = 1,
+  depth: number = 1
 ): Promise<{ success: boolean; taskId?: number; result?: string; error?: string }> {
   try {
     const allPersonas = await storage.getPersonas();
@@ -1450,7 +1451,7 @@ export async function delegateTaskFromChat(
     const isOneShot = schedule === "once";
 
     if (isOneShot) {
-      console.log(`[delegation] Inline execution: "${taskName}" → ${target.name} (tenant: ${tenantId})`);
+      console.log(`[delegation] Inline execution: "${taskName}" → ${target.name} (tenant: ${tenantId}, depth: ${depth})`);
 
       const childConv = await storage.createConversation({
         title: `[Delegation] ${taskName}`,
@@ -1469,6 +1470,11 @@ export async function delegateTaskFromChat(
         }
       } catch {}
 
+      const canSubDelegate = depth < 4;
+      const delegationGuidance = canSubDelegate
+        ? `- If part of this task is better suited for another specialist, you CAN delegate using delegate_task with schedule "once". You are at depth ${depth} (max 5).`
+        : `- You are at delegation depth ${depth}. Complete this task directly — do NOT delegate further.`;
+
       const taskPrompt = `You are ${target.name}, executing a delegated task. You MUST use your tools to complete it.
 
 TASK: ${taskName}
@@ -1483,6 +1489,7 @@ MANDATORY RULES:
 - Do NOT describe steps. Do NOT explain your approach. CALL THE TOOLS and return the results.
 - If you create files, they auto-upload to Google Drive. Report the drive_url from the tool result.
 - Output ONLY the tool results — no pleasantries, no meta-commentary, no plans.
+${delegationGuidance}
 - WRONG: "I would use generate_audio to create the narration..."
 - RIGHT: [calls generate_audio tool with the parameters]${scaffoldInjection}`;
 
@@ -1493,7 +1500,7 @@ MANDATORY RULES:
       const result = await _processMessageFn(
         childConv.id,
         taskPrompt,
-        { enableTools: true, depth: 1 }
+        { enableTools: true, depth }
       );
 
       const resultText = result?.response || JSON.stringify(result);

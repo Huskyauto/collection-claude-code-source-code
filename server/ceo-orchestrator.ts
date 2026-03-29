@@ -24,6 +24,7 @@ export interface OrchestrationPlan {
   conversationId: number;
   tenantId: number;
   warRoom: Record<number, string>;
+  callerDepth: number;
 }
 
 const activePlans = new Map<string, OrchestrationPlan>();
@@ -70,7 +71,8 @@ export async function generateExecutionPlan(
   objective: string,
   conversationId: number,
   tenantId: number,
-  modelId?: string
+  modelId?: string,
+  callerDepth?: number
 ): Promise<OrchestrationPlan> {
   const planId = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
@@ -188,6 +190,7 @@ Respond with ONLY a valid JSON array, no markdown, no explanation:
     conversationId,
     tenantId,
     warRoom: {},
+    callerDepth: callerDepth ?? 0,
   };
 
   activePlans.set(planId, plan);
@@ -283,10 +286,11 @@ INSTRUCTIONS:
           tenantId: plan.tenantId,
         });
 
+        const stepDepth = (plan.callerDepth || 0) + 1;
         const result = await processMessage(
           childConv.id,
           taskPrompt,
-          { enableTools: true, depth: 1 }
+          { enableTools: true, depth: stepDepth }
         );
 
         const resultText = result?.response || JSON.stringify(result);

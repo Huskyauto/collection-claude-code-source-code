@@ -1155,7 +1155,7 @@ When the user says "send it to me", "email me", or "send me the file", use their
     }
   } catch {}
 
-  if (persona?.id && persona.id !== 1 && depth === 0) {
+  if (persona?.id && persona.id !== 1 && depth <= 1) {
     try {
       const { getTrustSummary, getAutonomyLevel } = await import("./trust-engine");
       const { getExpressLaneContext } = await import("./express-lanes");
@@ -1228,8 +1228,19 @@ You are replying via WhatsApp. Adapt your style:
   const enableTools = opts?.enableTools !== false && providerSupportsTools;
   const blockedTools = opts?.blockedTools || new Set<string>();
   const depth = opts?.depth || 0;
+  const MAX_DELEGATION_DEPTH = 5;
 
-  if (depth >= 2) {
+  if (depth >= MAX_DELEGATION_DEPTH) {
+    blockedTools.add("delegate_task");
+    blockedTools.add("orchestrate");
+    blockedTools.add("sessions_spawn");
+    blockedTools.add("subagents");
+    console.log(`[depth-guard] Depth ${depth} reached max (${MAX_DELEGATION_DEPTH}) — delegation tools blocked`);
+  } else if (depth >= 3) {
+    blockedTools.add("sessions_spawn");
+    blockedTools.add("subagents");
+    blockedTools.add("orchestrate");
+  } else if (depth >= 2) {
     blockedTools.add("sessions_spawn");
     blockedTools.add("subagents");
   }
@@ -1559,6 +1570,9 @@ RULES:
       }
       if (toolName === "send_email" || toolName === "check_inbox" || toolName === "project" || toolName === "browser" || toolName === "orchestrate" || toolName === "manage_desk" || toolName === "post_to_channel" || toolName === "read_channels" || toolName === "emit_event" || toolName === "debate" || toolName === "delegate_task" || toolName === "firecrawl_scrape" || toolName === "firecrawl_crawl" || toolName === "scraped_pages_query" || toolName === "scraped_page_read" || toolName === "scraped_pages_delete") {
         parsedArgs._tenantId = conv.tenantId;
+      }
+      if (toolName === "delegate_task" || toolName === "orchestrate") {
+        parsedArgs._currentDepth = depth;
       }
       if (toolName === "browser" && ["vision_browse", "scroll_down", "scroll_up", "screenshot", "smart_browse"].includes(parsedArgs.action)) {
         parsedArgs.returnBase64 = true;
