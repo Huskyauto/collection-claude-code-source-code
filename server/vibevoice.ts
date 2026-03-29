@@ -7,8 +7,35 @@ const HF_REALTIME_MODEL = "microsoft/VibeVoice-Realtime-0.5B";
 
 const GRADIO_ASR_ENDPOINT = "https://aka.ms/vibevoice-asr";
 
+const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
+const MAX_TEXT_LENGTH = 50000;
+const ALLOWED_AUDIO_DIRS = ["/tmp", path.resolve(process.cwd(), "uploads"), path.resolve(process.cwd(), "project-assets"), path.resolve(process.cwd(), "data")];
+const ALLOWED_OUTPUT_DIRS = ["/tmp", path.resolve(process.cwd(), "project-assets"), path.resolve(process.cwd(), "data")];
+
 function getHFToken(): string | undefined {
   return process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN;
+}
+
+function sanitizePath(filePath: string, allowedDirs: string[]): string | null {
+  const resolved = path.resolve(filePath);
+  if (resolved.includes("..")) return null;
+  const isAllowed = allowedDirs.some(dir => resolved.startsWith(dir + path.sep) || resolved === dir);
+  if (!isAllowed) return null;
+  return resolved;
+}
+
+function validateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1") return false;
+    if (host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("172.")) return false;
+    if (host.endsWith(".internal") || host.endsWith(".local")) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface VibeVoiceASRResult {
@@ -49,13 +76,20 @@ export async function vibevoiceTranscribe(params: {
     let audioBuffer: Buffer;
 
     if (params.audio_path) {
-      if (!fs.existsSync(params.audio_path)) {
-        return { success: false, error: `Audio file not found: ${params.audio_path}`, provider: "vibevoice-asr" };
+      const safePath = sanitizePath(params.audio_path, ALLOWED_AUDIO_DIRS);
+      if (!safePath) {
+        return { success: false, error: "Audio path not allowed. Files must be in /tmp, uploads, project-assets, or data directories.", provider: "vibevoice-asr" };
       }
-      audioBuffer = fs.readFileSync(params.audio_path);
+      if (!fs.existsSync(safePath)) {
+        return { success: false, error: `Audio file not found: ${safePath}`, provider: "vibevoice-asr" };
+      }
+      audioBuffer = fs.readFileSync(safePath);
     } else if (params.audio_base64) {
       audioBuffer = Buffer.from(params.audio_base64, "base64");
     } else if (params.audio_url) {
+      if (!validateUrl(params.audio_url)) {
+        return { success: false, error: "Invalid or disallowed audio URL. Must be a public https:// URL.", provider: "vibevoice-asr" };
+      }
       const resp = await fetch(params.audio_url, { signal: AbortSignal.timeout(60000) });
       if (!resp.ok) {
         return { success: false, error: `Failed to download audio: ${resp.status}`, provider: "vibevoice-asr" };
@@ -63,6 +97,10 @@ export async function vibevoiceTranscribe(params: {
       audioBuffer = Buffer.from(await resp.arrayBuffer());
     } else {
       return { success: false, error: "Provide audio_path, audio_base64, or audio_url", provider: "vibevoice-asr" };
+    }
+
+    if (audioBuffer.length > MAX_AUDIO_SIZE) {
+      return { success: false, error: `Audio file too large (${Math.round(audioBuffer.length / 1024 / 1024)}MB). Maximum is ${MAX_AUDIO_SIZE / 1024 / 1024}MB.`, provider: "vibevoice-asr" };
     }
 
     const hfToken = getHFToken();
@@ -242,6 +280,18 @@ export async function vibevoiceTTS(params: {
   output_path?: string;
 }): Promise<VibeVoiceTTSResult> {
   try {
+    if (!params.text && (!params.speakers || params.speakers.length === 0)) {
+      return { success: false, error: "Text or speakers array is required", provider: "vibevoice-tts" };
+    }
+
+    if (params.output_path) {
+      const safePath = sanitizePath(params.output_path, ALLOWED_OUTPUT_DIRS);
+      if (!safePath) {
+        return { success: false, error: "Output path not allowed. Must be in /tmp, project-assets, or data directories.", provider: "vibevoice-tts" };
+      }
+      params.output_path = safePath;
+    }
+
     const hfToken = getHFToken();
 
     const apiUrl = `https://api-inference.huggingface.co/models/${HF_TTS_MODEL}`;
@@ -257,6 +307,10 @@ export async function vibevoiceTTS(params: {
       inputText = params.speakers
         .map(s => `[${s.name}]: ${s.text}`)
         .join("\n");
+    }
+
+    if (inputText.length > MAX_TEXT_LENGTH) {
+      return { success: false, error: `Text too long (${inputText.length} chars). Maximum is ${MAX_TEXT_LENGTH}.`, provider: "vibevoice-tts" };
     }
 
     const response = await fetch(apiUrl, {
@@ -334,6 +388,16 @@ export async function vibevoiceRealtimeTTS(params: {
   output_path?: string;
 }): Promise<VibeVoiceTTSResult> {
   try {
+    if (!params.text || params.text.length > MAX_TEXT_LENGTH) {
+      return { success: false, error: params.text ? `Text too long (max ${MAX_TEXT_LENGTH} chars)` : "Text is required", provider: "vibevoice-tts" };
+    }
+    if (params.output_path) {
+      const safePath = sanitizePath(params.output_path, ALLOWED_OUTPUT_DIRS);
+      if (!safePath) {
+        return { success: false, error: "Output path not allowed. Must be in /tmp, project-assets, or data directories.", provider: "vibevoice-tts" };
+      }
+      params.output_path = safePath;
+    }
     const hfToken = getHFToken();
 
     const apiUrl = `https://api-inference.huggingface.co/models/${HF_REALTIME_MODEL}`;
