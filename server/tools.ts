@@ -8,6 +8,24 @@ import { wrapExternalContent } from "./external-content-security";
 import { sessionsList, sessionsHistory, sessionsSend } from "./sessions";
 
 export const orchestrationProgressEmitter = new EventEmitter();
+
+async function retryWithBackoff<T>(fn: () => Promise<T>, opts?: { retries?: number; delayMs?: number; label?: string }): Promise<T> {
+  const { retries = 2, delayMs = 1000, label = "operation" } = opts || {};
+  let lastErr: any;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      if (i < retries) {
+        const wait = delayMs * Math.pow(2, i);
+        console.warn(`[retry] ${label} attempt ${i + 1} failed: ${err.message?.slice(0, 120)}, retrying in ${wait}ms...`);
+        await new Promise(r => setTimeout(r, wait));
+      }
+    }
+  }
+  throw lastErr;
+}
 let _subagentModule: typeof import("./subagents") | null = null;
 async function getSubagentModule() {
   if (!_subagentModule) _subagentModule = await import("./subagents");
@@ -2605,28 +2623,45 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     case "firecrawl_scrape": {
       if (!params._tenantId) return { error: "Tenant context required for firecrawl_scrape" };
       const tenantId = params._tenantId;
-      const scrapeResult = await firecrawlScrapeAndStore(params.url, tenantId, params.tags);
-      if (!scrapeResult.success) return { error: scrapeResult.error };
-      const fullPage = await getScrapedPageContent(scrapeResult.pageId!, tenantId);
-      return {
-        success: true,
-        pageId: scrapeResult.pageId,
-        title: scrapeResult.title,
-        contentLength: scrapeResult.contentLength,
-        content: fullPage.page?.content?.slice(0, 8000) || "",
-        storedInDatabase: true,
-      };
+      try {
+        const scrapeResult = await firecrawlScrapeAndStore(params.url, tenantId, params.tags);
+        if (!scrapeResult.success) throw new Error(scrapeResult.error || "Firecrawl scrape failed");
+        const fullPage = await getScrapedPageContent(scrapeResult.pageId!, tenantId);
+        return {
+          success: true,
+          pageId: scrapeResult.pageId,
+          title: scrapeResult.title,
+          contentLength: scrapeResult.contentLength,
+          content: fullPage.page?.content?.slice(0, 8000) || "",
+          storedInDatabase: true,
+        };
+      } catch (fcErr: any) {
+        console.warn(`[firecrawl_scrape] Firecrawl failed: ${fcErr.message}, falling back to web_fetch`);
+        try {
+          const fallbackResult = await executeTool("web_fetch", { url: params.url, _tenantId: tenantId }, tenantId);
+          return { ...fallbackResult, _fallback: "web_fetch", _firecrawlError: fcErr.message?.slice(0, 100) };
+        } catch (fbErr: any) {
+          return { error: `Firecrawl failed: ${fcErr.message?.slice(0, 150)}. Fallback web_fetch also failed: ${fbErr.message?.slice(0, 150)}` };
+        }
+      }
     }
     case "firecrawl_crawl": {
       if (!params._tenantId) return { error: "Tenant context required for firecrawl_crawl" };
       const tenantId = params._tenantId;
-      return firecrawlCrawlSite(params.url, tenantId, {
-        limit: params.limit,
-        maxDepth: params.maxDepth,
-        includePaths: params.includePaths,
-        excludePaths: params.excludePaths,
-        tags: params.tags,
-      });
+      try {
+        return await retryWithBackoff(
+          () => firecrawlCrawlSite(params.url, tenantId, {
+            limit: params.limit,
+            maxDepth: params.maxDepth,
+            includePaths: params.includePaths,
+            excludePaths: params.excludePaths,
+            tags: params.tags,
+          }),
+          { retries: 1, delayMs: 3000, label: "firecrawl_crawl" }
+        );
+      } catch (err: any) {
+        return { error: `Firecrawl crawl failed after retry: ${err.message?.slice(0, 200)}` };
+      }
     }
     case "firecrawl_map": {
       return firecrawlMapSite(params.url);
@@ -2672,23 +2707,50 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const title = params.title || "diagram";
 
       try {
+        let buffer: Buffer | null = null;
+
         const encoded = Buffer.from(JSON.stringify({
           code: mermaidCode,
           mermaid: { theme },
         })).toString("base64url");
-
         const mermaidUrl = `https://mermaid.ink/img/${encoded}?bgColor=!${bgColor}`;
-
-        const response = await fetch(mermaidUrl, {
-          headers: { "Accept": "image/png" },
-          signal: AbortSignal.timeout(30000),
-        });
-
-        if (!response.ok) {
-          return { error: `Mermaid rendering failed (${response.status}): Check your diagram syntax. Common issues: missing arrows (-->), unclosed brackets, invalid node IDs.` };
+        try {
+          const response = await retryWithBackoff(
+            () => fetch(mermaidUrl, { headers: { "Accept": "image/png" }, signal: AbortSignal.timeout(20000) }),
+            { retries: 1, delayMs: 2000, label: "mermaid.ink" }
+          );
+          if (response.ok) {
+            buffer = Buffer.from(await response.arrayBuffer());
+            console.log(`[render_diagram] mermaid.ink succeeded (${buffer.length} bytes)`);
+          }
+        } catch (e: any) {
+          console.warn(`[render_diagram] mermaid.ink failed: ${e.message}, trying Kroki fallback`);
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
+        if (!buffer) {
+          try {
+            const krokiResp = await retryWithBackoff(
+              () => fetch("https://kroki.io/mermaid/png", {
+                method: "POST",
+                headers: { "Content-Type": "text/plain" },
+                body: mermaidCode,
+                signal: AbortSignal.timeout(30000),
+              }),
+              { retries: 1, delayMs: 2000, label: "kroki.io" }
+            );
+            if (krokiResp.ok) {
+              buffer = Buffer.from(await krokiResp.arrayBuffer());
+              console.log(`[render_diagram] Kroki fallback succeeded (${buffer.length} bytes)`);
+            }
+          } catch (e: any) {
+            console.warn(`[render_diagram] Kroki fallback also failed: ${e.message}`);
+          }
+        }
+
+        if (!buffer) {
+          return { error: `Diagram rendering failed: Both mermaid.ink and Kroki.io are unavailable. Check your diagram syntax.` };
+        }
+
         const filename = `${title.replace(/[^a-zA-Z0-9_-]/g, "_")}_${Date.now()}.png`;
         const outputDir = path.join(process.cwd(), "project-assets");
         await fsP.mkdir(outputDir, { recursive: true });
@@ -2698,12 +2760,12 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         console.log(`[render_diagram] Rendered "${title}" (${buffer.length} bytes)`);
 
         const folderLabel = params.folder_label || "Diagrams";
-        const driveResult = await uploadAndShare({
-          filePath,
-          fileName: filename,
-          mimeType: "image/png",
-          folderLabel,
-        });
+        let driveResult: any = null;
+        try {
+          driveResult = await uploadAndShare({ filePath, fileName: filename, mimeType: "image/png", folderLabel });
+        } catch (driveErr: any) {
+          console.warn(`[render_diagram] Drive upload failed: ${driveErr.message}, file saved locally`);
+        }
 
         return {
           success: true,
@@ -3014,7 +3076,8 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     case "google_workspace": {
       const tenantId = params._tenantId || 1;
       const { service, action } = params;
-      try {
+
+      const execGws = async (): Promise<any> => {
         switch (service) {
           case "gmail":
             switch (action) {
@@ -3095,8 +3158,16 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
             }
           default: return { error: `Unknown service: ${service}. Use: gmail, calendar, contacts, sheets, docs` };
         }
+      };
+
+      try {
+        return await retryWithBackoff(execGws, { retries: 1, delayMs: 2000, label: `google_workspace/${service}/${action}` });
       } catch (err: any) {
-        return { error: err.message };
+        const msg = err.message || "";
+        if (msg.includes("401") || msg.includes("403") || msg.includes("invalid_grant") || msg.includes("Token")) {
+          return { error: `Google Workspace auth error (${service}/${action}): ${msg.slice(0, 200)}. Token may have expired — try reconnecting Google in Settings.` };
+        }
+        return { error: `Google Workspace error (${service}/${action}): ${msg.slice(0, 300)}` };
       }
     }
     case "whatsapp": {
@@ -3106,12 +3177,15 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         }
         if (params.action === "send") {
           if (!params.to || !params.message) return { error: "Both 'to' (phone number) and 'message' are required" };
-          await sendWhatsAppMessage(params.to, params.message);
+          await retryWithBackoff(
+            () => sendWhatsAppMessage(params.to, params.message),
+            { retries: 2, delayMs: 2000, label: "whatsapp-send" }
+          );
           return { success: true, to: params.to, messageLength: params.message.length };
         }
         return { error: `Unknown whatsapp action: ${params.action}` };
       } catch (err: any) {
-        return { error: err.message };
+        return { error: `WhatsApp failed after retries: ${err.message?.slice(0, 200)}` };
       }
     }
     case "doc_search": {
@@ -3281,15 +3355,30 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
 
       const { getYouTubeAccessToken } = await import("./oauth-subscriptions");
       const ytTenantId = params._tenantId || 1;
-      const ytToken = await getYouTubeAccessToken(ytTenantId);
+      let ytToken = await getYouTubeAccessToken(ytTenantId);
       if (!ytToken) return { error: "YouTube is not connected. Connect via Settings or /api/youtube/connect." };
 
       const ytBase = "https://www.googleapis.com/youtube/v3";
-      const ytHeaders = { Authorization: `Bearer ${ytToken}`, "Content-Type": "application/json" };
+      let ytHeaders: Record<string, string> = { Authorization: `Bearer ${ytToken}`, "Content-Type": "application/json" };
       const maxR = Math.min(params.maxResults || 10, 50);
 
+      const ytFetch = async (url: string, init?: RequestInit): Promise<Response> => {
+        const resp = await fetch(url, { ...init, headers: { ...ytHeaders, ...(init?.headers || {}) }, signal: AbortSignal.timeout(30000) });
+        if (resp.status === 401) {
+          console.warn(`[youtube] Got 401, refreshing token...`);
+          const newToken = await getYouTubeAccessToken(ytTenantId, true);
+          if (newToken && newToken !== ytToken) {
+            ytToken = newToken;
+            ytHeaders = { Authorization: `Bearer ${newToken}`, "Content-Type": "application/json" };
+            const retry = await fetch(url, { ...init, headers: { ...ytHeaders, ...(init?.headers || {}) }, signal: AbortSignal.timeout(30000) });
+            return retry;
+          }
+        }
+        return resp;
+      };
+
       if (!params.action) {
-        const r = await fetch(`${ytBase}/channels?part=snippet,statistics&mine=true`, { headers: ytHeaders });
+        const r = await ytFetch(`${ytBase}/channels?part=snippet,statistics&mine=true`);
         if (!r.ok) return { error: `YouTube API error: ${r.status}` };
         const d = await r.json();
         const ch = d.items?.[0];
@@ -3305,7 +3394,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
 
       switch (params.action) {
         case "channel_info": {
-          const r = await fetch(`${ytBase}/channels?part=snippet,statistics,contentDetails&mine=true`, { headers: ytHeaders });
+          const r = await ytFetch(`${ytBase}/channels?part=snippet,statistics,contentDetails&mine=true`);
           if (!r.ok) return { error: `YouTube API error: ${r.status} ${await r.text()}` };
           const d = await r.json();
           const ch = d.items?.[0];
@@ -3313,19 +3402,19 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
           return { channel: ch.snippet?.title, description: ch.snippet?.description, subscriberCount: ch.statistics?.subscriberCount, videoCount: ch.statistics?.videoCount, viewCount: ch.statistics?.viewCount, uploadsPlaylistId: ch.contentDetails?.relatedPlaylists?.uploads, thumbnailUrl: ch.snippet?.thumbnails?.default?.url, publishedAt: ch.snippet?.publishedAt };
         }
         case "list_videos": {
-          const chR = await fetch(`${ytBase}/channels?part=contentDetails&mine=true`, { headers: ytHeaders });
+          const chR = await ytFetch(`${ytBase}/channels?part=contentDetails&mine=true`);
           if (!chR.ok) return { error: `YouTube API error: ${chR.status}` };
           const chD = await chR.json();
           const uploadsId = chD.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
           if (!uploadsId) return { error: "No uploads playlist found" };
-          const plR = await fetch(`${ytBase}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=${maxR}`, { headers: ytHeaders });
+          const plR = await ytFetch(`${ytBase}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=${maxR}`);
           if (!plR.ok) return { error: `YouTube API error: ${plR.status}` };
           const plD = await plR.json();
           return { videos: (plD.items || []).map((v: any) => ({ videoId: v.contentDetails?.videoId, title: v.snippet?.title, description: v.snippet?.description?.substring(0, 200), publishedAt: v.snippet?.publishedAt, thumbnailUrl: v.snippet?.thumbnails?.default?.url })), totalResults: plD.pageInfo?.totalResults };
         }
         case "video_details": {
           if (!params.videoId) return { error: "videoId is required" };
-          const r = await fetch(`${ytBase}/videos?part=snippet,statistics,contentDetails&id=${params.videoId}`, { headers: ytHeaders });
+          const r = await ytFetch(`${ytBase}/videos?part=snippet,statistics,contentDetails&id=${params.videoId}`);
           if (!r.ok) return { error: `YouTube API error: ${r.status}` };
           const d = await r.json();
           const v = d.items?.[0];
@@ -3334,28 +3423,28 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         }
         case "search_videos": {
           if (!params.query) return { error: "query is required" };
-          const r = await fetch(`${ytBase}/search?part=snippet&forMine=true&type=video&q=${encodeURIComponent(params.query)}&maxResults=${maxR}`, { headers: ytHeaders });
+          const r = await ytFetch(`${ytBase}/search?part=snippet&forMine=true&type=video&q=${encodeURIComponent(params.query)}&maxResults=${maxR}`);
           if (!r.ok) return { error: `YouTube API error: ${r.status}` };
           const d = await r.json();
           return { results: (d.items || []).map((v: any) => ({ videoId: v.id?.videoId, title: v.snippet?.title, description: v.snippet?.description?.substring(0, 200), publishedAt: v.snippet?.publishedAt })) };
         }
         case "list_comments": {
           if (!params.videoId) return { error: "videoId is required" };
-          const r = await fetch(`${ytBase}/commentThreads?part=snippet&videoId=${params.videoId}&maxResults=${maxR}&order=time`, { headers: ytHeaders });
+          const r = await ytFetch(`${ytBase}/commentThreads?part=snippet&videoId=${params.videoId}&maxResults=${maxR}&order=time`);
           if (!r.ok) return { error: `YouTube API error: ${r.status}` };
           const d = await r.json();
           return { comments: (d.items || []).map((c: any) => ({ commentId: c.id, author: c.snippet?.topLevelComment?.snippet?.authorDisplayName, text: c.snippet?.topLevelComment?.snippet?.textDisplay, likeCount: c.snippet?.topLevelComment?.snippet?.likeCount, publishedAt: c.snippet?.topLevelComment?.snippet?.publishedAt, replyCount: c.snippet?.totalReplyCount })) };
         }
         case "reply_comment": {
           if (!params.commentId || !params.text) return { error: "commentId and text are required" };
-          const r = await fetch(`${ytBase}/comments?part=snippet`, { method: "POST", headers: ytHeaders, body: JSON.stringify({ snippet: { parentId: params.commentId, textOriginal: params.text } }) });
+          const r = await ytFetch(`${ytBase}/comments?part=snippet`, { method: "POST", body: JSON.stringify({ snippet: { parentId: params.commentId, textOriginal: params.text } }) });
           if (!r.ok) return { error: `YouTube API error: ${r.status} ${await r.text()}` };
           const d = await r.json();
           return { success: true, commentId: d.id, text: d.snippet?.textDisplay };
         }
         case "update_video": {
           if (!params.videoId) return { error: "videoId is required" };
-          const getR = await fetch(`${ytBase}/videos?part=snippet&id=${params.videoId}`, { headers: ytHeaders });
+          const getR = await ytFetch(`${ytBase}/videos?part=snippet&id=${params.videoId}`);
           if (!getR.ok) return { error: `YouTube API error: ${getR.status}` };
           const getD = await getR.json();
           const existing = getD.items?.[0];
@@ -3364,12 +3453,12 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
           if (params.title) snippet.title = params.title;
           if (params.text) snippet.description = params.text;
           if (params.tags) snippet.tags = params.tags;
-          const r = await fetch(`${ytBase}/videos?part=snippet`, { method: "PUT", headers: ytHeaders, body: JSON.stringify({ id: params.videoId, snippet }) });
+          const r = await ytFetch(`${ytBase}/videos?part=snippet`, { method: "PUT", body: JSON.stringify({ id: params.videoId, snippet }) });
           if (!r.ok) return { error: `YouTube API error: ${r.status} ${await r.text()}` };
           return { success: true, videoId: params.videoId, title: snippet.title };
         }
         case "list_playlists": {
-          const r = await fetch(`${ytBase}/playlists?part=snippet,contentDetails&mine=true&maxResults=${maxR}`, { headers: ytHeaders });
+          const r = await ytFetch(`${ytBase}/playlists?part=snippet,contentDetails&mine=true&maxResults=${maxR}`);
           if (!r.ok) return { error: `YouTube API error: ${r.status}` };
           const d = await r.json();
           return { playlists: (d.items || []).map((p: any) => ({ playlistId: p.id, title: p.snippet?.title, description: p.snippet?.description, videoCount: p.contentDetails?.itemCount, publishedAt: p.snippet?.publishedAt })) };
@@ -3405,19 +3494,28 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
             },
           };
 
-          const initResp = await fetch(
-            "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${ytToken}`,
-                "Content-Type": "application/json; charset=UTF-8",
-                "X-Upload-Content-Length": String(videoBuffer.length),
-                "X-Upload-Content-Type": "video/*",
-              },
-              body: JSON.stringify(metadata),
+          const initResp = await retryWithBackoff(async () => {
+            const resp = await fetch(
+              "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${ytToken}`,
+                  "Content-Type": "application/json; charset=UTF-8",
+                  "X-Upload-Content-Length": String(videoBuffer.length),
+                  "X-Upload-Content-Type": "video/*",
+                },
+                body: JSON.stringify(metadata),
+                signal: AbortSignal.timeout(30000),
+              }
+            );
+            if (resp.status === 401) {
+              const newToken = await getYouTubeAccessToken(ytTenantId, true);
+              if (newToken) { ytToken = newToken; ytHeaders = { Authorization: `Bearer ${newToken}`, "Content-Type": "application/json" }; }
+              throw new Error("Token expired, retrying");
             }
-          );
+            return resp;
+          }, { retries: 1, delayMs: 2000, label: "youtube-upload-init" });
 
           if (!initResp.ok) {
             const errText = await initResp.text();
@@ -4235,7 +4333,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const fullPrompt = `${stylePrefix[style] || ""} ${platformHint[platform] || ""} ${params.prompt}. No text overlays unless specifically requested.`;
 
       try {
-        const dataUrl = await generateImage(fullPrompt);
+        const dataUrl = await retryWithBackoff(() => generateImage(fullPrompt), { retries: 2, delayMs: 3000, label: "generate_social_image" });
         const base64Data = dataUrl.split(",")[1];
         const mimeMatch = dataUrl.match(/data:([^;]+);/);
         const mimeType = mimeMatch?.[1] || "image/png";

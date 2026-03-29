@@ -951,7 +951,7 @@ export async function seedYouTubeIfMissing(tenantId: number = 1): Promise<void> 
   }
 }
 
-export async function getYouTubeAccessToken(tenantId: number): Promise<string | null> {
+export async function getYouTubeAccessToken(tenantId: number, forceRefresh?: boolean): Promise<string | null> {
   try {
     let result = await db.execute(sql`
       SELECT access_token, refresh_token, expires_at FROM oauth_subscriptions
@@ -972,7 +972,7 @@ export async function getYouTubeAccessToken(tenantId: number): Promise<string | 
     const row = rows[0];
     const expiresAt = Number(row.expires_at);
 
-    if (Date.now() < expiresAt - 60000) {
+    if (!forceRefresh && Date.now() < expiresAt - 60000) {
       return decryptApiKey(row.access_token);
     }
 
