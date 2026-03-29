@@ -4,11 +4,10 @@
 VisionClaw is an agentic AI platform designed as a fully autonomous AI corporation, built by AI Buddy LLC (Illinois). It features 14 specialized AI personas operating as a complete corporate team. The platform runs under rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards, implementing the Claude Opus 4.6 Agentic Spec. Agents handle tasks autonomously and escalate only mission-critical issues to human owners. Built for multi-tenancy, cost-effectiveness, and robust security.
 
 **Platform Stats (March 2026):**
-- 120 server-side TypeScript files (~60,000 lines)
+- 120+ server-side TypeScript files (~62,000 lines)
 - 38 frontend pages
 - 66 database tables
 - 92 built-in AI tools + custom tool support
-- Live delegation event feed (SSE real-time agent activity bubbles)
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
@@ -47,7 +46,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 VisionClaw employs a modern web architecture with a single-port frontend and API.
 
 **Frontend:**
-- **Stack:** React 18, Vite, shadcn/ui, TailwindCSS, Wouter, TanStack Query v5.
+- **Stack:** React 18, Vite, shadcn/ui, TailwindCSS, Wouter, TanStack Query v5, Framer Motion.
 - **UI/UX:** Command Center Dashboard, grouped sidebar, auto-named conversations, 3-step onboarding, usage dashboard, legal pages, cookie consent, error boundary, dark mode, code splitting, scroll-to-bottom button, stop generating button, regenerate last response, keyboard shortcuts.
 
 **Backend:**
@@ -58,7 +57,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **AI Agent System:** A 14-persona agent team with an LLM-powered CEO Orchestrator, Semantic Tool Router, Self-Improvement Engine, Adaptive Execution & Self-Healing, and Auto Model Router with OAuth-first priority.
 - **Smart Model Auto-Selection:** Task Complexity Classifier, Multimodal-Aware Routing, Auto-Thinking Mode, Persona Cost Tier Integration, Model Capabilities Registry, and `[auto-route]` logging with 60s dedup.
 - **Autonomous Operations:** Heartbeat Engine (13 tasks), Scheduled Tasks, Corporation Report Export (PDF to Google Drive), Human-in-the-Loop (HITL) Confirmation Gate, and Felix Approval Gate.
-- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 89 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
+- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 92 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
 - **Process Governor:** A 40-rule governance engine across 7 categories, supported by 25 condition evaluators, an emergency Kill Switch, and a Governance Frameworks Knowledge Base.
 - **Quarterly Intelligence System:** Governance Research Scanner and Model Registry Refresh.
 - **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 11 autonomous research programs (5 nightly + 6 AI Buddy business) run via 7 research schedules. Each program spawns 5-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona with vector embeddings (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table). Model Intelligence findings queue `model_registry_updates`. Startup model validation auto-corrects unknown models. Duplicate-session protection prevents double runs. API: `GET/PATCH /api/research/code-proposals`.
@@ -72,7 +71,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Data Protection System:** Comprehensive data safety layer including soft-delete for conversations, message save verification, compaction safety gate, Google Drive backup per tenant, and admin endpoints.
 - **Platform Capabilities Briefing:** Auto-injected system prompt for personas enumerating configured API keys, OAuth subscriptions, server capabilities, connected services, available tools, and AI models.
 - **Finance Market Intelligence Tools:** 4 tools for real-time news, OHLCV stock data, stock search, and market overview, mapped to Cassandra and Radar.
-- **91 AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas, `strategic_interview` for Socratic requirement gathering, and `export_persona` for portable agent definitions.
+- **92 AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas, `strategic_interview` for Socratic requirement gathering, `export_persona` for portable agent definitions, and `render_diagram` for Mermaid-to-image diagram generation.
 - **23 Active Skills:** 8 business operations skills (Document & Delivery Pipeline, Research & Competitive Intelligence, Project Management, Financial Analysis, Content Marketing, Legal & Compliance, Sales & Client Relations, Business Operations & Strategy) + 15 platform skills, all injected into agent system prompts via `## ACTIVE SKILLS` block.
 - **Project Brain System:** Auto-maintained `.md` knowledge file per project, injected into project conversations.
 - **Project Continuity System:** Auto-transcript system saves full timestamped markdown transcripts. Auto-asset capture detects deliverables and saves them. Prior conversation transcripts and messages are injected for continuity.
@@ -96,11 +95,38 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Database:** PostgreSQL with Drizzle ORM, featuring 66 tables.
 - **Claude Runner Bridge:** Local OpenAI-compatible bridge that routes Anthropic model requests through Claude Code CLI for $0 per-token cost with Max plan authentication, falling back to standard API if unavailable.
 
+### Presentation & Visualization Features
+- **Mermaid Diagram Rendering (`render_diagram`):** Generates flowcharts, architecture maps, sequence diagrams, state diagrams, class diagrams, Gantt charts, org charts, and any Mermaid-supported diagram type as PNG images via the mermaid.ink API. Supports configurable themes (default, dark, forest, neutral) and custom background colors. Rendered images auto-upload to Google Drive with shareable links. Agents can create professional technical diagrams entirely through conversation.
+- **Live Delegation Event Feed:** Real-time Server-Sent Events (SSE) system that streams agent activity as it happens. Built on an in-memory EventEmitter with tenant-isolated event routing, 5-minute TTL auto-cleanup, and per-conversation subscription support. Events include agent starts, tool calls, sub-delegations, completions, and errors — all with human-readable descriptions. Frontend overlay component displays animated activity bubbles with color-coded agent icons, depth indicators, and timestamps. Fully tenant-isolated — users only see their own agents' activity.
+- **Voice Narration for Agent Activity:** Built-in browser-native speech synthesis narration that speaks agent activity aloud in plain English as it happens. Uses Chrome's high-quality voices (completely free, no API calls, no usage limits). Narration queue prevents overlapping speech. Toggle on/off from the activity panel. Generates natural sentences like "Felix is bringing in Radar to help with this" and "Radar is searching the web" — no technical jargon, no markdown formatting, no hashtags.
+- **Chart Generation (`generate_chart`):** Bar, line, pie, and area charts rendered inline in chat using Recharts. Agents provide data and the frontend renders interactive, responsive visualizations.
+- **Interactive Dashboards (`generate_dashboard`):** Full HTML/CSS/JS dashboards rendered in a live canvas inside chat messages. Supports KPI displays, data tables, status boards, and custom visualizations with built-in utility classes.
+- **AI Image Generation (`generate_social_image`):** Creates images via AI generation APIs and auto-uploads to Google Drive. Used for social media content, presentation visuals, and creative assets.
+- **Video Production (`produce_video`):** End-to-end video creation with TTS narration (ElevenLabs or Google), slide generation, and MP4 compilation. Completed videos auto-upload to Google Drive with shareable links.
+- **Audio Generation (`generate_audio`):** Text-to-speech generation with multiple providers (ElevenLabs premium voices, OpenAI TTS, and free Google TTS). Supports voice selection, speed control, and format options.
+- **Multi-Provider TTS System:** Three-tier TTS with automatic failover — ElevenLabs (premium, 110K chars/month), OpenAI (high quality), and Google Translate TTS (free, unlimited). Default provider is configurable. Browser-native speech synthesis available for zero-cost client-side narration.
+
 ## External Dependencies
 - **AI Providers:** OpenAI (OAuth + direct), Anthropic (Claude Runner bridge + direct), Google Gemini (OAuth + integration), xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi, Z.ai GLM, Nemotron, Mistral), Claude Runner (CLI bridge, optional).
 - **Payments:** Stripe (Connect, BYOK), Coinbase (CDP SDK, Commerce API).
-- **Services:** ElevenLabs (STT only), Google Drive, Firecrawl (web scraping, crawling, site mapping), Jina AI (Reader).
+- **Services:** ElevenLabs (TTS + STT), Google Drive, Firecrawl (web scraping, crawling, site mapping), Jina AI (Reader), mermaid.ink (diagram rendering).
 - **Storage:** Replit Object Storage, PostgreSQL with pgvector.
 - **Communications:** AgentMail, WhatsApp Web (Baileys), Discord Bot, Telegram Bot.
 - **Geolocation:** ip-api.com.
 - **Weather:** Open-Meteo API.
+
+## Key Files
+- `server/chat-engine.ts` — Core message processing, model routing, tool execution loop, delegation event emission
+- `server/tools.ts` — 92 tool definitions and executeTool dispatcher
+- `server/heartbeat.ts` — Heartbeat engine, delegation execution, scheduled tasks
+- `server/ceo-orchestrator.ts` — Felix's multi-step task decomposition engine
+- `server/delegation-events.ts` — Real-time delegation event emitter with tenant isolation
+- `server/deep-interview.ts` — Socratic interview engine with pendingDimensionId tracking
+- `server/persona-export.ts` — Portable persona definition export
+- `server/voice.ts` — Multi-provider TTS/STT with automatic failover
+- `server/tts-config.ts` — TTS provider configuration (ElevenLabs, OpenAI, Google)
+- `server/google-drive.ts` — Google Drive upload, sharing, and folder management
+- `server/routes.ts` — All API endpoints including SSE delegation event streaming
+- `shared/schema.ts` — Drizzle ORM schema for all 66 tables
+- `client/src/pages/chat.tsx` — Main chat interface with delegation live feed
+- `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration
