@@ -1529,7 +1529,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       try {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       } catch {}
-    });
+    }, tenantId);
 
     const heartbeat = setInterval(() => {
       try { res.write(`: heartbeat\n\n`); } catch {}
@@ -1545,9 +1545,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const tenantId = getTenantFromRequest(req);
     if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     const conversationId = parseInt(req.params.conversationId);
+
+    const conv = await storage.getConversation(conversationId);
+    if (conv && conv.tenantId !== tenantId && tenantId !== ADMIN_TENANT_ID) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     const since = req.query.since ? parseInt(req.query.since as string) : undefined;
     const { getRecentEvents } = await import("./delegation-events");
-    const events = getRecentEvents(conversationId, since);
+    const events = getRecentEvents(conversationId, since, tenantId);
     res.json({ events });
   });
 
@@ -1556,7 +1562,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     const since = req.query.since ? parseInt(req.query.since as string) : Date.now() - 60000;
     const { getRecentEvents } = await import("./delegation-events");
-    const events = getRecentEvents(0, since);
+    const events = getRecentEvents(0, since, tenantId);
     res.json({ events });
   });
 

@@ -3,6 +3,7 @@ import { EventEmitter } from "events";
 export interface DelegationEvent {
   id: string;
   conversationId: number;
+  tenantId?: number;
   timestamp: number;
   type: "started" | "thinking" | "tool_call" | "sub_delegation" | "progress" | "completed" | "error";
   agentName: string;
@@ -46,15 +47,21 @@ export function subscribeToDelegation(conversationId: number, callback: (event: 
   return () => emitter.off(`delegation:${conversationId}`, handler);
 }
 
-export function subscribeToAllDelegations(callback: (event: DelegationEvent) => void): () => void {
-  emitter.on("delegation", callback);
-  return () => emitter.off("delegation", callback);
+export function subscribeToAllDelegations(callback: (event: DelegationEvent) => void, tenantId?: number): () => void {
+  const handler = (event: DelegationEvent) => {
+    if (tenantId && event.tenantId && event.tenantId !== tenantId) return;
+    callback(event);
+  };
+  emitter.on("delegation", handler);
+  return () => emitter.off("delegation", handler);
 }
 
-export function getRecentEvents(conversationId: number, since?: number): DelegationEvent[] {
+export function getRecentEvents(conversationId: number, since?: number, tenantId?: number): DelegationEvent[] {
   const events = recentEvents.get(conversationId) || [];
-  if (since) return events.filter(e => e.timestamp > since);
-  return [...events];
+  let filtered = events;
+  if (tenantId) filtered = filtered.filter(e => !e.tenantId || e.tenantId === tenantId);
+  if (since) filtered = filtered.filter(e => e.timestamp > since);
+  return [...filtered];
 }
 
 export function clearOldEvents() {

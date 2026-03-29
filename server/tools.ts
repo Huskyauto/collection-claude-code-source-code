@@ -2651,15 +2651,21 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         console.log(`[render_diagram] Rendered "${title}" (${buffer.length} bytes)`);
 
         const folderLabel = params.folder_label || "Diagrams";
-        const driveResult = await uploadAndShare(filePath, filename, "image/png", folderLabel);
+        const driveResult = await uploadAndShare({
+          filePath,
+          fileName: filename,
+          mimeType: "image/png",
+          folderLabel,
+        });
 
         return {
           success: true,
           title,
           filename,
           local_path: filePath,
-          drive_url: driveResult?.webViewLink || null,
-          drive_id: driveResult?.id || null,
+          drive_url: driveResult?.viewUrl || null,
+          drive_id: driveResult?.fileId || null,
+          image_url: driveResult?.imageUrl || null,
           size_bytes: buffer.length,
           mermaid_type: mermaidCode.trim().split(/[\s\n]/)[0],
         };

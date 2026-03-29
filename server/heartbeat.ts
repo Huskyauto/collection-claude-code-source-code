@@ -1458,6 +1458,7 @@ export async function delegateTaskFromChat(
         const { emitDelegationEvent } = await import("./delegation-events");
         emitDelegationEvent({
           conversationId: 0,
+          tenantId,
           type: "sub_delegation",
           agentName: fromPersona?.name || "Felix",
           parentAgent: undefined,
@@ -1516,6 +1517,7 @@ ${delegationGuidance}
         const { emitDelegationEvent } = await import("./delegation-events");
         emitDelegationEvent({
           conversationId: childConv.id,
+          tenantId,
           type: "started",
           agentName: target.name,
           agentRole: target.role || undefined,
@@ -1538,6 +1540,7 @@ ${delegationGuidance}
         const { emitDelegationEvent } = await import("./delegation-events");
         emitDelegationEvent({
           conversationId: childConv.id,
+          tenantId,
           type: "completed",
           agentName: target.name,
           parentAgent: fromPersona?.name || "Felix",

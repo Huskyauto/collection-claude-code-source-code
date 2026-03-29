@@ -1619,6 +1619,7 @@ RULES:
         const friendly = friendlyToolNames[toolName] || toolName.replace(/_/g, " ");
         emitDelegationEvent({
           conversationId,
+          tenantId: conv.tenantId || 1,
           type: "tool_call",
           agentName: persona?.name || "Agent",
           depth: depth,

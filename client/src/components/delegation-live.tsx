@@ -161,13 +161,20 @@ export function DelegationLiveFeed({
   useEffect(() => {
     if (!enabled) return;
 
+    let aborted = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     const connect = () => {
+      if (aborted) return;
       const es = new EventSource("/api/delegation-events/stream", { withCredentials: true });
       eventSourceRef.current = es;
 
-      es.onopen = () => setIsConnected(true);
+      es.onopen = () => {
+        if (!aborted) setIsConnected(true);
+      };
 
       es.onmessage = (msg) => {
+        if (aborted) return;
         try {
           const event: DelegationEvent = JSON.parse(msg.data);
           setEvents(prev => [...prev, event].slice(-20));
@@ -183,23 +190,24 @@ export function DelegationLiveFeed({
       };
 
       es.onerror = () => {
+        if (aborted) { es.close(); return; }
         setIsConnected(false);
         es.close();
-        setTimeout(() => {
-          if (eventSourceRef.current === es || !eventSourceRef.current) {
-            connect();
-          }
+        reconnectTimer = setTimeout(() => {
+          if (!aborted) connect();
         }, 3000);
       };
-
-      return es;
     };
 
-    const es = connect();
+    connect();
 
     return () => {
-      es.close();
-      eventSourceRef.current = null;
+      aborted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
   }, [enabled, processNarrationQueue]);
 
