@@ -123,6 +123,7 @@ async function buildPlatformCapabilities(tenantId: number): Promise<string> {
       else if (name.includes("search") || name.includes("browse") || name.includes("firecrawl") || name.includes("research") || name.includes("scraped")) cat = "Research & Web";
       else if (name.includes("memory") || name.includes("knowledge") || name.includes("daily_note") || name.includes("recall")) cat = "Memory & Knowledge";
       else if (name.includes("pdf") || name.includes("drive") || name.includes("file") || name.includes("upload")) cat = "Documents & Files";
+      else if (name.includes("vibevoice") || name.includes("tts") || name.includes("voice") || name.includes("audio") || name.includes("speech")) cat = "Voice & Audio";
       else if (name.includes("code") || name.includes("debug") || name.includes("exec")) cat = "Code & Execution";
       else if (name.includes("desk") || name.includes("event") || name.includes("delegation") || name.includes("watchlist") || name.includes("heartbeat")) cat = "Agentic Operations";
       else if (name.includes("project") || name.includes("contact")) cat = "Project Management";
@@ -155,7 +156,7 @@ async function buildPlatformCapabilities(tenantId: number): Promise<string> {
       if (ytToken) configured.push("YouTube Data API v3 (OAuth — upload, schedule, analytics)");
     } catch {}
 
-    sections.push(`### Key Platform Rules\n- Subscription OAuth tokens (OpenAI/Google) are PRIMARY for LLM inference with auto-failover to API keys\n- All files/exports go to Google Drive (not local URLs)\n- ElevenLabs API is already configured — do NOT tell the user to set it up\n- FFmpeg is installed — video/audio processing is available\n- Browserless is configured — virtual browsing with vision is available\n- YouTube API uses getYouTubeAccessToken() for authenticated requests to YouTube Data API v3\n- When recommending integrations, CHECK this briefing first before suggesting setup`);
+    sections.push(`### Key Platform Rules\n- Subscription OAuth tokens (OpenAI/Google) are PRIMARY for LLM inference with auto-failover to API keys\n- All files/exports go to Google Drive (not local URLs)\n- ElevenLabs API is already configured — do NOT tell the user to set it up\n- FFmpeg is installed — video/audio processing is available\n- Browserless is configured — virtual browsing with vision is available\n- YouTube API uses getYouTubeAccessToken() for authenticated requests to YouTube Data API v3\n- Microsoft VibeVoice is integrated — use vibevoice_transcribe for frontier ASR (60-min audio, speaker diarization, 50+ languages, custom hotwords) and vibevoice_speak for frontier TTS (multi-speaker, expressive, up to 90 min). Available speakers: Carter, Alyssa, Angelo, Bella, Davis, Elijah, Evelyn, James, Joanna, Kenji, Madeline, Nova. For quick single-speaker TTS, ElevenLabs or OpenAI TTS may be faster. Use VibeVoice for long-form, multi-speaker, or podcast-style audio.\n- When recommending integrations, CHECK this briefing first before suggesting setup`);
 
     const text = sections.join("\n\n");
     _capabilitiesCache = { text, ts: Date.now() };
