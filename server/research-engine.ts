@@ -212,12 +212,17 @@ export async function stopResearchSession(sessionId: number): Promise<void> {
 }
 
 const PROGRAM_PROJECT_MAP: Record<number, number> = {
-  2: 13,  // Emotional Eating Crisis Interventions → AI Buddy Health
-  3: 13,  // AI Buddy Content Marketing Pipeline → AI Buddy Health
-  4: 13,  // Competitive Intelligence — Weight Loss & Emotional Eating Market → AI Buddy Health
-  5: 13,  // AI Buddy Revenue & Pricing Strategy → AI Buddy Health
-  6: 13,  // Daily Companion Message Library → AI Buddy Health
-  7: 13,  // AI Buddy Legal & Compliance Framework → AI Buddy Health
+  2: 13,   // Emotional Eating Crisis Interventions → AI Buddy Health
+  3: 13,   // AI Buddy Content Marketing Pipeline → AI Buddy Health
+  4: 13,   // Competitive Intelligence — Weight Loss & Emotional Eating Market → AI Buddy Health
+  5: 13,   // AI Buddy Revenue & Pricing Strategy → AI Buddy Health
+  6: 13,   // Daily Companion Message Library → AI Buddy Health
+  7: 13,   // AI Buddy Legal & Compliance Framework → AI Buddy Health
+  8: 17,   // Nightly AI Model & Provider Intelligence → VisionClaw Agent Platform
+  9: 17,   // Nightly AI Tools & Techniques Scanner → VisionClaw Agent Platform
+  10: 17,  // Nightly Competitive Platform Analysis → VisionClaw Agent Platform
+  11: 17,  // Nightly Agent Architecture Research → VisionClaw Agent Platform
+  12: 17,  // Nightly Security & Safety Intelligence → VisionClaw Agent Platform
 };
 
 async function autoDepositFindings(sessionId: number, session: ActiveSession): Promise<void> {
@@ -256,13 +261,34 @@ async function autoDepositFindings(sessionId: number, session: ActiveSession): P
     `);
   }
 
+  const knowledgeTitle = `${programName} — Key Findings`;
   const knowledgeContent = `# ${programName} — Research Findings\n\n${summary}`;
-  await db.execute(sql`
+  const knowledgeResult = await db.execute(sql`
     INSERT INTO agent_knowledge (tenant_id, persona_id, title, content, source, created_at)
-    VALUES (${session.tenantId}, ${personaId}, ${`${programName} — Key Findings`}, ${knowledgeContent}, ${`research-session-${sessionId}`}, NOW())
+    VALUES (${session.tenantId}, ${personaId}, ${knowledgeTitle}, ${knowledgeContent}, ${`research-session-${sessionId}`}, NOW())
+    RETURNING id
   `);
+  const knowledgeId = (knowledgeResult as any).rows?.[0]?.id;
 
-  console.log(`[research] Auto-deposited ${findings.length} findings from "${programName}" into project #${projectId} + knowledge base`);
+  for (const f of findings) {
+    const findingTitle = `${programName} — Finding: ${(f.hypothesis || '').substring(0, 80)}`;
+    const findingContent = `## Hypothesis\n${f.hypothesis}\n\n## Result\n${f.result}`;
+    await db.execute(sql`
+      INSERT INTO agent_knowledge (tenant_id, persona_id, title, content, source, created_at)
+      VALUES (${session.tenantId}, ${personaId}, ${findingTitle}, ${findingContent}, ${`research-session-${sessionId}-finding-${f.id}`}, NOW())
+    `);
+  }
+
+  try {
+    const { generateEmbedding, storeEmbeddingVec } = await import("./embeddings");
+    if (knowledgeId) {
+      const vec = await generateEmbedding(knowledgeTitle + " " + knowledgeContent.substring(0, 2000));
+      if (vec) await storeEmbeddingVec("agent_knowledge", knowledgeId, vec);
+    }
+    console.log(`[research] Embeddings generated for session summary knowledge entry`);
+  } catch {}
+
+  console.log(`[research] Auto-deposited ${findings.length} findings from "${programName}" into project #${projectId} + knowledge base (${findings.length + 1} entries)`);
 }
 
 async function endSession(sessionId: number, reason: string): Promise<void> {
