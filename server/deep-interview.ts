@@ -18,16 +18,35 @@ export interface InterviewState {
   conversationId: number;
   topic: string;
   dimensions: InterviewDimension[];
+  pendingDimensionId: string | null;
   currentRound: number;
   maxRounds: number;
   overallClarity: number;
   clarityThreshold: number;
   status: "interviewing" | "complete" | "abandoned";
   strategicBrief: string | null;
-  createdAt: Date;
+  createdAt: number;
 }
 
 const activeInterviews = new Map<string, InterviewState>();
+
+const MAX_INTERVIEWS = 100;
+const INTERVIEW_TTL_MS = 30 * 60 * 1000;
+
+function cleanupStaleInterviews() {
+  const now = Date.now();
+  for (const [key, state] of activeInterviews) {
+    if (now - state.createdAt > INTERVIEW_TTL_MS) {
+      activeInterviews.delete(key);
+    }
+  }
+  if (activeInterviews.size > MAX_INTERVIEWS) {
+    const sorted = [...activeInterviews.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
+    for (let i = 0; i < sorted.length - MAX_INTERVIEWS; i++) {
+      activeInterviews.delete(sorted[i][0]);
+    }
+  }
+}
 
 const BUSINESS_DIMENSIONS: Omit<InterviewDimension, "clarityScore" | "answer">[] = [
   { id: "goal", name: "Core Goal", weight: 0.25, question: "What specific outcome are you trying to achieve? What does success look like?" },
@@ -44,6 +63,8 @@ export function startInterview(params: {
   conversationId: number;
   topic: string;
 }): { interviewId: string; firstQuestion: string } {
+  cleanupStaleInterviews();
+
   const id = `interview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const dimensions: InterviewDimension[] = BUSINESS_DIMENSIONS.map(d => ({
@@ -52,19 +73,22 @@ export function startInterview(params: {
     answer: "",
   }));
 
+  const firstDimId = dimensions[0].id;
+
   const state: InterviewState = {
     id,
     tenantId: params.tenantId,
     conversationId: params.conversationId,
     topic: params.topic,
     dimensions,
+    pendingDimensionId: firstDimId,
     currentRound: 0,
     maxRounds: 7,
     overallClarity: 0,
     clarityThreshold: 70,
     status: "interviewing",
     strategicBrief: null,
-    createdAt: new Date(),
+    createdAt: Date.now(),
   };
 
   activeInterviews.set(id, state);
@@ -78,6 +102,7 @@ export function startInterview(params: {
 export async function processInterviewAnswer(params: {
   interviewId: string;
   answer: string;
+  tenantId: number;
   model?: string;
 }): Promise<{
   complete: boolean;
@@ -89,11 +114,27 @@ export async function processInterviewAnswer(params: {
   const state = activeInterviews.get(params.interviewId);
   if (!state) return { complete: true, strategicBrief: "Interview not found — proceeding with available context." };
 
+  if (state.tenantId !== params.tenantId) {
+    return { complete: true, strategicBrief: "Interview not found — proceeding with available context." };
+  }
+
   state.currentRound++;
 
-  const currentDim = state.dimensions.find(d => d.clarityScore === 0 && !d.answer);
-  if (currentDim) {
-    currentDim.answer = params.answer;
+  if (state.pendingDimensionId) {
+    const targetDim = state.dimensions.find(d => d.id === state.pendingDimensionId);
+    if (targetDim) {
+      if (targetDim.answer) {
+        targetDim.answer += "\n\n[Follow-up]: " + params.answer;
+      } else {
+        targetDim.answer = params.answer;
+      }
+    }
+    state.pendingDimensionId = null;
+  } else {
+    const unanswered = state.dimensions.find(d => !d.answer);
+    if (unanswered) {
+      unanswered.answer = params.answer;
+    }
   }
 
   const availableModels = await getAvailableModels();
@@ -153,6 +194,7 @@ Set "ready":true only when ALL dimensions score >= 65 and overall weighted avera
 
     const unanswered = state.dimensions.find(d => !d.answer);
     if (unanswered) {
+      state.pendingDimensionId = unanswered.id;
       return {
         complete: false,
         nextQuestion: `**${unanswered.name}:** ${unanswered.question}`,
@@ -162,25 +204,14 @@ Set "ready":true only when ALL dimensions score >= 65 and overall weighted avera
     }
 
     if ((parsed.ready || state.overallClarity >= state.clarityThreshold) || state.currentRound >= state.maxRounds) {
-      const brief = await generateStrategicBrief(state, availableModels, scoringModel);
-      state.strategicBrief = brief;
-      state.status = "complete";
-
-      await saveInterviewToKnowledge(state);
-      activeInterviews.delete(params.interviewId);
-
-      return {
-        complete: true,
-        strategicBrief: brief,
-        clarityScores,
-        overallClarity: state.overallClarity,
-      };
+      return await completeInterview(state, params.interviewId, availableModels, scoringModel, clarityScores);
     }
 
     const weakDim = parsed.weakest_id ? state.dimensions.find(d => d.id === parsed.weakest_id) : null;
     const followUp = parsed.follow_up || (weakDim ? `Can you elaborate on ${weakDim.name.toLowerCase()}?` : null);
 
     if (followUp && weakDim) {
+      state.pendingDimensionId = weakDim.id;
       return {
         complete: false,
         nextQuestion: `Your clarity is at **${state.overallClarity}%** (need 70%). Let me dig deeper on one area.\n\n**${weakDim.name}:** ${followUp}`,
@@ -189,23 +220,13 @@ Set "ready":true only when ALL dimensions score >= 65 and overall weighted avera
       };
     }
 
-    const brief = await generateStrategicBrief(state, availableModels, scoringModel);
-    state.strategicBrief = brief;
-    state.status = "complete";
-    await saveInterviewToKnowledge(state);
-    activeInterviews.delete(params.interviewId);
-
-    return {
-      complete: true,
-      strategicBrief: brief,
-      clarityScores,
-      overallClarity: state.overallClarity,
-    };
+    return await completeInterview(state, params.interviewId, availableModels, scoringModel, clarityScores);
 
   } catch (err: any) {
     console.error(`[deep-interview] Scoring failed:`, err.message);
     const unanswered = state.dimensions.find(d => !d.answer);
     if (unanswered) {
+      state.pendingDimensionId = unanswered.id;
       return {
         complete: false,
         nextQuestion: `**${unanswered.name}:** ${unanswered.question}`,
@@ -215,6 +236,33 @@ Set "ready":true only when ALL dimensions score >= 65 and overall weighted avera
     activeInterviews.delete(params.interviewId);
     return { complete: true, strategicBrief: `Interview complete for: ${state.topic}. Answers collected across ${state.dimensions.filter(d => d.answer).length} dimensions.` };
   }
+}
+
+async function completeInterview(
+  state: InterviewState,
+  interviewId: string,
+  availableModels: any[],
+  scoringModel: string,
+  clarityScores: Record<string, number>
+): Promise<{
+  complete: boolean;
+  strategicBrief: string;
+  clarityScores: Record<string, number>;
+  overallClarity: number;
+}> {
+  const brief = await generateStrategicBrief(state, availableModels, scoringModel);
+  state.strategicBrief = brief;
+  state.status = "complete";
+
+  await saveInterviewToKnowledge(state);
+  activeInterviews.delete(interviewId);
+
+  return {
+    complete: true,
+    strategicBrief: brief,
+    clarityScores,
+    overallClarity: state.overallClarity,
+  };
 }
 
 async function generateStrategicBrief(
@@ -284,26 +332,29 @@ Be specific and actionable. No filler.`
 
 async function saveInterviewToKnowledge(state: InterviewState): Promise<void> {
   try {
-    const content = `Strategic interview for "${state.topic}" (clarity: ${state.overallClarity}%).\n\n${state.dimensions.filter(d => d.answer).map(d => `${d.name} (${d.clarityScore}%): ${d.answer}`).join("\n")}`;
+    const briefContent = `## Strategic Interview: ${state.topic}\n\n${state.strategicBrief || state.dimensions.filter(d => d.answer).map(d => `${d.name} (${d.clarityScore}%): ${d.answer}`).join("\n")}`;
 
     await db.execute(sql`
       INSERT INTO project_notes (project_id, content, created_at)
-      SELECT p.id, ${`## Strategic Interview: ${state.topic}\n\n${state.strategicBrief || content}`}, NOW()
+      SELECT p.id, ${briefContent}, NOW()
       FROM project_conversations pc
       JOIN projects p ON p.id = pc.project_id
       WHERE pc.conversation_id = ${state.conversationId}
+        AND p.tenant_id = ${state.tenantId}
       LIMIT 1
     `);
-  } catch {}
+  } catch (err: any) {
+    console.error(`[deep-interview] Failed to save interview to knowledge:`, err.message);
+  }
 }
 
 export function getActiveInterview(interviewId: string): InterviewState | undefined {
   return activeInterviews.get(interviewId);
 }
 
-export function abandonInterview(interviewId: string): void {
+export function abandonInterview(interviewId: string, tenantId: number): void {
   const state = activeInterviews.get(interviewId);
-  if (state) {
+  if (state && state.tenantId === tenantId) {
     state.status = "abandoned";
     activeInterviews.delete(interviewId);
   }

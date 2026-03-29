@@ -4419,7 +4419,8 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     }
     case "strategic_interview": {
       const { startInterview, processInterviewAnswer, abandonInterview } = await import("./deep-interview");
-      const tenantId = params._tenantId || 1;
+      const tenantId = params._tenantId;
+      if (!tenantId) return { error: "Authentication required" };
       const conversationId = params._conversationId || 0;
 
       if (params.action === "start") {
@@ -4429,21 +4430,22 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       }
       if (params.action === "answer") {
         if (!params.interview_id || !params.answer) return { error: "interview_id and answer required when action='answer'" };
-        const result = await processInterviewAnswer({ interviewId: params.interview_id, answer: params.answer });
+        const result = await processInterviewAnswer({ interviewId: params.interview_id, answer: params.answer, tenantId });
         if (result.complete) {
           return { status: "complete", strategic_brief: result.strategicBrief, clarity_scores: result.clarityScores, overall_clarity: result.overallClarity };
         }
         return { status: "interviewing", next_question: result.nextQuestion, clarity_scores: result.clarityScores, overall_clarity: result.overallClarity };
       }
       if (params.action === "abandon") {
-        if (params.interview_id) abandonInterview(params.interview_id);
+        if (params.interview_id) abandonInterview(params.interview_id, tenantId);
         return { status: "abandoned" };
       }
       return { error: "action must be 'start', 'answer', or 'abandon'" };
     }
     case "export_persona": {
       const { exportPersona, exportToMarkdown } = await import("./persona-export");
-      const tenantId = params._tenantId || 1;
+      const tenantId = params._tenantId;
+      if (!tenantId) return { error: "Authentication required" };
       if (!params.persona_id) return { error: "persona_id is required" };
 
       const exported = await exportPersona(params.persona_id, tenantId);

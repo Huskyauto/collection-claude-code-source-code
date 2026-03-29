@@ -22,7 +22,7 @@ export interface ExportedPersona {
     };
     skills: Array<{ name: string; description: string; enabled: boolean }>;
     tools: string[];
-    governanceRules: Array<{ name: string; category: string; severity: string; description: string }>;
+    governanceRules: Array<{ name: string; category: string; priority: number; description: string }>;
     expressLanes: Array<{ from: string; to: string }>;
     knowledgeTopics: string[];
   };
@@ -35,9 +35,9 @@ export async function exportPersona(personaId: number, tenantId: number): Promis
 
   const [trustResult, skillsResult, rulesResult, knowledgeResult] = await Promise.all([
     db.execute(sql`SELECT category, score FROM trust_scores WHERE persona_id = ${personaId} AND tenant_id = ${tenantId}`),
-    db.execute(sql`SELECT name, description, enabled FROM skills WHERE persona_id = ${personaId} OR persona_id IS NULL ORDER BY enabled DESC, name`),
-    db.execute(sql`SELECT name, category, severity, description FROM governance_rules WHERE is_active = true ORDER BY category, id`),
-    db.execute(sql`SELECT DISTINCT category FROM agent_knowledge WHERE persona_id = ${personaId} AND tenant_id = ${tenantId}`),
+    db.execute(sql`SELECT name, description, enabled FROM skills WHERE persona_id = ${personaId} OR persona_id IS NULL ORDER BY enabled DESC, name`).catch(() => ({ rows: [] })),
+    db.execute(sql`SELECT rule_name, category, priority, description FROM governance_rules WHERE tenant_id = ${tenantId} AND enabled = true ORDER BY category, id`),
+    db.execute(sql`SELECT DISTINCT category FROM agent_knowledge WHERE persona_id = ${personaId} AND tenant_id = ${tenantId}`).catch(() => ({ rows: [] })),
   ]);
 
   const trustRows = (trustResult as any).rows || trustResult;
@@ -54,25 +54,26 @@ export async function exportPersona(personaId: number, tenantId: number): Promis
   const ruleRows = (rulesResult as any).rows || rulesResult;
   const knowledgeRows = (knowledgeResult as any).rows || knowledgeResult;
 
-  const blockedToolsResult = await db.execute(sql`
-    SELECT tool_name FROM persona_tool_blocks WHERE persona_id = ${personaId}
-  `).catch(() => ({ rows: [] }));
-  const blockedTools = new Set(((blockedToolsResult as any).rows || []).map((r: any) => r.tool_name));
-
-  const allToolsResult = await db.execute(sql`
-    SELECT DISTINCT unnest(mapped_tools) as tool FROM persona_tool_mappings WHERE persona_id = ${personaId}
-  `).catch(() => ({ rows: [] }));
-  const mappedTools = ((allToolsResult as any).rows || []).map((r: any) => r.tool).filter((t: string) => !blockedTools.has(t));
+  const toolNames: string[] = [];
+  try {
+    const { getPersonaBlockedTools } = await import("./tool-router");
+    const personaRole = persona.role || persona.name || "";
+    const blockedSet = getPersonaBlockedTools(personaRole);
+    if (blockedSet.size > 0) {
+      toolNames.push(`All tools except blocked: ${[...blockedSet].join(", ")}`);
+    } else {
+      toolNames.push("All tools (no blocks)");
+    }
+  } catch {
+    toolNames.push("All tools (default routing)");
+  }
 
   const lanes: Array<{ from: string; to: string }> = [];
   try {
-    const { EXPRESS_LANES } = await import("./express-lanes");
-    for (const lane of EXPRESS_LANES) {
-      if (lane.fromPersonaId === personaId) {
-        const toResult = await db.execute(sql`SELECT name FROM personas WHERE id = ${lane.toPersonaId}`);
-        const toName = ((toResult as any).rows || toResult)[0]?.name || `Persona #${lane.toPersonaId}`;
-        lanes.push({ from: persona.name, to: toName });
-      }
+    const { findLanesForAgent } = await import("./express-lanes");
+    const agentLanes = findLanesForAgent(personaId);
+    for (const lane of agentLanes.outbound) {
+      lanes.push({ from: lane.fromName, to: lane.toName });
     }
   } catch {}
 
@@ -95,20 +96,20 @@ export async function exportPersona(personaId: number, tenantId: number): Promis
         categories: trustCategories,
         overallLevel: autonomyLevel,
       },
-      skills: skillRows.map((s: any) => ({
+      skills: (skillRows as any[]).map((s: any) => ({
         name: s.name,
         description: s.description || "",
         enabled: s.enabled,
       })),
-      tools: mappedTools.length > 0 ? mappedTools : ["All tools (default routing)"],
-      governanceRules: ruleRows.map((r: any) => ({
-        name: r.name,
+      tools: toolNames,
+      governanceRules: (ruleRows as any[]).map((r: any) => ({
+        name: r.rule_name,
         category: r.category,
-        severity: r.severity,
+        priority: r.priority,
         description: r.description || "",
       })),
       expressLanes: lanes,
-      knowledgeTopics: knowledgeRows.map((r: any) => r.category).filter(Boolean),
+      knowledgeTopics: (knowledgeRows as any[]).map((r: any) => r.category).filter(Boolean),
     },
   };
 }
@@ -138,12 +139,16 @@ export function exportToMarkdown(exported: ExportedPersona): string {
   }
   md += `\n**Overall Level:** ${a.trustProfile.overallLevel}\n\n`;
 
-  md += `## Skills (${a.skills.filter(s => s.enabled).length} active)\n\n`;
-  for (const skill of a.skills.filter(s => s.enabled)) {
-    md += `- **${skill.name}**: ${skill.description}\n`;
+  const enabledSkills = a.skills.filter(s => s.enabled);
+  if (enabledSkills.length > 0) {
+    md += `## Skills (${enabledSkills.length} active)\n\n`;
+    for (const skill of enabledSkills) {
+      md += `- **${skill.name}**: ${skill.description}\n`;
+    }
+    md += `\n`;
   }
 
-  md += `\n## Tools\n\n`;
+  md += `## Tools\n\n`;
   for (const tool of a.tools) {
     md += `- ${tool}\n`;
   }
@@ -164,7 +169,7 @@ export function exportToMarkdown(exported: ExportedPersona): string {
   for (const [cat, rules] of Object.entries(byCategory)) {
     md += `### ${cat}\n`;
     for (const rule of rules) {
-      md += `- **${rule.name}** (${rule.severity}): ${rule.description}\n`;
+      md += `- **${rule.name}** (priority: ${rule.priority}): ${rule.description}\n`;
     }
     md += `\n`;
   }
