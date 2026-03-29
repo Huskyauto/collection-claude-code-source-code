@@ -211,6 +211,60 @@ export async function stopResearchSession(sessionId: number): Promise<void> {
   await endSession(sessionId, "stopped_manually");
 }
 
+const PROGRAM_PROJECT_MAP: Record<number, number> = {
+  2: 13,  // Emotional Eating Crisis Interventions → AI Buddy Health
+  3: 13,  // AI Buddy Content Marketing Pipeline → AI Buddy Health
+  4: 13,  // Competitive Intelligence — Weight Loss & Emotional Eating Market → AI Buddy Health
+  5: 13,  // AI Buddy Revenue & Pricing Strategy → AI Buddy Health
+  6: 13,  // Daily Companion Message Library → AI Buddy Health
+  7: 13,  // AI Buddy Legal & Compliance Framework → AI Buddy Health
+};
+
+async function autoDepositFindings(sessionId: number, session: ActiveSession): Promise<void> {
+  const projectId = PROGRAM_PROJECT_MAP[session.programId];
+  if (!projectId) return;
+
+  const keptExps = await db.execute(sql`
+    SELECT id, hypothesis, result, metric_value
+    FROM research_experiments
+    WHERE session_id = ${sessionId} AND status = 'keep'
+    ORDER BY id
+  `);
+  const findings = (keptExps as any).rows || keptExps;
+  if (findings.length === 0) return;
+
+  const programResult = await db.execute(sql`SELECT name, persona_id FROM research_programs WHERE id = ${session.programId}`);
+  const programRow = (programResult as any).rows?.[0];
+  const programName = programRow?.name || `Program #${session.programId}`;
+  const personaId = programRow?.persona_id || null;
+
+  const sessionResult = await db.execute(sql`SELECT summary FROM research_sessions WHERE id = ${sessionId}`);
+  const summary = ((sessionResult as any).rows?.[0]?.summary) || "";
+
+  if (summary) {
+    await db.execute(sql`
+      INSERT INTO project_notes (project_id, note, author, created_at)
+      VALUES (${projectId}, ${`## ${programName} — Research Summary\n\n${summary}`}, ${'Research Engine'}, NOW())
+    `);
+  }
+
+  for (const f of findings) {
+    const noteContent = `## ${programName} — Finding #${f.id}\n\n**Hypothesis:** ${f.hypothesis}\n\n**Result:**\n${f.result}`;
+    await db.execute(sql`
+      INSERT INTO project_notes (project_id, note, author, created_at)
+      VALUES (${projectId}, ${noteContent}, ${'Research Engine'}, NOW())
+    `);
+  }
+
+  const knowledgeContent = `# ${programName} — Research Findings\n\n${summary}`;
+  await db.execute(sql`
+    INSERT INTO agent_knowledge (tenant_id, persona_id, title, content, source, created_at)
+    VALUES (${session.tenantId}, ${personaId}, ${`${programName} — Key Findings`}, ${knowledgeContent}, ${`research-session-${sessionId}`}, NOW())
+  `);
+
+  console.log(`[research] Auto-deposited ${findings.length} findings from "${programName}" into project #${projectId} + knowledge base`);
+}
+
 async function endSession(sessionId: number, reason: string): Promise<void> {
   const session = activeSessions.get(sessionId);
   if (!session) return;
@@ -253,6 +307,14 @@ async function endSession(sessionId: number, reason: string): Promise<void> {
   `);
 
   console.log(`[research] Session #${sessionId} ended: ${reason} (${session.experimentCount} experiments, ${session.keptCount} kept)`);
+
+  if (session.keptCount > 0) {
+    try {
+      await autoDepositFindings(sessionId, session);
+    } catch (err: any) {
+      console.error(`[research] Auto-deposit failed for session #${sessionId}:`, err.message);
+    }
+  }
 }
 
 async function runExperiment(session: ActiveSession): Promise<void> {
