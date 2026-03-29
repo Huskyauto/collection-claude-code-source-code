@@ -103,9 +103,9 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Chart Generation (`generate_chart`):** Bar, line, pie, and area charts rendered inline in chat using Recharts. Agents provide data and the frontend renders interactive, responsive visualizations.
 - **Interactive Dashboards (`generate_dashboard`):** Full HTML/CSS/JS dashboards rendered in a live canvas inside chat messages. Supports KPI displays, data tables, status boards, and custom visualizations with built-in utility classes.
 - **AI Image Generation (`generate_social_image`):** Creates images via AI generation APIs and auto-uploads to Google Drive. Used for social media content, presentation visuals, and creative assets.
-- **Video Production (`produce_video`):** End-to-end video creation with TTS narration (ElevenLabs or Google), slide generation, and MP4 compilation. Completed videos auto-upload to Google Drive with shareable links.
-- **Audio Generation (`generate_audio`):** Text-to-speech generation with multiple providers (ElevenLabs premium voices, OpenAI TTS, and free Google TTS). Supports voice selection, speed control, and format options.
-- **Multi-Provider TTS System:** Three-tier TTS with automatic failover — ElevenLabs (premium, 110K chars/month), OpenAI (high quality), and Google Translate TTS (free, unlimited). Default provider is configurable. Browser-native speech synthesis available for zero-cost client-side narration.
+- **Video Production (`produce_video`):** End-to-end video creation with TTS narration (VibeVoice primary, free). Slide generation and MP4 compilation. Completed videos auto-upload to Google Drive with shareable links.
+- **Audio Generation (`generate_audio`):** Text-to-speech generation defaulting to VibeVoice (free, open-source). ElevenLabs and OpenAI are backup-only providers to avoid token costs.
+- **Multi-Provider TTS System:** Four-tier TTS with automatic failover — VibeVoice (PRIMARY, free, open-source), Google Translate TTS (free fallback), OpenAI (backup), ElevenLabs (backup). VibeVoice is the default to eliminate paid API costs. Browser-native speech synthesis also available for zero-cost client-side narration.
 
 ## External Dependencies
 - **AI Providers:** OpenAI (OAuth + direct), Anthropic (Claude Runner bridge + direct), Google Gemini (OAuth + integration), xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi, Z.ai GLM, Nemotron, Mistral), Claude Runner (CLI bridge, optional).
