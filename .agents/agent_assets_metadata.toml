@@ -36,3 +36,9 @@ id = "dhjaIrlINNjImb319ax83"
 uri = "file://VisionClaw_Platform_Reference.md"
 type = "text"
 title = "VisionClaw Platform Reference — All 14 Personas + 85 Tools"
+
+[[outputs]]
+id = "LWuLg3P-DuIoSCF7rfpAY"
+uri = "file://project-assets/AI-Tinkerers-Presentation-Guide.md"
+type = "text"
+title = "AI Tinkerers Presentation Guide"
