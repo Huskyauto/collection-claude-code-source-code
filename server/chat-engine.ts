@@ -1590,6 +1590,43 @@ RULES:
       const toolRisk = classifyToolRisk(toolName);
       console.log(`[processMessage] Tool: ${toolName} [${toolRisk.riskLevel}] round=${round} total=${totalToolCalls} (${JSON.stringify(parsedArgs).slice(0, 100)})`);
 
+      try {
+        const { emitDelegationEvent } = await import("./delegation-events");
+        const friendlyToolNames: Record<string, string> = {
+          web_search: "searching the web",
+          deep_research: "doing deep research",
+          render_diagram: "creating a diagram",
+          generate_chart: "building a chart",
+          generate_dashboard: "building a dashboard",
+          generate_social_image: "generating an image",
+          produce_video: "producing a video",
+          generate_audio: "generating audio",
+          send_email: "sending an email",
+          recall_context: "checking memory",
+          search_memory: "searching memory",
+          write_memory: "saving to memory",
+          check_system_status: "checking system status",
+          export_persona: "exporting persona data",
+          delegate_task: "delegating to a teammate",
+          browse_url: "browsing a webpage",
+          read_file: "reading a file",
+          write_file: "writing a file",
+          list_knowledge: "reviewing knowledge base",
+          create_project: "setting up a project",
+          update_project: "updating a project",
+          run_research_experiment: "running a research experiment",
+        };
+        const friendly = friendlyToolNames[toolName] || toolName.replace(/_/g, " ");
+        emitDelegationEvent({
+          conversationId,
+          type: "tool_call",
+          agentName: persona?.name || "Agent",
+          depth: depth,
+          message: friendly,
+          metadata: { toolName, round },
+        });
+      } catch {}
+
       if (toolRisk.isMutating) {
         recordMutation({
           timestamp: new Date().toISOString(),

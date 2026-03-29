@@ -1513,6 +1513,53 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
+  // ─── Delegation Live Events (SSE + Poll) ─────────────────
+  app.get("/api/delegation-events/stream", authMiddleware, async (req: Request, res: Response) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const { subscribeToAllDelegations } = await import("./delegation-events");
+    const unsubscribe = subscribeToAllDelegations((event) => {
+      try {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch {}
+    });
+
+    const heartbeat = setInterval(() => {
+      try { res.write(`: heartbeat\n\n`); } catch {}
+    }, 15000);
+
+    req.on("close", () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    });
+  });
+
+  app.get("/api/delegation-events/:conversationId", authMiddleware, async (req: Request, res: Response) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
+    const conversationId = parseInt(req.params.conversationId);
+    const since = req.query.since ? parseInt(req.query.since as string) : undefined;
+    const { getRecentEvents } = await import("./delegation-events");
+    const events = getRecentEvents(conversationId, since);
+    res.json({ events });
+  });
+
+  app.get("/api/delegation-events", authMiddleware, async (req: Request, res: Response) => {
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
+    const since = req.query.since ? parseInt(req.query.since as string) : Date.now() - 60000;
+    const { getRecentEvents } = await import("./delegation-events");
+    const events = getRecentEvents(0, since);
+    res.json({ events });
+  });
+
   // ─── Conversations ───────────────────────────────────────
   app.get("/api/conversations", async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;

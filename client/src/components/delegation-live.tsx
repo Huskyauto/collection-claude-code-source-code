@@ -1,0 +1,242 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bot, Zap, Search, FileText, Send, Brain, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Volume2 } from "lucide-react";
+
+interface DelegationEvent {
+  id: string;
+  conversationId: number;
+  timestamp: number;
+  type: "started" | "thinking" | "tool_call" | "sub_delegation" | "progress" | "completed" | "error";
+  agentName: string;
+  agentRole?: string;
+  message: string;
+  parentAgent?: string;
+  depth: number;
+  metadata?: Record<string, any>;
+}
+
+const AGENT_COLORS: Record<string, string> = {
+  "Felix": "bg-blue-500",
+  "VisionClaw": "bg-purple-600",
+  "Forge": "bg-orange-500",
+  "Teagan": "bg-pink-500",
+  "Blueprint": "bg-cyan-500",
+  "Chief of Staff": "bg-slate-600",
+  "Scribe": "bg-emerald-500",
+  "Proof": "bg-red-500",
+  "Radar": "bg-yellow-500",
+  "Neptune": "bg-teal-500",
+  "Apollo": "bg-amber-500",
+  "Atlas": "bg-indigo-500",
+  "Cassandra": "bg-violet-500",
+  "Luna": "bg-rose-500",
+};
+
+function getEventIcon(type: string) {
+  switch (type) {
+    case "started": return <Bot className="w-3.5 h-3.5" />;
+    case "thinking": return <Brain className="w-3.5 h-3.5" />;
+    case "tool_call": return <Zap className="w-3.5 h-3.5" />;
+    case "sub_delegation": return <Send className="w-3.5 h-3.5" />;
+    case "progress": return <Search className="w-3.5 h-3.5" />;
+    case "completed": return <CheckCircle2 className="w-3.5 h-3.5" />;
+    case "error": return <AlertCircle className="w-3.5 h-3.5" />;
+    default: return <FileText className="w-3.5 h-3.5" />;
+  }
+}
+
+function timeAgo(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
+}
+
+interface DelegationLiveFeedProps {
+  conversationId?: number;
+  enabled?: boolean;
+  ttsEnabled?: boolean;
+  onNarrate?: (text: string) => void;
+  position?: "bottom-right" | "bottom-left" | "top-right";
+  maxVisible?: number;
+}
+
+export function DelegationLiveFeed({
+  conversationId,
+  enabled = true,
+  ttsEnabled = false,
+  onNarrate,
+  position = "bottom-right",
+  maxVisible = 5,
+}: DelegationLiveFeedProps) {
+  const [events, setEvents] = useState<DelegationEvent[]>([]);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const narrationQueueRef = useRef<string[]>([]);
+  const isNarratingRef = useRef(false);
+
+  const processNarrationQueue = useCallback(async () => {
+    if (isNarratingRef.current || narrationQueueRef.current.length === 0 || !onNarrate) return;
+    isNarratingRef.current = true;
+    const text = narrationQueueRef.current.shift()!;
+    onNarrate(text);
+    await new Promise(r => setTimeout(r, 3000));
+    isNarratingRef.current = false;
+    processNarrationQueue();
+  }, [onNarrate]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const es = new EventSource("/api/delegation-events/stream", { withCredentials: true });
+    eventSourceRef.current = es;
+
+    es.onopen = () => setIsConnected(true);
+    es.onerror = () => {
+      setIsConnected(false);
+      setTimeout(() => {
+        if (eventSourceRef.current === es) {
+          es.close();
+          const newEs = new EventSource("/api/delegation-events/stream", { withCredentials: true });
+          eventSourceRef.current = newEs;
+          newEs.onopen = () => setIsConnected(true);
+          newEs.onmessage = es.onmessage;
+          newEs.onerror = es.onerror;
+        }
+      }, 3000);
+    };
+
+    es.onmessage = (msg) => {
+      try {
+        const event: DelegationEvent = JSON.parse(msg.data);
+        setEvents(prev => {
+          const updated = [...prev, event];
+          return updated.slice(-20);
+        });
+
+        if (ttsEnabled && onNarrate) {
+          const narration = generateClientNarration(event);
+          if (narration) {
+            narrationQueueRef.current.push(narration);
+            processNarrationQueue();
+          }
+        }
+      } catch {}
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [enabled, ttsEnabled, onNarrate, processNarrationQueue]);
+
+  if (!enabled || events.length === 0) return null;
+
+  const visibleEvents = isExpanded ? events.slice(-maxVisible) : events.slice(-1);
+
+  const positionClasses = {
+    "bottom-right": "bottom-4 right-4",
+    "bottom-left": "bottom-4 left-4",
+    "top-right": "top-4 right-4",
+  };
+
+  return (
+    <div
+      className={`fixed ${positionClasses[position]} z-50 w-80 max-w-[calc(100vw-2rem)]`}
+      data-testid="delegation-live-feed"
+    >
+      <div className="bg-gray-900/95 backdrop-blur-sm rounded-lg border border-gray-700 shadow-2xl overflow-hidden">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between px-3 py-2 bg-gray-800/80 hover:bg-gray-800 transition-colors"
+          data-testid="delegation-feed-toggle"
+        >
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400 animate-pulse" : "bg-red-400"}`} />
+            <span className="text-xs font-medium text-gray-300">Agent Activity</span>
+            <span className="text-[10px] text-gray-500">({events.length})</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {ttsEnabled && <Volume2 className="w-3 h-3 text-blue-400" />}
+            {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronUp className="w-3.5 h-3.5 text-gray-400" />}
+          </div>
+        </button>
+
+        <AnimatePresence mode="popLayout">
+          {visibleEvents.map((event) => (
+            <motion.div
+              key={event.id}
+              initial={{ opacity: 0, height: 0, y: 10 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="border-t border-gray-800"
+            >
+              <div className="px-3 py-2 flex items-start gap-2">
+                <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 ${AGENT_COLORS[event.agentName] || "bg-gray-600"}`}>
+                  {getEventIcon(event.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-white">{event.agentName}</span>
+                    {event.depth > 0 && (
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-gray-700 text-gray-400">L{event.depth}</span>
+                    )}
+                    <span className="text-[10px] text-gray-500 ml-auto">{timeAgo(event.timestamp)}</span>
+                  </div>
+                  <p className="text-xs text-gray-300 mt-0.5 leading-relaxed truncate">
+                    {event.message}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function generateClientNarration(event: DelegationEvent): string | null {
+  switch (event.type) {
+    case "started":
+      return event.parentAgent
+        ? `${event.parentAgent} is bringing in ${event.agentName} to help.`
+        : `${event.agentName} is starting work.`;
+    case "tool_call":
+      return `${event.agentName} is ${event.message}.`;
+    case "sub_delegation":
+      return `${event.agentName} is ${event.message}.`;
+    case "completed":
+      return `${event.agentName} finished their part.`;
+    case "error":
+      return `There was a hiccup, but we're handling it.`;
+    default:
+      return null;
+  }
+}
+
+export function useDelegationEvents(conversationId?: number) {
+  const [events, setEvents] = useState<DelegationEvent[]>([]);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    const es = new EventSource("/api/delegation-events/stream", { withCredentials: true });
+
+    es.onmessage = (msg) => {
+      try {
+        const event: DelegationEvent = JSON.parse(msg.data);
+        setEvents(prev => [...prev, event].slice(-50));
+        if (event.type === "started" || event.type === "sub_delegation") setIsActive(true);
+        if (event.type === "completed" || event.type === "error") {
+          setTimeout(() => setIsActive(false), 2000);
+        }
+      } catch {}
+    };
+
+    return () => es.close();
+  }, [conversationId]);
+
+  return { events, isActive, clearEvents: () => setEvents([]) };
+}

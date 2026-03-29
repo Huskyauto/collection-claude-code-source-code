@@ -5,6 +5,7 @@ import { Send, Brain, Bot, User, Copy, Check, Loader2, Sparkles, ChevronDown, Se
 import TalkMode from "@/components/talk-mode";
 import CameraCapture from "@/components/camera-capture";
 import ActivityPulse from "@/components/activity-pulse";
+import { DelegationLiveFeed } from "@/components/delegation-live";
 import LiveCanvas, { extractCanvasBlocks } from "@/components/live-canvas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -2226,6 +2227,14 @@ export default function ChatPage() {
 
       {/* Activity Pulse */}
       <ActivityPulse />
+
+      {/* Delegation Live Feed */}
+      <DelegationLiveFeed
+        conversationId={conversationId}
+        enabled={true}
+        position="bottom-right"
+        maxVisible={4}
+      />
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-border bg-background/95 backdrop-blur-sm shrink-0">

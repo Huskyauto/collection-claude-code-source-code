@@ -1453,6 +1453,20 @@ export async function delegateTaskFromChat(
     if (isOneShot) {
       console.log(`[delegation] Inline execution: "${taskName}" → ${target.name} (tenant: ${tenantId}, depth: ${depth})`);
 
+      let parentConvId: number | undefined;
+      try {
+        const { emitDelegationEvent } = await import("./delegation-events");
+        emitDelegationEvent({
+          conversationId: 0,
+          type: "sub_delegation",
+          agentName: fromPersona?.name || "Felix",
+          parentAgent: undefined,
+          depth: depth - 1,
+          message: `Delegating "${taskName}" to ${target.name}`,
+          metadata: { targetAgent: target.name, taskName },
+        });
+      } catch {}
+
       const childConv = await storage.createConversation({
         title: `[Delegation] ${taskName}`,
         model: "auto",
@@ -1497,6 +1511,20 @@ ${delegationGuidance}
         const mod = await import("./chat-engine");
         _processMessageFn = mod.processMessage;
       }
+
+      try {
+        const { emitDelegationEvent } = await import("./delegation-events");
+        emitDelegationEvent({
+          conversationId: childConv.id,
+          type: "started",
+          agentName: target.name,
+          agentRole: target.role || undefined,
+          parentAgent: fromPersona?.name || "Felix",
+          depth,
+          message: `Working on: ${taskName}`,
+        });
+      } catch {}
+
       const result = await _processMessageFn(
         childConv.id,
         taskPrompt,
@@ -1505,6 +1533,19 @@ ${delegationGuidance}
 
       const resultText = result?.response || JSON.stringify(result);
       console.log(`[delegation] Inline complete: "${taskName}" → ${target.name} (${resultText.length} chars)`);
+
+      try {
+        const { emitDelegationEvent } = await import("./delegation-events");
+        emitDelegationEvent({
+          conversationId: childConv.id,
+          type: "completed",
+          agentName: target.name,
+          parentAgent: fromPersona?.name || "Felix",
+          depth,
+          message: `Finished: ${taskName}`,
+          metadata: { resultLength: resultText.length },
+        });
+      } catch {}
 
       return {
         success: true,
