@@ -1,7 +1,19 @@
 # VisionClaw — Agentic AI Corporation Platform
 
 ## Overview
-VisionClaw is an agentic AI platform designed as a fully autonomous AI corporation, featuring 14 specialized AI personas. It operates under rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards, implementing the Claude Opus 4.6 Agentic Spec. The platform aims to provide a complete corporate team experience through AI, with agents handling tasks autonomously and escalating only mission-critical issues to human owners. It is built for multi-tenancy, cost-effectiveness, and robust security.
+VisionClaw is an agentic AI platform designed as a fully autonomous AI corporation, built by AI Buddy LLC (Illinois). It features 14 specialized AI personas operating as a complete corporate team. The platform runs under rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards, implementing the Claude Opus 4.6 Agentic Spec. Agents handle tasks autonomously and escalate only mission-critical issues to human owners. Built for multi-tenancy, cost-effectiveness, and robust security.
+
+**Platform Stats (March 2026):**
+- 120 server-side TypeScript files (~60,000 lines)
+- 38 frontend pages
+- 66 database tables
+- 89 built-in AI tools + custom tool support
+- 23 active skills
+- 14 AI personas
+- 36+ models across 8+ providers
+- 40 governance rules
+- 11 research programs
+- 13 heartbeat tasks
 
 ## User Preferences
 - **NEVER modify `shared/schema.ts`** without explicit owner approval. Use direct SQL (`psql $DATABASE_URL`) for new tables.
@@ -19,11 +31,14 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - **heartbeat log status**: Uses `"error"` not `"failed"` — status checks must use `!== "success"` not `=== "failed"`.
 - **Sidebar infinite query key**: Use `["/api/conversations", "infinite"]` — avoids cache shape conflict with home page.
 - **Persona IDs**: VisionClaw=1, Felix=2, Forge=3, Teagan=4, Blueprint=5, Chief of Staff=6, Scribe=7, Proof=8, Radar=9, Neptune=10, Apollo=11, Atlas=12, Cassandra=13, Luna=14.
-- **Model tier priority (no nano/garbage models)**: Fast=Gemini 2.5 Flash/DeepSeek V3.2, Balanced=Gemini Flash/GPT-4.1 Mini, Powerful=Claude Opus 4.6 → Llama 4 Maverick → Gemini Pro, Reasoning=DeepSeek R1/o4-mini. High-complexity coding auto-routes to Claude Opus 4.6. Failover cascade: subscription (2min cooldown for 429, 10min for auth) → API keys → Replit built-in.
+- **Model tier priority (OAuth-first)**: Fast=Gemini 3 Flash → Gemini 2.5 Flash → GPT-4.1 Mini, Balanced=Gemini 3 Flash → GPT-4.1 → Sonnet 4, Powerful=Gemini 3.1 Pro → GPT-4.1 → Opus 4.6 → Sonnet 4.6, Reasoning=Gemini 3.1 Pro → o4-mini → Opus 4.6. OAuth subscription and Claude Runner always checked first. OpenRouter models are last-resort fallbacks only. Auto-route logging with 60s dedup.
 - **Subscription-First Routing (BYOS)**: OAuth tokens from OpenAI ChatGPT Plus and Google Gemini used as PRIMARY inference. Google OAuth via redirect with PKCE (`generative-language` scope stored as provider='google'). OpenAI via code-paste with STS exchange. Drive connector stored as provider='google-workspace' (separate from Gemini). `markSubscriptionFailed(provider, tenantId, statusCode)` with tiered TTLs.
 - **Admin PIN**: HMAC-SHA256 with salt "visionclaw-pin-v1". Default 0429. Admin = tenant_id 1.
 - **ElevenLabs TTS**: Creator plan active (110K chars/month, 23 voices). Google TTS also available. `continuous=false` is correct.
 - **YouTube OAuth**: provider='youtube' in oauth_subscriptions. Uses YOUTUBE_CLIENT_ID + YOUTUBE_CLIENT_SECRET (Web Application type, not Desktop). Redirect URI: `/api/youtube/callback`. Token auto-refreshed via OAUTH_PROVIDERS config.
+- **Research model validation**: On startup, `fixResearchProgramModels()` auto-corrects any program with an unknown model. `startResearchSession()` validates before session creation. Duplicate-session protection prevents double runs.
+- **Embedding cache**: 30s TTL, max 50 entries — prevents duplicate embedding API calls within same request.
+- **Cross-persona knowledge**: Vector search pulls relevant research findings from ANY domain, not just the assigned persona. 2000-char budget with persona-specific entries ranked first.
 
 ## System Architecture
 VisionClaw employs a modern web architecture with a single-port frontend and API.
@@ -37,20 +52,21 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Features:** Real-time AI responses via SSE, robust authentication (Replit Auth, Email + Password, Admin PIN), DB-backed sessions, timing-safe cryptography, password policy, email verification, and strict multi-tenant data isolation.
 
 **Core Features:**
-- **AI Agent System:** A 14-persona agent team with an LLM-powered CEO Orchestrator, Semantic Tool Router, Self-Improvement Engine, Adaptive Execution & Self-Healing, and Auto Model Router.
-- **Smart Model Auto-Selection:** Task Complexity Classifier, Multimodal-Aware Routing, Auto-Thinking Mode, Persona Cost Tier Integration, and a Model Capabilities Registry.
-- **Autonomous Operations:** Heartbeat Engine, Scheduled Tasks, Corporation Report Export (PDF to Google Drive), Human-in-the-Loop (HITL) Confirmation Gate, and Felix Approval Gate.
-- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
+- **AI Agent System:** A 14-persona agent team with an LLM-powered CEO Orchestrator, Semantic Tool Router, Self-Improvement Engine, Adaptive Execution & Self-Healing, and Auto Model Router with OAuth-first priority.
+- **Smart Model Auto-Selection:** Task Complexity Classifier, Multimodal-Aware Routing, Auto-Thinking Mode, Persona Cost Tier Integration, Model Capabilities Registry, and `[auto-route]` logging with 60s dedup.
+- **Autonomous Operations:** Heartbeat Engine (13 tasks), Scheduled Tasks, Corporation Report Export (PDF to Google Drive), Human-in-the-Loop (HITL) Confirmation Gate, and Felix Approval Gate.
+- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 89 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
 - **Process Governor:** A 40-rule governance engine across 7 categories, supported by 25 condition evaluators, an emergency Kill Switch, and a Governance Frameworks Knowledge Base.
 - **Quarterly Intelligence System:** Governance Research Scanner and Model Registry Refresh.
-- **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 5 autonomous nightly research programs (AI Model Intelligence, Tools & Techniques Scanner, Competitive Platform Analysis, Agent Architecture Research, Security & Safety Intelligence) run at 2 AM Central via research schedule. Each program spawns 8-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table) — concrete TypeScript diffs validated against the live codebase, queued for human review before application. Model Intelligence findings additionally queue `model_registry_updates` for admin approval. API: `GET/PATCH /api/research/code-proposals`.
+- **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 11 autonomous research programs (5 nightly + 6 AI Buddy business) run via research schedule. Each program spawns 5-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona with vector embeddings (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table). Model Intelligence findings queue `model_registry_updates`. Startup model validation auto-corrects unknown models. Duplicate-session protection prevents double runs. API: `GET/PATCH /api/research/code-proposals`.
+- **Vector Knowledge Library:** pgvector-powered cross-persona knowledge retrieval. Research findings get text-embedding-3-small vectors at injection time. `buildSystemPrompt` uses semantic similarity to pull relevant findings from ANY persona's research. 2000-char knowledge budget. 30s embedding cache prevents duplicate API calls.
 - **Deep Research:** Defines Research Programs, Autonomous Sessions, Research Scheduling, and AI-generated Session Summaries with Dev-to-Prod Auto-Sync.
 - **Agentic Intelligence Engines:** Decision-Making, Predictive Analytics, and Process Optimization engines.
 - **Intelligence & Memory:** Hierarchical Memory Graph, Three-Tier Semantic Memory, BM25/Vector/Hybrid Document Search, Zero-Loss Compaction, Per-Tenant Memory Backup, and `pgvector` for native PostgreSQL vector similarity.
 - **Data Protection System:** Comprehensive data safety layer including soft-delete for conversations, message save verification, compaction safety gate, Google Drive backup per tenant, and admin endpoints.
 - **Platform Capabilities Briefing:** Auto-injected system prompt for personas enumerating configured API keys, OAuth subscriptions, server capabilities, connected services, available tools, and AI models.
 - **Finance Market Intelligence Tools:** 4 tools for real-time news, OHLCV stock data, stock search, and market overview, mapped to Cassandra and Radar.
-- **89+ AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas.
+- **89 AI Tools:** Comprehensive toolset for communication, research, documents, code execution, virtual browsing, web scraping, agentic operations, Google Workspace, and system management, including `generate_dashboard` for Live Canvas.
 - **23 Active Skills:** 8 business operations skills (Document & Delivery Pipeline, Research & Competitive Intelligence, Project Management, Financial Analysis, Content Marketing, Legal & Compliance, Sales & Client Relations, Business Operations & Strategy) + 15 platform skills, all injected into agent system prompts via `## ACTIVE SKILLS` block.
 - **Project Brain System:** Auto-maintained `.md` knowledge file per project, injected into project conversations.
 - **Project Continuity System:** Auto-transcript system saves full timestamped markdown transcripts. Auto-asset capture detects deliverables and saves them. Prior conversation transcripts and messages are injected for continuity.
@@ -58,7 +74,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Corporate Operations Scaffolding System:** 65 governance-wired operation scaffolds across 12 departments, 6 cross-department workflows, task classification engine, operation-aware tool routing, with inline governance rules (trust checks, never-auto actions, express lane awareness, autonomy levels, blocker escalation).
 - **Felix Auto-Orchestration:** For complex multi-step requests, Felix uses the `orchestrate` tool to decompose tasks into a DAG, assigns specialist personas, and executes steps via child conversations.
 - **Execution Supervisor:** Monitors and controls agent tool execution quality via Circuit Breaker, Output Validation, Hallucination Detection, and Execution Budget Warnings. Provides Fallback Suggestions.
-- **Agency Expansion Framework (6 Tiers):** Full Earned Autonomy system including Evaluators, Trust Score Engine, Proactive Initiative Engine, Express Lanes, Environmental Awareness, and Collective Intelligence.
+- **Agency Expansion Framework (6 Tiers):** Full Earned Autonomy system including Evaluators (9 types), Trust Score Engine (9 categories), Proactive Initiative Engine (PAB budgets), Express Lanes (12 approved lanes), Environmental Awareness (8 scan types), and Collective Intelligence (4 protocols).
 - **Autonomous Self-Tuning Engine:** Runs every 24h, collects 7-day performance metrics, computes parameter adjustments, and applies changes within safe bounds. Includes a bootstrap mode for new tenants and dynamic express lane caps based on trust scores.
 - **Per-Tool Rate Limiter:** Sliding-window rate limiting per tenant per tool to prevent runaway agent loops.
 - **Agentic Design Patterns:** Includes Parallel Tool Execution, Critique Agent / Self-Correction Loop, Chain of Debates, Tree-of-Thought Reasoning, Proactive Resource Prediction, and Adaptive Model Downgrade.
@@ -69,15 +85,15 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **File & Storage:** Secure Tenant File Storage (Replit Object Storage), File Manager UI, Google Drive Integration, and PDF Toolkit.
 - **Security & System:** Provider Key Proxy, Helmet CSP, DB-persisted Password Reset Tokens, Health Monitor, soft Account Deletion, Admin Authorization, and IronClaw-inspired SafetyLayer.
 - **Stability Watchdog:** Autonomous infrastructure-level watchdog for auto-remediation of stuck tasks, flaky tasks, heartbeat restarts, memory pressure, stale data cleanup, and pool health monitoring.
-- **Frontend Pages:** Over 25 pages for dashboards, chat, agent management, settings, reports, and user-specific functionalities.
-- **Database:** PostgreSQL with Drizzle ORM, featuring 33+ tables.
+- **Frontend Pages:** 38 pages for dashboards, chat, agent management, settings, reports, and user-specific functionalities.
+- **Database:** PostgreSQL with Drizzle ORM, featuring 66 tables.
 - **Claude Runner Bridge:** Local OpenAI-compatible bridge that routes Anthropic model requests through Claude Code CLI for $0 per-token cost with Max plan authentication, falling back to standard API if unavailable.
 
 ## External Dependencies
-- **AI Providers:** OpenAI, Anthropic, Google Gemini, xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi), Claude Runner (CLI bridge, optional).
+- **AI Providers:** OpenAI (OAuth + direct), Anthropic (Claude Runner bridge + direct), Google Gemini (OAuth + integration), xAI, Perplexity, OpenRouter (DeepSeek, MiniMax, Qwen, Llama, Kimi, Z.ai GLM, Nemotron, Mistral), Claude Runner (CLI bridge, optional).
 - **Payments:** Stripe (Connect, BYOK), Coinbase (CDP SDK, Commerce API).
 - **Services:** ElevenLabs (STT only), Google Drive, Firecrawl (web scraping, crawling, site mapping), Jina AI (Reader).
-- **Storage:** Replit Object Storage, PostgreSQL.
-- **Communications:** AgentMail, WhatsApp Web (Baileys), Discord Bot.
+- **Storage:** Replit Object Storage, PostgreSQL with pgvector.
+- **Communications:** AgentMail, WhatsApp Web (Baileys), Discord Bot, Telegram Bot.
 - **Geolocation:** ip-api.com.
 - **Weather:** Open-Meteo API.

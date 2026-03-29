@@ -119,9 +119,9 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     const metrics = [
       ["AI Personas", "14 specialized roles"],
-      ["AI Models", "36 models across 8+ providers"],
+      ["AI Models", "36+ models across 8+ providers"],
       ["AI Providers", "8+ connected (+ Claude Runner CLI bridge)"],
-      ["AI Tools", "89+ capabilities"],
+      ["AI Tools", "89 built-in capabilities + custom tools"],
       ["Active Skills", "23 (8 business ops + 15 platform)"],
       ["Governance Rules", "40 rules across 7 categories"],
       ["Trust Scores", "9 categories, 40 scores across 13 agents"],
@@ -130,14 +130,18 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       ["Decision Protocols", "5 collective intelligence protocols"],
       ["Evaluators", "9 real-time system evaluators"],
       ["Op Scaffolds", "65 governance-wired, 12 departments"],
-      ["Server Modules", "120+ TypeScript files"],
-      ["Frontend Pages", "38+"],
-      ["Database Tables", "33+"],
+      ["Research Programs", "11 autonomous (5 nightly + 6 business)"],
+      ["Heartbeat Tasks", "13 scheduled autonomous operations"],
+      ["Server Modules", "120 TypeScript files (~60,000 lines)"],
+      ["Frontend Pages", "38 React pages"],
+      ["Database Tables", "66 PostgreSQL tables"],
+      ["Vector Search", "pgvector w/ HNSW indexes, cross-persona"],
       ["Design Patterns", "6 book-inspired patterns"],
       ["Comm Channels", "AgentMail, WhatsApp, Discord, Telegram"],
       ["YouTube", "OAuth channel management"],
       ["Auto-Project", "Automatic project detection"],
       ["Context Guard", "Zero-loss compaction w/ archive"],
+      ["Model Routing", "OAuth-first, 3-pass priority, 60s log dedup"],
     ];
     drawSubheading("Key Metrics");
     for (const [label, value] of metrics) {
@@ -176,7 +180,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
 
     drawSubheading("Database");
     const dbItems = [
-      "PostgreSQL with Drizzle ORM, 33+ tables",
+      "PostgreSQL with Drizzle ORM, 66 tables",
       "pgvector for native vector similarity search with HNSW indexes",
       "Automated schema management with safe migration patterns",
       "Production-only pgvector initialization (avoids migration conflicts)",
@@ -338,6 +342,22 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
     drawBullet("Archives FULL transcript to compaction_archives table before summarizing");
     drawBullet("Local file backup as secondary archive");
     drawBullet("SAFETY GATE: compaction aborts if archive save fails");
+
+    drawSubheading("Cross-Persona Vector Knowledge Library");
+    drawBullet("Research findings auto-embedded with text-embedding-3-small (1536 dims) at injection time");
+    drawBullet("pgvector HNSW indexes for fast similarity search across all agent knowledge");
+    drawBullet("Cross-persona retrieval: any agent can pull findings from any domain via semantic similarity");
+    drawBullet("2000-char knowledge budget: persona-specific entries ranked first, cross-domain fills remaining");
+    drawBullet("30-second embedding cache (max 50 entries) prevents duplicate API calls per request");
+    drawBullet("Startup backfill auto-generates embeddings for existing findings without vectors");
+
+    drawSubheading("OAuth-First Smart Model Routing");
+    drawBullet("3-pass priority: OAuth/Claude Runner first, direct API keys second, Replit proxy last");
+    drawBullet("Google OAuth (Gemini 3.1 Pro, 3 Flash) and OpenAI OAuth (GPT-4.1, o4-mini) prioritized");
+    drawBullet("Claude Runner bridge routes Anthropic models through CLI at $0 per-token cost");
+    drawBullet("OpenRouter models (DeepSeek, Qwen, Llama, etc.) used only as last-resort fallback");
+    drawBullet("Auto-route logging with 60-second per-tier dedup to prevent log spam");
+    drawBullet("Research programs auto-corrected on startup if assigned model doesn't exist");
 
     // === SECTION 8: DATA PROTECTION ===
     drawHeading("Section 8: Data Protection System");
