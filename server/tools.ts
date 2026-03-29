@@ -399,6 +399,24 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
   {
+    type: "function" as const,
+    function: {
+      name: "trend_research",
+      description: "Multi-source trend research tool inspired by /last30days. Searches Reddit, Hacker News, Polymarket prediction markets, and X/Twitter in parallel, then deduplicates, scores by relevance+engagement, and detects cross-platform convergence. All sources are FREE (no API keys needed for Reddit, HN, Polymarket; X uses our existing xAI key). Returns ranked items with engagement data, convergence themes, and a synthesis summary. Use this to research what people are actually saying, upvoting, and betting on about any topic.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: { type: "string", description: "The topic to research (e.g., 'AI agents', 'Claude Code vs Codex', 'agentic AI Chicago')" },
+          days: { type: "number", description: "How many days back to search. Default: 30. Use 7 for very recent trends." },
+          sources: { type: "array", items: { type: "string", enum: ["reddit", "hackernews", "polymarket", "x"] }, description: "Which sources to search. Default: all four." },
+          depth: { type: "string", enum: ["quick", "default", "deep"], description: "Research depth. quick=fast/fewer results, deep=thorough/more results. Default: default." },
+          max_results: { type: "number", description: "Maximum items to return. Default: 50." },
+        },
+        required: ["topic"],
+      },
+    },
+  },
+  {
     type: "function",
     function: {
       name: "vibevoice_transcribe",
@@ -2781,6 +2799,21 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       } catch (err: any) {
         console.error(`[render_diagram] Failed:`, err.message);
         return { error: `Diagram rendering failed: ${err.message}` };
+      }
+    }
+    case "trend_research": {
+      try {
+        const { trendResearch } = await import("./trend-research");
+        const result = await trendResearch({
+          topic: params.topic,
+          days: params.days,
+          sources: params.sources,
+          depth: params.depth,
+          maxResults: params.max_results,
+        });
+        return result;
+      } catch (err: any) {
+        return { error: `Trend research failed: ${err.message}` };
       }
     }
     case "vibevoice_transcribe": {
