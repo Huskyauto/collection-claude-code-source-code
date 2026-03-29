@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Zap, Search, FileText, Send, Brain, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Volume2 } from "lucide-react";
+import { Bot, Zap, Search, FileText, Send, Brain, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Volume2, VolumeX } from "lucide-react";
 
 interface DelegationEvent {
   id: string;
@@ -52,11 +52,61 @@ function timeAgo(timestamp: number): string {
   return `${Math.floor(seconds / 60)}m ago`;
 }
 
+function speakText(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!("speechSynthesis" in window)) {
+      resolve();
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = "en-US";
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.includes("Google") && v.lang.startsWith("en")
+    ) || voices.find(v =>
+      v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Daniel")
+    ) || voices.find(v =>
+      v.lang.startsWith("en") && v.localService
+    );
+
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+function generateNarration(event: DelegationEvent): string | null {
+  switch (event.type) {
+    case "started":
+      return event.parentAgent
+        ? `${event.parentAgent} is bringing in ${event.agentName} to help with this.`
+        : `${event.agentName} is getting started.`;
+    case "tool_call":
+      return `${event.agentName} is ${event.message}.`;
+    case "sub_delegation":
+      return event.message.length > 5 ? event.message : `Bringing in another team member.`;
+    case "completed":
+      return `${event.agentName} finished their part.`;
+    case "error":
+      return `Small hiccup, but we're handling it.`;
+    default:
+      return null;
+  }
+}
+
 interface DelegationLiveFeedProps {
   conversationId?: number;
   enabled?: boolean;
-  ttsEnabled?: boolean;
-  onNarrate?: (text: string) => void;
   position?: "bottom-right" | "bottom-left" | "top-right";
   maxVisible?: number;
 }
@@ -64,80 +114,102 @@ interface DelegationLiveFeedProps {
 export function DelegationLiveFeed({
   conversationId,
   enabled = true,
-  ttsEnabled = false,
-  onNarrate,
   position = "bottom-right",
   maxVisible = 5,
 }: DelegationLiveFeedProps) {
   const [events, setEvents] = useState<DelegationEvent[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [narrationOn, setNarrationOn] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const narrationQueueRef = useRef<string[]>([]);
   const isNarratingRef = useRef(false);
+  const narrationOnRef = useRef(false);
+
+  useEffect(() => { narrationOnRef.current = narrationOn; }, [narrationOn]);
 
   const processNarrationQueue = useCallback(async () => {
-    if (isNarratingRef.current || narrationQueueRef.current.length === 0 || !onNarrate) return;
+    if (isNarratingRef.current || narrationQueueRef.current.length === 0) return;
+    if (!narrationOnRef.current) {
+      narrationQueueRef.current = [];
+      return;
+    }
     isNarratingRef.current = true;
     const text = narrationQueueRef.current.shift()!;
-    onNarrate(text);
-    await new Promise(r => setTimeout(r, 3000));
+    try {
+      await speakText(text);
+    } catch {}
     isNarratingRef.current = false;
-    processNarrationQueue();
-  }, [onNarrate]);
+    if (narrationQueueRef.current.length > 0) {
+      processNarrationQueue();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!narrationOn) {
+      narrationQueueRef.current = [];
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    }
+  }, [narrationOn]);
+
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
 
-    const es = new EventSource("/api/delegation-events/stream", { withCredentials: true });
-    eventSourceRef.current = es;
+    const connect = () => {
+      const es = new EventSource("/api/delegation-events/stream", { withCredentials: true });
+      eventSourceRef.current = es;
 
-    es.onopen = () => setIsConnected(true);
-    es.onerror = () => {
-      setIsConnected(false);
-      setTimeout(() => {
-        if (eventSourceRef.current === es) {
-          es.close();
-          const newEs = new EventSource("/api/delegation-events/stream", { withCredentials: true });
-          eventSourceRef.current = newEs;
-          newEs.onopen = () => setIsConnected(true);
-          newEs.onmessage = es.onmessage;
-          newEs.onerror = es.onerror;
-        }
-      }, 3000);
-    };
+      es.onopen = () => setIsConnected(true);
 
-    es.onmessage = (msg) => {
-      try {
-        const event: DelegationEvent = JSON.parse(msg.data);
-        setEvents(prev => {
-          const updated = [...prev, event];
-          return updated.slice(-20);
-        });
+      es.onmessage = (msg) => {
+        try {
+          const event: DelegationEvent = JSON.parse(msg.data);
+          setEvents(prev => [...prev, event].slice(-20));
 
-        if (ttsEnabled && onNarrate) {
-          const narration = generateClientNarration(event);
-          if (narration) {
-            narrationQueueRef.current.push(narration);
-            processNarrationQueue();
+          if (narrationOnRef.current) {
+            const narration = generateNarration(event);
+            if (narration) {
+              narrationQueueRef.current.push(narration);
+              processNarrationQueue();
+            }
           }
-        }
-      } catch {}
+        } catch {}
+      };
+
+      es.onerror = () => {
+        setIsConnected(false);
+        es.close();
+        setTimeout(() => {
+          if (eventSourceRef.current === es || !eventSourceRef.current) {
+            connect();
+          }
+        }, 3000);
+      };
+
+      return es;
     };
+
+    const es = connect();
 
     return () => {
       es.close();
       eventSourceRef.current = null;
     };
-  }, [enabled, ttsEnabled, onNarrate, processNarrationQueue]);
+  }, [enabled, processNarrationQueue]);
 
   if (!enabled || events.length === 0) return null;
 
   const visibleEvents = isExpanded ? events.slice(-maxVisible) : events.slice(-1);
 
   const positionClasses = {
-    "bottom-right": "bottom-4 right-4",
-    "bottom-left": "bottom-4 left-4",
+    "bottom-right": "bottom-20 right-4",
+    "bottom-left": "bottom-20 left-4",
     "top-right": "top-4 right-4",
   };
 
@@ -147,21 +219,26 @@ export function DelegationLiveFeed({
       data-testid="delegation-live-feed"
     >
       <div className="bg-gray-900/95 backdrop-blur-sm rounded-lg border border-gray-700 shadow-2xl overflow-hidden">
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-between px-3 py-2 bg-gray-800/80 hover:bg-gray-800 transition-colors"
-          data-testid="delegation-feed-toggle"
-        >
-          <div className="flex items-center gap-2">
+        <div className="w-full flex items-center justify-between px-3 py-2 bg-gray-800/80">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            data-testid="delegation-feed-toggle"
+          >
             <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400 animate-pulse" : "bg-red-400"}`} />
             <span className="text-xs font-medium text-gray-300">Agent Activity</span>
             <span className="text-[10px] text-gray-500">({events.length})</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {ttsEnabled && <Volume2 className="w-3 h-3 text-blue-400" />}
             {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronUp className="w-3.5 h-3.5 text-gray-400" />}
-          </div>
-        </button>
+          </button>
+          <button
+            onClick={() => setNarrationOn(!narrationOn)}
+            className={`p-1 rounded transition-colors ${narrationOn ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+            title={narrationOn ? "Turn off voice narration" : "Turn on voice narration (free, uses browser speech)"}
+            data-testid="narration-toggle"
+          >
+            {narrationOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+          </button>
+        </div>
 
         <AnimatePresence mode="popLayout">
           {visibleEvents.map((event) => (
@@ -196,25 +273,6 @@ export function DelegationLiveFeed({
       </div>
     </div>
   );
-}
-
-function generateClientNarration(event: DelegationEvent): string | null {
-  switch (event.type) {
-    case "started":
-      return event.parentAgent
-        ? `${event.parentAgent} is bringing in ${event.agentName} to help.`
-        : `${event.agentName} is starting work.`;
-    case "tool_call":
-      return `${event.agentName} is ${event.message}.`;
-    case "sub_delegation":
-      return `${event.agentName} is ${event.message}.`;
-    case "completed":
-      return `${event.agentName} finished their part.`;
-    case "error":
-      return `There was a hiccup, but we're handling it.`;
-    default:
-      return null;
-  }
 }
 
 export function useDelegationEvents(conversationId?: number) {
