@@ -48,3 +48,9 @@ id = "AZnR0DiaRjd8ilYi_TJbY"
 uri = "file://project-assets/VisionClaw-Platform-Features-March2026.md"
 type = "text"
 title = "VisionClaw Platform Features - March 2026"
+
+[[outputs]]
+id = "6lyG6SoMF2LlCNJEsJIbC"
+uri = "file://project-assets/AI-Tinkerers-Presentation-Guide.pdf"
+type = "pdf"
+title = "AI Tinkerers Presentation Guide (PDF)"
