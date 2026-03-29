@@ -30,6 +30,7 @@ let backpressure = {
   lastTimeout: 0,
   intervalMultiplier: 1,
   pausedUntil: 0,
+  resumeTimer: null as ReturnType<typeof setTimeout> | null,
 };
 
 function getEffectiveInterval(): number {
@@ -39,6 +40,7 @@ function getEffectiveInterval(): number {
 function recordDbTimeout() {
   backpressure.consecutiveTimeouts++;
   backpressure.lastTimeout = Date.now();
+  const prevLevel = backpressure.level;
 
   if (backpressure.consecutiveTimeouts >= 6) {
     backpressure.level = 3;
@@ -48,7 +50,8 @@ function recordDbTimeout() {
     for (const [sid, sess] of activeSessions) {
       if (sess.timer) { clearInterval(sess.timer); sess.timer = null; }
     }
-    setTimeout(() => resumeAfterPause(), 5 * 60_000);
+    if (backpressure.resumeTimer) clearTimeout(backpressure.resumeTimer);
+    backpressure.resumeTimer = setTimeout(() => resumeAfterPause(), 5 * 60_000);
   } else if (backpressure.consecutiveTimeouts >= 3) {
     backpressure.level = 2;
     backpressure.intervalMultiplier = 3;
@@ -58,63 +61,64 @@ function recordDbTimeout() {
     backpressure.level = 1;
     backpressure.intervalMultiplier = 2;
     console.warn(`[research-throttle] LEVEL 1: ${backpressure.consecutiveTimeouts} DB timeouts — slowing experiments to 2x interval (${getEffectiveInterval() / 1000}s)`);
+    rescheduleTimers();
   }
 }
 
 function recordDbSuccess() {
   if (backpressure.consecutiveTimeouts > 0) {
     backpressure.consecutiveTimeouts = Math.max(0, backpressure.consecutiveTimeouts - 1);
-    if (backpressure.consecutiveTimeouts === 0 && backpressure.level > 0) {
-      console.log(`[research-throttle] DB healthy — resuming normal speed`);
+    const prevLevel = backpressure.level;
+    if (backpressure.consecutiveTimeouts === 0) {
       backpressure.level = 0;
       backpressure.intervalMultiplier = 1;
+    } else if (backpressure.consecutiveTimeouts < 3) {
+      backpressure.level = 1;
+      backpressure.intervalMultiplier = 2;
+    } else if (backpressure.consecutiveTimeouts < 6) {
+      backpressure.level = 2;
+      backpressure.intervalMultiplier = 3;
+    }
+    if (backpressure.level !== prevLevel) {
+      console.log(`[research-throttle] DB recovering — level ${prevLevel} -> ${backpressure.level} (interval ${backpressure.intervalMultiplier}x)`);
       rescheduleTimers();
     }
   }
 }
 
+function makeTimerCallback(sid: number, sess: ActiveSession) {
+  return () => {
+    if (Date.now() < backpressure.pausedUntil) return;
+    if (sess.experimentCount >= sess.maxExperiments) {
+      endSession(sid, "completed").catch(console.error);
+      return;
+    }
+    if (sess.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      endSession(sid, "stopped_failures").catch(console.error);
+      return;
+    }
+    runExperiment(sess).catch(err => console.error(`[research] Experiment error:`, err.message));
+  };
+}
+
 function rescheduleTimers() {
   const interval = getEffectiveInterval();
   for (const [sid, sess] of activeSessions) {
-    if (sess.timer) {
-      clearInterval(sess.timer);
-      sess.timer = setInterval(() => {
-        if (Date.now() < backpressure.pausedUntil) return;
-        if (sess.experimentCount >= sess.maxExperiments) {
-          endSession(sid, "completed").catch(console.error);
-          return;
-        }
-        if (sess.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          endSession(sid, "stopped_failures").catch(console.error);
-          return;
-        }
-        runExperiment(sess).catch(err => console.error(`[research] Experiment error:`, err.message));
-      }, interval);
-    }
+    if (sess.timer) clearInterval(sess.timer);
+    sess.timer = setInterval(makeTimerCallback(sid, sess), interval);
   }
 }
 
 function resumeAfterPause() {
-  if (backpressure.level < 3) return;
+  if (Date.now() < backpressure.pausedUntil) return;
+  backpressure.resumeTimer = null;
   backpressure.level = 1;
   backpressure.intervalMultiplier = 2;
   backpressure.pausedUntil = 0;
   console.log(`[research-throttle] Pause ended — resuming at 2x interval. Will return to normal after sustained DB health.`);
+  const interval = getEffectiveInterval();
   for (const [sid, sess] of activeSessions) {
-    if (!sess.timer) {
-      const interval = getEffectiveInterval();
-      sess.timer = setInterval(() => {
-        if (sess.experimentCount >= sess.maxExperiments) {
-          endSession(sid, "completed").catch(console.error);
-          return;
-        }
-        if (sess.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          endSession(sid, "stopped_failures").catch(console.error);
-          return;
-        }
-        runExperiment(sess).catch(err => console.error(`[research] Experiment error:`, err.message));
-      }, interval);
-    }
+    sess.timer = setInterval(makeTimerCallback(sid, sess), interval);
   }
 }
 
@@ -131,13 +135,29 @@ export function getResearchBackpressure() {
 
 const sessionCompletionListeners = new Map<number, Array<() => void>>();
 
-export function awaitSessionCompletion(sessionId: number): Promise<void> {
+export function awaitSessionCompletion(sessionId: number, timeoutMs: number = 30 * 60_000): Promise<void> {
   if (!activeSessions.has(sessionId)) return Promise.resolve();
   return new Promise<void>((resolve) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        console.warn(`[research] awaitSessionCompletion timed out for session #${sessionId} after ${timeoutMs / 60_000}min — forcing end`);
+        endSession(sessionId, "stopped_timeout").catch(() => {});
+        resolve();
+      }
+    }, timeoutMs);
+
     if (!sessionCompletionListeners.has(sessionId)) {
       sessionCompletionListeners.set(sessionId, []);
     }
-    sessionCompletionListeners.get(sessionId)!.push(resolve);
+    sessionCompletionListeners.get(sessionId)!.push(() => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    });
   });
 }
 
@@ -417,59 +437,65 @@ async function autoDepositFindings(sessionId: number, session: ActiveSession): P
 
 async function endSession(sessionId: number, reason: string): Promise<void> {
   const session = activeSessions.get(sessionId);
-  if (!session) return;
+  if (!session) {
+    const listeners = sessionCompletionListeners.get(sessionId);
+    if (listeners) { listeners.forEach(r => r()); sessionCompletionListeners.delete(sessionId); }
+    return;
+  }
 
   if (session.timer) clearInterval(session.timer);
   activeSessions.delete(sessionId);
 
-  let summary = "";
   try {
-    const availableModels = await getAvailableModels();
-    const { result: resp } = await executeWithFailover(
-      session.model, availableModels,
-      async (client: any, modelId: string) => {
-        return client.chat.completions.create({
-          model: modelId,
-          messages: [
-            { role: "system", content: "You are a research analyst. Summarize the overnight research session results concisely in markdown. Focus on key findings, actionable insights, and what was kept vs discarded." },
-            { role: "user", content: `Research session completed. Objective: ${session.objective}\n\nResults (${session.experimentCount} experiments, ${session.keptCount} kept, ${session.discardedCount} discarded, ${session.crashedCount} crashed):\n\n${session.previousResults.map((r, i) => `${i + 1}. [${r.status.toUpperCase()}] ${r.hypothesis}${r.metric_value ? ` (score: ${r.metric_value})` : ""}${r.result ? `\n   Finding: ${r.result.substring(0, 200)}` : ""}`).join("\n")}\n\nGenerate a concise executive summary of findings, patterns, and recommended next steps.` },
-          ],
-          max_completion_tokens: 1500,
-        });
-      },
-      session.tenantId
-    );
-    summary = resp.choices[0]?.message?.content || "";
-  } catch (err: any) {
-    summary = `Session ended (${reason}). ${session.keptCount} kept, ${session.discardedCount} discarded, ${session.crashedCount} crashed.`;
-  }
-
-  await db.execute(sql`
-    UPDATE research_sessions SET
-      status = ${reason},
-      ended_at = NOW(),
-      total_experiments = ${session.experimentCount},
-      experiments_kept = ${session.keptCount},
-      experiments_discarded = ${session.discardedCount},
-      experiments_crashed = ${session.crashedCount},
-      summary = ${summary}
-    WHERE id = ${sessionId}
-  `);
-
-  console.log(`[research] Session #${sessionId} ended: ${reason} (${session.experimentCount} experiments, ${session.keptCount} kept)`);
-
-  if (session.keptCount > 0) {
+    let summary = "";
     try {
-      await autoDepositFindings(sessionId, session);
+      const availableModels = await getAvailableModels();
+      const { result: resp } = await executeWithFailover(
+        session.model, availableModels,
+        async (client: any, modelId: string) => {
+          return client.chat.completions.create({
+            model: modelId,
+            messages: [
+              { role: "system", content: "You are a research analyst. Summarize the overnight research session results concisely in markdown. Focus on key findings, actionable insights, and what was kept vs discarded." },
+              { role: "user", content: `Research session completed. Objective: ${session.objective}\n\nResults (${session.experimentCount} experiments, ${session.keptCount} kept, ${session.discardedCount} discarded, ${session.crashedCount} crashed):\n\n${session.previousResults.map((r, i) => `${i + 1}. [${r.status.toUpperCase()}] ${r.hypothesis}${r.metric_value ? ` (score: ${r.metric_value})` : ""}${r.result ? `\n   Finding: ${r.result.substring(0, 200)}` : ""}`).join("\n")}\n\nGenerate a concise executive summary of findings, patterns, and recommended next steps.` },
+            ],
+            max_completion_tokens: 1500,
+          });
+        },
+        session.tenantId
+      );
+      summary = resp.choices[0]?.message?.content || "";
     } catch (err: any) {
-      console.error(`[research] Auto-deposit failed for session #${sessionId}:`, err.message);
+      summary = `Session ended (${reason}). ${session.keptCount} kept, ${session.discardedCount} discarded, ${session.crashedCount} crashed.`;
     }
-  }
 
-  const listeners = sessionCompletionListeners.get(sessionId);
-  if (listeners) {
-    listeners.forEach(resolve => resolve());
-    sessionCompletionListeners.delete(sessionId);
+    await db.execute(sql`
+      UPDATE research_sessions SET
+        status = ${reason},
+        ended_at = NOW(),
+        total_experiments = ${session.experimentCount},
+        experiments_kept = ${session.keptCount},
+        experiments_discarded = ${session.discardedCount},
+        experiments_crashed = ${session.crashedCount},
+        summary = ${summary}
+      WHERE id = ${sessionId}
+    `);
+
+    console.log(`[research] Session #${sessionId} ended: ${reason} (${session.experimentCount} experiments, ${session.keptCount} kept)`);
+
+    if (session.keptCount > 0) {
+      try {
+        await autoDepositFindings(sessionId, session);
+      } catch (err: any) {
+        console.error(`[research] Auto-deposit failed for session #${sessionId}:`, err.message);
+      }
+    }
+  } finally {
+    const listeners = sessionCompletionListeners.get(sessionId);
+    if (listeners) {
+      listeners.forEach(resolve => resolve());
+      sessionCompletionListeners.delete(sessionId);
+    }
   }
 }
 
@@ -657,7 +683,22 @@ Score this finding using the rubric in your instructions. Output your reasoning 
       session.crashedCount++;
       session.consecutiveFailures++;
       console.error(`[research] Session #${session.sessionId} Exp #${session.experimentCount}: DB TIMEOUT — throttle level ${backpressure.level}`);
+      if (experimentId) {
+        try {
+          await db.execute(sql`
+            UPDATE research_experiments SET status = 'crash', result = 'DB connection timeout (auto-throttled)',
+              duration_ms = ${Date.now() - start} WHERE id = ${experimentId}
+          `);
+        } catch {}
+      }
       session.experimentInFlight = false;
+      try {
+        await db.execute(sql`
+          UPDATE research_sessions SET total_experiments = ${session.experimentCount},
+            experiments_kept = ${session.keptCount}, experiments_discarded = ${session.discardedCount},
+            experiments_crashed = ${session.crashedCount} WHERE id = ${session.sessionId}
+        `);
+      } catch {}
       return;
     }
 
