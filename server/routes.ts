@@ -2426,6 +2426,7 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
                 activeModelId = fbResult.actualModelId;
                 currentRegistryModelId = fallback.id;
                 createParams.model = activeModelId;
+                createParams.max_completion_tokens = getMaxOutputTokens(fallback.id);
                 const fbProvider = MODEL_REGISTRY.find((m) => m.id === fallback.id)?.provider;
                 if (fbProvider && !PROVIDERS_SUPPORTING_TOOLS.has(fbProvider)) {
                   delete createParams.tools;
@@ -7132,6 +7133,7 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
                 activeClient = fbResult.client;
                 activeModelId = fbResult.actualModelId;
                 createParams.model = activeModelId;
+                createParams.max_completion_tokens = getMaxOutputTokens(fallback.id);
                 stream = await activeClient.chat.completions.create(createParams);
               } else throw streamErr;
             } else throw streamErr;

@@ -1445,6 +1445,7 @@ RULES:
             activeModelId = fbResult.actualModelId;
             currentRegistryModelId = fallback.id;
             createParams.model = activeModelId;
+            createParams.max_completion_tokens = getMaxOutputTokens(fallback.id);
             const fbProvider = MODEL_REGISTRY.find(m => m.id === fallback.id)?.provider;
             if (fbProvider && !PROVIDERS_SUPPORTING_TOOLS.has(fbProvider)) {
               delete createParams.tools;

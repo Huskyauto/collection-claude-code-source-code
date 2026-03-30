@@ -120,6 +120,7 @@ function buildCliArgs(prompt: string, model: string, systemPrompt: string | unde
     "--output-format", outputFormat,
     "--model", mapModelId(model),
     "--max-turns", String(DEFAULT_MAX_TURNS),
+    "--verbose",
   ];
 
   if (systemPrompt) {
