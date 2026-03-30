@@ -299,19 +299,35 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
           const headingSize = baseFontSize + 4;
           ensureSpace(headingSize + 16);
           yPos -= 12;
-          page.drawText(sanitizeForPdf(section.heading), { x: margin, y: yPos, size: headingSize, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
+          page.drawText(sanitizeForPdf(String(section.heading)), { x: margin, y: yPos, size: headingSize, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
           yPos -= headingSize + 8;
         }
-        const paragraphs = sanitizeForPdf(section.body).split("\n");
-        for (const para of paragraphs) {
-          if (!para.trim()) { yPos -= baseFontSize; continue; }
-          const lines = wrapText(para, font, baseFontSize, maxWidth);
-          for (const line of lines) {
-            ensureSpace(baseFontSize + 4);
-            page.drawText(line, { x: margin, y: yPos, size: baseFontSize, font, color: rgb(0.15, 0.15, 0.15) });
-            yPos -= baseFontSize + 4;
+        if (!section.body && !section.bullets) continue;
+        if (section.body) {
+          const paragraphs = sanitizeForPdf(String(section.body)).split("\n");
+          for (const para of paragraphs) {
+            if (!para.trim()) { yPos -= baseFontSize; continue; }
+            const lines = wrapText(para, font, baseFontSize, maxWidth);
+            for (const line of lines) {
+              ensureSpace(baseFontSize + 4);
+              page.drawText(line, { x: margin, y: yPos, size: baseFontSize, font, color: rgb(0.15, 0.15, 0.15) });
+              yPos -= baseFontSize + 4;
+            }
+            yPos -= 4;
           }
-          yPos -= 4;
+        }
+        if (section.bullets && Array.isArray(section.bullets)) {
+          for (const bullet of section.bullets) {
+            if (!bullet) continue;
+            const bulletText = sanitizeForPdf(String(bullet));
+            const lines = wrapText("* " + bulletText, font, baseFontSize, maxWidth - 10);
+            for (const line of lines) {
+              ensureSpace(baseFontSize + 4);
+              page.drawText(line, { x: margin + 10, y: yPos, size: baseFontSize, font, color: rgb(0.15, 0.15, 0.15) });
+              yPos -= baseFontSize + 4;
+            }
+            yPos -= 2;
+          }
         }
       }
     }
