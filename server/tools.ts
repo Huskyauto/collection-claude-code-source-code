@@ -2,7 +2,17 @@ import path from "path";
 import { EventEmitter } from "events";
 import { storage } from "./storage";
 import { getAvailableModels, PROVIDER_CONFIG, getClientForModel } from "./providers";
-import { isHeartbeatRunning, delegateTaskFromChat } from "./heartbeat";
+let _isHeartbeatRunning: (() => boolean) | null = null;
+let _delegateTaskFromChat: ((...args: any[]) => Promise<any>) | null = null;
+
+async function getHeartbeatFns() {
+  if (!_delegateTaskFromChat) {
+    const mod = await import("./heartbeat");
+    _isHeartbeatRunning = mod.isHeartbeatRunning;
+    _delegateTaskFromChat = mod.delegateTaskFromChat;
+  }
+  return { isHeartbeatRunning: _isHeartbeatRunning!, delegateTaskFromChat: _delegateTaskFromChat! };
+}
 import { generateEmbedding } from "./embeddings";
 import { wrapExternalContent } from "./external-content-security";
 import { sessionsList, sessionsHistory, sessionsSend } from "./sessions";
@@ -1977,7 +1987,7 @@ async function checkSystemStatus() {
     storage.getSettings(),
     storage.getActivePersona(),
     storage.getMemoryStats(),
-    Promise.resolve(isHeartbeatRunning()),
+    getHeartbeatFns().then(h => h.isHeartbeatRunning()),
     storage.getHeartbeatTasks(),
     storage.getHeartbeatLogs(5),
   ]);
@@ -2534,6 +2544,7 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
   const MAX_RETRIES = 2;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      const { delegateTaskFromChat } = await getHeartbeatFns();
       const result = await delegateTaskFromChat(
         persona?.id ?? null,
         targetAgent,
@@ -2541,7 +2552,7 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
         description || `Delegated from chat`,
         prompt,
         schedule || "once",
-        attempt === 0 ? "gpt-5-mini" : "gemini-2.5-flash",
+        attempt === 0 ? "gemini-2.5-flash" : "claude-sonnet-4-20250514",
         tenantId || 1,
         delegationDepth
       );
