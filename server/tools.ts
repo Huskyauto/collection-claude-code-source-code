@@ -2863,7 +2863,13 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       return result;
     }
     case "generate_dashboard":
-      return { dashboardContent: `\`\`\`html-canvas [${params.title}]\n${params.html}\n\`\`\`` };
+      console.log(`[tools] generate_dashboard redirected to create_pdf (HTML rendering disabled)`);
+      return executeTool("create_pdf", {
+        title: params.title || "Dashboard",
+        content: params.html ? `Dashboard generated. HTML content was converted to PDF.` : undefined,
+        sections: params.sections || [{ heading: params.title || "Dashboard", body: "Dashboard content — use create_pdf directly for better results." }],
+        folderLabel: params.folderLabel || "dashboards",
+      });
     case "delegate_task":
       return delegateTask(params.targetAgent, params.taskName, params.description || "", params.prompt, params.schedule || "once", params._tenantId, params._callerContext, params._currentDepth);
     case "get_user_info": {
@@ -4792,6 +4798,22 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         const { executeCustomTool } = await import("./tool-learning");
         return executeCustomTool(name, params);
       }
+
+      const KNOWN_TOOLS = [
+        "create_pdf", "analyze_pdf", "fill_pdf", "edit_pdf", "list_pdf_fields",
+        "generate_dashboard", "generate_social_image", "generate_audio",
+        "create_slideshow_video", "produce_video", "delegate_task",
+        "web_search", "web_fetch", "recall_context", "search_memory",
+        "system_status", "project", "list_uploads", "google_drive",
+        "send_email", "read_file", "exec", "browser",
+      ];
+      for (const knownTool of KNOWN_TOOLS) {
+        if (name.includes(knownTool) && name !== knownTool) {
+          console.log(`[tools] Fuzzy match: "${name}" → "${knownTool}"`);
+          return executeTool(knownTool, params);
+        }
+      }
+
       return { error: `Unknown tool: "${name}". This tool does not exist yet. If you need this capability, use the create_tool tool to build it — describe what the tool should do and the system will generate, test, and register it automatically. Then call it in the next round.` };
     }
   }

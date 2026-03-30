@@ -293,8 +293,20 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
       }
     }
 
-    if (params.sections) {
-      for (const section of params.sections) {
+    let parsedSections = params.sections;
+    if (parsedSections && typeof parsedSections === "string") {
+      try {
+        parsedSections = JSON.parse(parsedSections);
+      } catch {
+        parsedSections = [{ heading: "Content", body: parsedSections }];
+      }
+    }
+    if (parsedSections && !Array.isArray(parsedSections)) {
+      parsedSections = [parsedSections];
+    }
+
+    if (parsedSections) {
+      for (const section of parsedSections) {
         if (section.heading) {
           const headingSize = baseFontSize + 4;
           ensureSpace(headingSize + 16);
@@ -388,7 +400,8 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
     const relativePath = path.relative(WORKSPACE_ROOT, outputPath);
     const pageCount = doc.getPageCount();
 
-    const contentLength = (params.content?.length || 0) + (params.sections?.reduce((sum, s) => sum + (s.heading?.length || 0) + s.body.length, 0) || 0);
+    const sectionsArr = Array.isArray(parsedSections) ? parsedSections : [];
+    const contentLength = (params.content?.length || 0) + (sectionsArr.reduce((sum: number, s: any) => sum + (s?.heading?.length || 0) + (s?.body?.length || 0), 0) || 0);
     console.log(`[pdf] Created "${displayName}": ${pageCount} pages, ${pdfBytes.length} bytes, ${contentLength} chars of input content, ${fieldCount} fields`);
 
     const result: any = {
