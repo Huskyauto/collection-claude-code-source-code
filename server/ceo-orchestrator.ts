@@ -67,6 +67,82 @@ function matchPersona(skillType: string): string {
   return bestMatch;
 }
 
+export function getRoleGuidanceForDelegation(persona: string): string {
+  return getRoleGuidance(persona, "");
+}
+
+function getRoleGuidance(persona: string, skillType: string): string {
+  const guides: Record<string, string> = {
+    "Radar": `ROLE GUIDANCE (Radar — Research & Intelligence):
+- Use trend_research, firecrawl_scrape, firecrawl_crawl, and search_memory to gather real data.
+- Produce DETAILED findings with specific facts, numbers, quotes, URLs, and dates.
+- Organize output into clear sections the next agent can directly build from.
+- Include at least 5-10 substantive data points. Shallow bullet lists are unacceptable.
+- If you find conflicting data, note both sides. Don't cherry-pick.`,
+
+    "Scribe": `ROLE GUIDANCE (Scribe — Content & Writing):
+- Write COMPLETE, polished, publication-ready content — not outlines or bullet points.
+- Use the full context from previous steps. Every research finding should appear in your output.
+- Match the tone to the deliverable: professional for reports/decks, engaging for blogs, persuasive for proposals.
+- For presentations/decks: write slide-by-slide with titles and full speaker notes or body text for each slide.
+- For articles/posts: write the complete piece with intro, body sections, and conclusion.
+- Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.`,
+
+    "Proof": `ROLE GUIDANCE (Proof — Quality Review):
+- Review the ENTIRE content from previous steps. Don't skip sections.
+- Check for: factual accuracy, logical flow, grammar, tone consistency, brand alignment, and completeness.
+- Fix problems directly in the content — return the CORRECTED version, not just a list of issues.
+- If content is thin or missing sections, flag it clearly so Felix knows to send it back.
+- Verify any statistics or claims against what Radar found. Flag unsupported claims.`,
+
+    "Forge": `ROLE GUIDANCE (Forge — Engineering):
+- Write working code, not pseudocode. Test it mentally before outputting.
+- If building an API or script, include error handling and edge cases.
+- For debugging tasks, trace the actual code path and identify the root cause before proposing a fix.
+- Output the complete solution — partial snippets that need "fill in the rest" are unacceptable.`,
+
+    "Teagan": `ROLE GUIDANCE (Teagan — Marketing & Growth):
+- Create complete campaign/content plans with specific copy, hashtags, timing, and platform targeting.
+- For social media: write the actual posts, not descriptions of what posts should say.
+- Include metrics and KPIs for measuring success.
+- Reference current trends and competitor activity when relevant.`,
+
+    "Apollo": `ROLE GUIDANCE (Apollo — Sales & Revenue):
+- Build complete proposals with pricing, value propositions, competitive differentiation, and clear CTAs.
+- For outreach: write the actual emails/messages, not templates with [PLACEHOLDER] fields.
+- Include qualification criteria and objection handling where relevant.
+- Ground everything in concrete numbers — ROI, cost savings, revenue potential.`,
+
+    "Atlas": `ROLE GUIDANCE (Atlas — Data & Analytics):
+- Produce actual analysis with specific metrics, trends, and actionable insights.
+- Include tables, comparisons, or structured data the next agent can use directly.
+- Don't just describe what could be measured — report what IS, based on available data.
+- Flag data gaps honestly rather than presenting assumptions as facts.`,
+
+    "Cassandra": `ROLE GUIDANCE (Cassandra — Finance):
+- Produce detailed financial analysis with real numbers, not vague estimates.
+- Include specific line items, projections with assumptions stated, and risk factors.
+- For budgets: itemize everything. For forecasts: show the math behind projections.`,
+
+    "Luna": `ROLE GUIDANCE (Luna — Legal & Compliance):
+- Draft complete legal language, not summaries of what should be covered.
+- Cite specific regulations, standards, or precedents when applicable.
+- Flag risks with severity levels and recommended mitigations.`,
+
+    "Neptune": `ROLE GUIDANCE (Neptune — Deep Research & Media):
+- For research: go deeper than Radar — academic sources, primary data, comprehensive analysis.
+- For media: use generate_audio, create_slideshow_video, generate_social_image tools directly.
+- For white papers: produce the complete document with executive summary, methodology, findings, and recommendations.`,
+
+    "Chief of Staff": `ROLE GUIDANCE (Chief of Staff — Operations):
+- Execute operational tasks directly using system_status, schedule, and coordination tools.
+- For status checks: gather real data from the system, don't speculate.
+- For scheduling: create actual calendar entries or task items, not proposals.`,
+  };
+
+  return guides[persona] || `ROLE GUIDANCE: Execute your task thoroughly using your specialist tools. Produce complete, production-ready output.`;
+}
+
 export async function generateExecutionPlan(
   objective: string,
   conversationId: number,
@@ -250,7 +326,7 @@ export async function executePlan(
       for (const depId of step.dependsOn) {
         const depResult = plan.warRoom[depId];
         if (depResult) {
-          contextFromDeps += `\n\n--- Output from Step ${depId} ---\n${depResult.slice(0, 2000)}`;
+          contextFromDeps += `\n\n--- Output from Step ${depId} ---\n${depResult.slice(0, 8000)}`;
         }
       }
 
@@ -262,6 +338,8 @@ export async function executePlan(
         if (scaffold) scaffoldBlock = formatScaffoldForPrompt(scaffold);
       } catch {}
 
+      const roleGuidance = getRoleGuidance(step.assignedPersona, step.requiredSkillType);
+
       const taskPrompt = `You are ${step.assignedPersona}, executing a specific task as part of a CEO-orchestrated plan.
 
 PLAN OBJECTIVE: ${plan.objective}
@@ -269,12 +347,15 @@ YOUR TASK (Step ${step.taskId}): ${step.description}
 ASSIGNED SPECIALIST: ${step.assignedPersona} (${step.requiredSkillType})
 ${contextFromDeps ? `\nCONTEXT FROM PREVIOUS STEPS:${contextFromDeps}` : ""}
 ${scaffoldBlock ? `\n${scaffoldBlock}` : ""}
-INSTRUCTIONS:
+${roleGuidance}
+
+CORE RULES:
 - Focus ONLY on your assigned task. Do not attempt other steps in the plan.
 - Use your tools proactively — search, research, verify, create. Do not guess when you can look up.
-- Be thorough but concise. Produce actionable output the next step can build on.
-- If you create content, make it production-ready, not a rough sketch.
-- Output your results directly — no pleasantries, no meta-commentary, no summaries of what you were asked to do.`;
+- Produce COMPLETE, production-ready output. Not a rough draft, not bullet points, not an outline — the REAL thing.
+- If previous steps gave you context, USE ALL OF IT. Don't summarize or skip parts.
+- Output your results directly — no pleasantries, no meta-commentary, no summaries of what you were asked to do.
+- Your output will be passed to the next agent in the chain. Make it substantial enough to be useful.`;
 
       try {
         const targetPersona = cachedPersonas.find(p => p.name === step.assignedPersona) || cachedPersonas.find(p => p.name === "VisionClaw");
@@ -295,7 +376,7 @@ INSTRUCTIONS:
 
         const resultText = result?.response || JSON.stringify(result);
 
-        step.result = resultText.slice(0, 4000);
+        step.result = resultText.slice(0, 12000);
         step.status = "complete";
         step.completedAt = Date.now();
         plan.warRoom[step.taskId] = step.result;

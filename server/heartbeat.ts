@@ -1490,6 +1490,12 @@ export async function delegateTaskFromChat(
         ? `- If part of this task is better suited for another specialist, you CAN delegate using delegate_task with schedule "once". You are at depth ${depth} (max 5).`
         : `- You are at delegation depth ${depth}. Complete this task directly — do NOT delegate further.`;
 
+      let roleHint = "";
+      try {
+        const { getRoleGuidanceForDelegation } = await import("./ceo-orchestrator");
+        roleHint = getRoleGuidanceForDelegation(target.name);
+      } catch {}
+
       const taskPrompt = `You are ${target.name}, executing a delegated task. You MUST use your tools to complete it.
 
 TASK: ${taskName}
@@ -1497,12 +1503,14 @@ ${description ? `DESCRIPTION: ${description}` : ""}
 
 INSTRUCTIONS:
 ${prompt}
+${roleHint ? `\n${roleHint}` : ""}
 
 MANDATORY RULES:
 - You MUST call tools to execute this task. Do NOT respond with text descriptions of what you "would" do or "plan" to do.
 - If the task says to generate audio, you MUST call generate_audio. If it says to create a video, you MUST call create_slideshow_video.
 - Do NOT describe steps. Do NOT explain your approach. CALL THE TOOLS and return the results.
 - If you create files, they auto-upload to Google Drive. Report the drive_url from the tool result.
+- Produce COMPLETE output — not outlines, not summaries, not bullet lists of what you "could" write. The ACTUAL deliverable.
 - Output ONLY the tool results — no pleasantries, no meta-commentary, no plans.
 ${delegationGuidance}
 - WRONG: "I would use generate_audio to create the narration..."
@@ -1554,7 +1562,7 @@ ${delegationGuidance}
         success: true,
         agent: target.name,
         taskName,
-        result: resultText.slice(0, 4000),
+        result: resultText.slice(0, 12000),
         executionType: "inline",
       } as any;
     }
