@@ -231,6 +231,13 @@ export async function getClientForModel(modelId: string, tenantId?: number, opti
   if (!model || model.provider === "replit") {
     const mapped = mapReplitToOpenAI(modelId);
 
+    const replitClient = getReplit();
+    const replitKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (replitClient && replitKey && replitKey.length > 5 && mapped) {
+      console.log(`[providers] Replit model ${modelId} → modelfarm integration (${mapped}, $0 cost)`);
+      return { client: replitClient, actualModelId: mapped };
+    }
+
     const openaiEnvKey = process.env.OPENAI_API_KEY;
     if (mapped && openaiEnvKey && openaiEnvKey.length > 5) {
       console.log(`[providers] Replit model ${modelId} → OpenAI env key direct (${mapped})`);
