@@ -2871,6 +2871,16 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
         }
       }).catch(() => {});
 
+      if (persona?.id === 2 && executedTools.length === 0 && fullResponse.length > 500) {
+        const deliverableKeywords = /\b(present|deck|slide|pdf|report|document|proposal|create|build|make|generate|write)\b/i;
+        if (deliverableKeywords.test(content)) {
+          const notice = "\n\n---\n\n**Note:** I wrote out the content above but wasn't able to create a file from it. Please ask me again — say something like \"Now create that as a PDF\" or \"Build that as a slide deck\" and I'll produce the actual document for you.";
+          res.write(`data: ${JSON.stringify({ content: notice })}\n\n`);
+          fullResponse += notice;
+          console.warn(`[felix-guard] Felix produced ${fullResponse.length} chars but called 0 tools for a deliverable request — appended notice`);
+        }
+      }
+
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (err: any) {
