@@ -250,6 +250,15 @@ export async function getClientForModel(modelId: string, tenantId?: number): Pro
       }
     }
 
+    const openaiEnvKey = process.env.OPENAI_API_KEY;
+    if (openaiEnvKey && openaiEnvKey.length > 5) {
+      const mapped2 = mapReplitToOpenAI(modelId);
+      if (mapped2) {
+        console.log(`[providers] Replit model ${modelId} → OpenAI env key (${mapped2})`);
+        return { client: getUserClient("openai", openaiEnvKey), actualModelId: mapped2 };
+      }
+    }
+
     const anthropicIntegration = getIntegrationClient("anthropic");
     if (anthropicIntegration) {
       console.log(`[providers] Replit model ${modelId} → Anthropic integration fallback (claude-sonnet-4-20250514)`);
@@ -345,8 +354,8 @@ export function maskApiKey(key: string): string {
 
 function mapReplitToOpenAI(modelId: string): string | null {
   const map: Record<string, string> = {
-    "gpt-5.4": "gpt-4.1",
-    "gpt-5-mini": "gpt-4.1-mini",
+    "gpt-5.4": "gpt-5.4",
+    "gpt-5-mini": "gpt-5-mini",
     "o4-mini": "o4-mini",
   };
   return map[modelId] || null;
