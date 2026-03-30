@@ -28,6 +28,28 @@ export interface OrchestrationPlan {
 }
 
 const activePlans = new Map<string, OrchestrationPlan>();
+const PLAN_TTL_MS = 10 * 60 * 1000;
+const MAX_PLANS = 20;
+
+function pruneCompletedPlans() {
+  const now = Date.now();
+  for (const [id, plan] of activePlans.entries()) {
+    if ((plan.status === "complete" || plan.status === "failed") && plan.completedAt && (now - plan.completedAt > PLAN_TTL_MS)) {
+      plan.warRoom = {};
+      plan.steps.forEach(s => { s.result = undefined; });
+      activePlans.delete(id);
+    }
+  }
+  if (activePlans.size > MAX_PLANS) {
+    const sorted = [...activePlans.entries()].sort((a, b) => (a[1].completedAt || a[1].createdAt) - (b[1].completedAt || b[1].createdAt));
+    while (activePlans.size > MAX_PLANS && sorted.length > 0) {
+      const oldest = sorted.shift()!;
+      activePlans.delete(oldest[0]);
+    }
+  }
+}
+
+setInterval(pruneCompletedPlans, 60_000);
 
 const PERSONA_SKILLS: Record<string, string[]> = {
   "Forge": ["coding", "engineering", "debugging", "architecture", "technical", "build", "fix", "deploy", "script", "api", "database", "server", "code", "backend", "frontend", "devops", "infrastructure", "test", "refactor", "migration"],
@@ -489,6 +511,8 @@ CORE RULES:
       : `Plan finished with issues: ${completedCount} completed, ${failedCount} failed`,
     metadata: { planId: plan.id, completedCount, failedCount, totalSteps: plan.steps.length },
   });
+
+  plan.warRoom = {};
 
   return plan;
 }

@@ -59,13 +59,15 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       if (y - needed < MARGIN) newPage();
     }
 
-    function drawTitle(text: string, size: number = 20) {
+    function drawTitle(rawText: string, size: number = 20) {
+      const text = sanitizeText(rawText);
       checkSpace(size + 10);
       page.drawText(text, { x: MARGIN, y, size, font: fontBold, color: rgb(0.1, 0.1, 0.4) });
       y -= size + 8;
     }
 
-    function drawHeading(text: string) {
+    function drawHeading(rawText: string) {
+      const text = sanitizeText(rawText);
       checkSpace(30);
       y -= SECTION_GAP;
       page.drawLine({ start: { x: MARGIN, y: y + 4 }, end: { x: MAX_X, y: y + 4 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
@@ -74,7 +76,8 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       y -= 18;
     }
 
-    function drawSubheading(text: string) {
+    function drawSubheading(rawText: string) {
+      const text = sanitizeText(rawText);
       checkSpace(22);
       y -= 4;
       page.drawText(text, { x: MARGIN, y, size: 11, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
@@ -116,7 +119,7 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       let x = MARGIN;
       const f = bold ? fontBold : font;
       for (let i = 0; i < cols.length; i++) {
-        const txt = cols[i].slice(0, Math.floor(widths[i] / 5.5));
+        const txt = sanitizeText(cols[i].slice(0, Math.floor(widths[i] / 5.5)));
         page.drawText(txt, { x, y, size: 9, font: f, color: rgb(0.1, 0.1, 0.1) });
         x += widths[i];
       }
