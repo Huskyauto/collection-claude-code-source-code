@@ -131,7 +131,7 @@ async function ttsGoogle(text: string): Promise<{ buffer: Buffer; format: "mp3" 
 async function synthesizeSpeech(text: string, voiceId?: string): Promise<{ buffer: Buffer; format: "mp3" | "pcm"; usedProvider: TTSProvider }> {
   const ttsConfig = loadTTSConfig();
   const provider = ttsConfig.provider;
-  const baseOrder: TTSProvider[] = [provider, "vibevoice", "edge", "openai", "elevenlabs"];
+  const baseOrder: TTSProvider[] = [provider, "openai", "elevenlabs", "edge", "vibevoice"];
   const fallbackOrder = baseOrder.filter((v, i, a) => a.indexOf(v) === i);
 
   for (const p of fallbackOrder) {

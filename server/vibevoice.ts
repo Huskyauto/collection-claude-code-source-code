@@ -129,7 +129,7 @@ async function transcribeViaHuggingFace(audioBuffer: Buffer, options: {
 }): Promise<VibeVoiceASRResult> {
   const hfToken = options.token;
 
-  const apiUrl = `https://api-inference.huggingface.co/models/${HF_ASR_MODEL}`;
+  const apiUrl = `https://router.huggingface.co/models/${HF_ASR_MODEL}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "audio/wav",
@@ -294,7 +294,7 @@ export async function vibevoiceTTS(params: {
 
     const hfToken = getHFToken();
 
-    const apiUrl = `https://api-inference.huggingface.co/models/${HF_TTS_MODEL}`;
+    const apiUrl = `https://router.huggingface.co/models/${HF_TTS_MODEL}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -400,7 +400,7 @@ export async function vibevoiceRealtimeTTS(params: {
     }
     const hfToken = getHFToken();
 
-    const apiUrl = `https://api-inference.huggingface.co/models/${HF_REALTIME_MODEL}`;
+    const apiUrl = `https://router.huggingface.co/models/${HF_REALTIME_MODEL}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
