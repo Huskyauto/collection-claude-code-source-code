@@ -282,10 +282,21 @@ export async function executePlan(
   plan.status = "executing";
   onProgress?.(plan, plan.steps[0], "plan_started");
 
+  const { emitDelegationEvent } = await import("./delegation-events");
   const storage = (await import("./storage")).storage;
   const { db } = await import("./db");
   const { personas: personasTable } = await import("@shared/schema");
   const cachedPersonas = await db.select().from(personasTable);
+
+  emitDelegationEvent({
+    conversationId: plan.conversationId,
+    tenantId: plan.tenantId,
+    type: "started",
+    agentName: "Felix",
+    depth: plan.callerDepth || 0,
+    message: `Orchestrating: ${plan.objective.slice(0, 100)}`,
+    metadata: { planId: plan.id, totalSteps: plan.steps.length, steps: plan.steps.map(s => ({ taskId: s.taskId, persona: s.assignedPersona, description: s.description.slice(0, 60) })) },
+  });
 
   const MAX_ROUNDS = 20;
   let round = 0;
@@ -321,6 +332,28 @@ export async function executePlan(
       onProgress?.(plan, step, "step_started");
 
       console.log(`[ceo] Step ${step.taskId}: "${step.description.slice(0, 60)}" → ${step.assignedPersona}`);
+
+      emitDelegationEvent({
+        conversationId: plan.conversationId,
+        tenantId: plan.tenantId,
+        type: "sub_delegation",
+        agentName: "Felix",
+        parentAgent: undefined,
+        depth: plan.callerDepth || 0,
+        message: `Assigning step ${step.taskId}/${plan.steps.length} to ${step.assignedPersona}: ${step.description.slice(0, 80)}`,
+        metadata: { targetAgent: step.assignedPersona, taskId: step.taskId, stepDescription: step.description },
+      });
+
+      emitDelegationEvent({
+        conversationId: plan.conversationId,
+        tenantId: plan.tenantId,
+        type: "started",
+        agentName: step.assignedPersona,
+        agentRole: step.requiredSkillType,
+        parentAgent: "Felix",
+        depth: (plan.callerDepth || 0) + 1,
+        message: `Working on: ${step.description.slice(0, 80)}`,
+      });
 
       let contextFromDeps = "";
       for (const depId of step.dependsOn) {
@@ -381,8 +414,20 @@ CORE RULES:
         step.completedAt = Date.now();
         plan.warRoom[step.taskId] = step.result;
 
-        console.log(`[ceo] Step ${step.taskId} complete (${((step.completedAt - step.startedAt!) / 1000).toFixed(1)}s)`);
+        const elapsed = ((step.completedAt - step.startedAt!) / 1000).toFixed(1);
+        console.log(`[ceo] Step ${step.taskId} complete (${elapsed}s)`);
         onProgress?.(plan, step, "step_complete");
+
+        emitDelegationEvent({
+          conversationId: plan.conversationId,
+          tenantId: plan.tenantId,
+          type: "completed",
+          agentName: step.assignedPersona,
+          parentAgent: "Felix",
+          depth: (plan.callerDepth || 0) + 1,
+          message: `Finished step ${step.taskId}/${plan.steps.length} in ${elapsed}s`,
+          metadata: { taskId: step.taskId, resultLength: resultText.length, elapsedSeconds: parseFloat(elapsed) },
+        });
 
       } catch (err: any) {
         step.status = "failed";
@@ -390,6 +435,17 @@ CORE RULES:
         step.completedAt = Date.now();
         console.error(`[ceo] Step ${step.taskId} failed:`, err.message);
         onProgress?.(plan, step, "step_failed");
+
+        emitDelegationEvent({
+          conversationId: plan.conversationId,
+          tenantId: plan.tenantId,
+          type: "error",
+          agentName: step.assignedPersona,
+          parentAgent: "Felix",
+          depth: (plan.callerDepth || 0) + 1,
+          message: `Step ${step.taskId} failed: ${(err.message || "Unknown error").slice(0, 100)}`,
+          metadata: { taskId: step.taskId, error: err.message },
+        });
       }
     };
 
@@ -417,7 +473,22 @@ CORE RULES:
   plan.completedAt = Date.now();
 
   onProgress?.(plan, plan.steps[plan.steps.length - 1], "plan_complete");
-  console.log(`[ceo] Plan ${plan.id} finished: ${plan.status} (${plan.steps.filter(s => s.status === "complete").length}/${plan.steps.length} steps)`);
+
+  const completedCount = plan.steps.filter(s => s.status === "complete").length;
+  const failedCount = plan.steps.filter(s => s.status === "failed").length;
+  console.log(`[ceo] Plan ${plan.id} finished: ${plan.status} (${completedCount}/${plan.steps.length} steps)`);
+
+  emitDelegationEvent({
+    conversationId: plan.conversationId,
+    tenantId: plan.tenantId,
+    type: plan.status === "complete" ? "completed" : "error",
+    agentName: "Felix",
+    depth: plan.callerDepth || 0,
+    message: plan.status === "complete"
+      ? `Plan complete: ${completedCount}/${plan.steps.length} steps finished successfully`
+      : `Plan finished with issues: ${completedCount} completed, ${failedCount} failed`,
+    metadata: { planId: plan.id, completedCount, failedCount, totalSteps: plan.steps.length },
+  });
 
   return plan;
 }
