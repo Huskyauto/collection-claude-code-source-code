@@ -32,7 +32,7 @@ const activePlans = new Map<string, OrchestrationPlan>();
 const PERSONA_SKILLS: Record<string, string[]> = {
   "Forge": ["coding", "engineering", "debugging", "architecture", "technical", "build", "fix", "deploy", "script", "api", "database", "server", "code", "backend", "frontend", "devops", "infrastructure", "test", "refactor", "migration"],
   "Teagan": ["content strategy", "content plan", "editorial calendar", "marketing content", "blog strategy", "social media strategy", "newsletter strategy", "brand messaging", "content brief", "marketing", "social media", "campaign", "seo", "brand"],
-  "Scribe": ["writing", "content", "blog", "social media", "copy", "newsletter", "article", "post", "draft", "compose", "creative writing", "storytelling", "narrative", "long-form", "email copy", "press release", "documentation"],
+  "Scribe": ["writing", "content", "blog", "social media", "copy", "newsletter", "article", "post", "draft", "compose", "creative writing", "storytelling", "narrative", "long-form", "email copy", "press release", "documentation", "presentation", "deck", "slides", "pitch", "proposal", "one-pager", "brochure", "case study", "white paper"],
   "Proof": ["review", "edit", "proofread", "quality", "fact-check", "verify content", "polish", "grammar", "tone check", "brand compliance"],
   "Radar": ["research", "analysis", "intelligence", "market", "competitive", "trends", "scan", "investigate", "survey", "news", "industry", "competitor"],
   "Neptune": ["deep research", "academic", "comprehensive", "study", "report", "white paper", "thorough", "literature review", "deep dive", "exhaustive analysis", "multimedia", "audio", "video"],
@@ -401,10 +401,18 @@ export function isComplexRequest(message: string): boolean {
     if (pattern.test(message)) score++;
   }
 
+  const deliverables = [
+    /\b(create|build|make|generate|prepare|put together|draft|design)\b.*\b(presentation|deck|pitch|slideshow|slides|proposal|report|white\s?paper|one[- ]?pager|brochure|brief|newsletter|press release|case study)\b/i,
+    /\b(presentation|deck|pitch|proposal|report|white\s?paper)\b.*\b(for|about|on|covering)\b/i,
+  ];
+  for (const pattern of deliverables) {
+    if (pattern.test(message)) { score += 3; break; }
+  }
+
   const conjunctions = (message.match(/\b(and then|then|after that|next|finally|also|additionally)\b/gi) || []).length;
   score += Math.min(conjunctions, 3);
 
-  const verbs = (message.match(/\b(research|write|draft|send|create|build|analyze|review|edit|post|publish|deploy|fix|test|check|find|search|email|schedule)\b/gi) || []);
+  const verbs = (message.match(/\b(research|write|draft|send|create|build|analyze|review|edit|post|publish|deploy|fix|test|check|find|search|email|schedule|present|design|prepare|compile|assemble)\b/gi) || []);
   const uniqueVerbs = new Set(verbs.map(v => v.toLowerCase()));
   if (uniqueVerbs.size >= 3) score += 2;
 

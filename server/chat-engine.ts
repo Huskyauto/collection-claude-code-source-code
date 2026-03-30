@@ -1281,7 +1281,14 @@ You are replying via WhatsApp. Adapt your style:
       }
 
       if (isComplexRequest(content) || classification.crossDepartment) {
-        let orchestrationPrompt = `ORCHESTRATION REQUIRED: This is a multi-step request. You MUST use the "orchestrate" tool now to decompose this into steps and delegate to specialist agents. Do NOT attempt to do the work yourself. Call orchestrate with the full objective immediately. Your team (Scribe, Forge, Radar, etc.) will handle each step — your job is to plan, delegate, and synthesize their results.`;
+        let orchestrationPrompt = `ORCHESTRATION REQUIRED: This is a multi-step request. You MUST use the "orchestrate" tool now to decompose this into steps and delegate to specialist agents. Do NOT attempt to do the work yourself. Call orchestrate with the full objective immediately. Your team (Scribe, Forge, Radar, etc.) will handle each step — your job is to plan, delegate, and synthesize their results.
+
+DELIVERABLE ORCHESTRATION PATTERN (presentations, decks, reports, proposals, white papers):
+1. Radar: research the topic, gather data/stats/competitive info
+2. Scribe: write the content/narrative using Radar's research
+3. Proof: review and polish the content for quality
+4. Felix: assemble the final deliverable (PDF/slides) from the polished content
+This is the MINIMUM team for any professional deliverable. Always delegate research and writing — NEVER do those yourself.`;
         if (scaffoldBlock) {
           orchestrationPrompt += `\n\n${scaffoldBlock}`;
         }
