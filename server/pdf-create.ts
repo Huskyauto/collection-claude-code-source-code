@@ -150,6 +150,55 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
   return lines;
 }
 
+function sanitizeForPdf(text: string): string {
+  const replacements: Record<string, string> = {
+    '\u2713': '[x]',  // ✓
+    '\u2714': '[x]',  // ✔
+    '\u2715': '[ ]',  // ✕
+    '\u2716': '[ ]',  // ✖
+    '\u2717': '[ ]',  // ✗
+    '\u2718': '[ ]',  // ✘
+    '\u2022': '*',    // •
+    '\u2023': '>',    // ‣
+    '\u25B8': '>',    // ▸
+    '\u25BA': '>',    // ►
+    '\u25CF': '*',    // ●
+    '\u25CB': 'o',    // ○
+    '\u25A0': '#',    // ■
+    '\u25A1': '[]',   // □
+    '\u2192': '->',   // →
+    '\u2190': '<-',   // ←
+    '\u2191': '^',    // ↑
+    '\u2193': 'v',    // ↓
+    '\u21D2': '=>',   // ⇒
+    '\u2014': '--',   // —
+    '\u2013': '-',    // –
+    '\u2018': "'",    // '
+    '\u2019': "'",    // '
+    '\u201C': '"',    // "
+    '\u201D': '"',    // "
+    '\u2026': '...',  // …
+    '\u00A0': ' ',    // non-breaking space
+    '\u2212': '-',    // −
+    '\u2264': '<=',   // ≤
+    '\u2265': '>=',   // ≥
+    '\u2260': '!=',   // ≠
+    '\u221E': 'inf',  // ∞
+    '\u2248': '~=',   // ≈
+    '\u00B7': '*',    // ·
+    '\u2605': '*',    // ★
+    '\u2606': '*',    // ☆
+  };
+
+  let result = text;
+  for (const [unicode, ascii] of Object.entries(replacements)) {
+    result = result.split(unicode).join(ascii);
+  }
+  // eslint-disable-next-line no-control-regex
+  result = result.replace(/[^\x00-\xFF]/g, '?');
+  return result;
+}
+
 export async function createPdf(params: CreatePdfParams): Promise<{ success: boolean; path?: string; url?: string; pages?: number; fields?: number; error?: string }> {
   try {
     ensureOutputDir();
@@ -226,12 +275,12 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
     if (params.title) {
       const titleSize = baseFontSize + 8;
       ensureSpace(titleSize + 20);
-      page.drawText(params.title, { x: margin, y: yPos, size: titleSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(sanitizeForPdf(params.title), { x: margin, y: yPos, size: titleSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
       yPos -= titleSize + 20;
     }
 
     if (params.content) {
-      const paragraphs = params.content.split("\n");
+      const paragraphs = sanitizeForPdf(params.content).split("\n");
       for (const para of paragraphs) {
         if (!para.trim()) { yPos -= baseFontSize; continue; }
         const lines = wrapText(para, font, baseFontSize, maxWidth);
@@ -250,10 +299,10 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
           const headingSize = baseFontSize + 4;
           ensureSpace(headingSize + 16);
           yPos -= 12;
-          page.drawText(section.heading, { x: margin, y: yPos, size: headingSize, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
+          page.drawText(sanitizeForPdf(section.heading), { x: margin, y: yPos, size: headingSize, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
           yPos -= headingSize + 8;
         }
-        const paragraphs = section.body.split("\n");
+        const paragraphs = sanitizeForPdf(section.body).split("\n");
         for (const para of paragraphs) {
           if (!para.trim()) { yPos -= baseFontSize; continue; }
           const lines = wrapText(para, font, baseFontSize, maxWidth);
@@ -278,7 +327,7 @@ export async function createPdf(params: CreatePdfParams): Promise<{ success: boo
 
         if (f.label) {
           const labelPage = doc.getPages()[doc.getPageCount() - 1];
-          labelPage.drawText(f.label + ":", { x: fieldX, y: fieldY + (f.height || 20) + 4, size: f.fontSize || 10, font, color: rgb(0.2, 0.2, 0.2) });
+          labelPage.drawText(sanitizeForPdf(f.label + ":"), { x: fieldX, y: fieldY + (f.height || 20) + 4, size: f.fontSize || 10, font, color: rgb(0.2, 0.2, 0.2) });
         }
 
         switch (f.type) {
@@ -457,7 +506,7 @@ export async function editPdf(params: EditPdfParams): Promise<{ success: boolean
         const pageIdx = (t.page || 1) - 1;
         if (pageIdx < 0 || pageIdx >= doc.getPageCount()) continue;
         const pg = doc.getPages()[pageIdx];
-        pg.drawText(t.text, {
+        pg.drawText(sanitizeForPdf(t.text), {
           x: t.x,
           y: t.y,
           size: t.fontSize || 12,

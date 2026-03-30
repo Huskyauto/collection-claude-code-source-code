@@ -2,6 +2,24 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { uploadToDrive } from "./google-drive";
 import fs from "fs";
 
+function sanitizeText(text: string): string {
+  const replacements: Record<string, string> = {
+    '\u2713': '[x]', '\u2714': '[x]', '\u2717': '[ ]', '\u2718': '[ ]',
+    '\u25B8': '>', '\u25BA': '>', '\u25CF': '*', '\u25CB': 'o',
+    '\u25A0': '#', '\u25A1': '[]', '\u2192': '->', '\u2190': '<-',
+    '\u21D2': '=>', '\u2014': '--', '\u2013': '-',
+    '\u2018': "'", '\u2019': "'", '\u201C': '"', '\u201D': '"',
+    '\u2026': '...', '\u00A0': ' ', '\u2212': '-',
+    '\u2264': '<=', '\u2265': '>=', '\u2260': '!=',
+    '\u2605': '*', '\u2606': '*', '\u00B7': '*',
+  };
+  let result = text;
+  for (const [u, a] of Object.entries(replacements)) {
+    result = result.split(u).join(a);
+  }
+  return result.replace(/[^\x00-\xFF]/g, '?');
+}
+
 export async function generateComprehensiveFeaturePDF(): Promise<{
   success: boolean;
   driveUrl?: string;
@@ -63,7 +81,8 @@ export async function generateComprehensiveFeaturePDF(): Promise<{
       y -= 16;
     }
 
-    function drawText(text: string, indent: number = 0) {
+    function drawText(rawText: string, indent: number = 0) {
+      const text = sanitizeText(rawText);
       const maxWidth = MAX_X - MARGIN - indent;
       const words = text.split(" ");
       let line = "";

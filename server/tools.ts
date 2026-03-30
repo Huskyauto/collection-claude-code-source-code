@@ -2091,11 +2091,12 @@ async function handleProject(params: Record<string, any>) {
     }
     case "add_file": {
       if (!params.id) return { error: "project id is required" };
-      if (!params.filePath) return { error: "filePath is required" };
-      const fname = params.filename || params.filePath.split("/").pop() || "file";
+      if (!params.filePath && !params.fileUrl && !params.driveLink) return { error: "filePath or fileUrl is required" };
+      const fname = params.filename || params.fileName || (params.filePath ? params.filePath.split("/").pop() : "file") || "file";
+      const fileUrl = params.fileUrl || params.driveLink || null;
       const fRes = await db.execute(sql`
-        INSERT INTO project_files (project_id, filename, original_name, file_type, mime_type, description, file_path, drive_link, drive_file_id)
-        VALUES (${params.id}, ${fname}, ${fname}, ${params.fileType || 'document'}, ${params.mimeType || null}, ${params.fileDescription || ''}, ${params.filePath}, ${params.driveLink || null}, ${params.driveFileId || null})
+        INSERT INTO project_files (project_id, file_name, file_path, file_url, file_type, file_size, uploaded_by)
+        VALUES (${params.id}, ${fname}, ${params.filePath || null}, ${fileUrl}, ${params.fileType || 'document'}, ${params.fileSize || null}, ${params.uploadedBy || 'agent'})
         RETURNING *
       `);
       await db.execute(sql`UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ${params.id}`);
