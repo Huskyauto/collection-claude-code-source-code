@@ -46,7 +46,7 @@ const DEFAULT_CONFIG: TTSConfig = {
   },
   openai: {
     model: "gpt-4o-mini-tts",
-    voice: "alloy",
+    voice: "onyx",
   },
   edge: {
     enabled: true,
