@@ -9,7 +9,7 @@ import { seedDatabase } from "./seed";
 import { insertConversationSchema, insertSettingsSchema, insertPersonaSchema, insertMemoryEntrySchema, insertHeartbeatTaskSchema, insertKnowledgeSchema, insertSkillSchema, insertDailyNoteSchema, conversations, messages, heartbeatTasks, heartbeatLogs, memoryEntries, fileStorage } from "@shared/schema";
 import { getClientForModel, getAvailableModels, getAvailableModelsForTenant, clearClientCache, MODEL_REGISTRY, PROVIDER_CONFIG, replitOpenai, getModelForTierAsync, TIER_COST_ESTIMATES, getMaxOutputTokens, maskApiKey, markSubscriptionFailed, markProviderUnhealthy, getUnhealthyProviders, resetProviderHealth } from "./providers";
 import { startHeartbeat, stopHeartbeat, isHeartbeatRunning, delegateTaskFromChat, activeTaskTracker, notifyHeartbeatActivity } from "./heartbeat";
-import { buildSystemPrompt, stripThinkTags, windowMessages, updateDailyLog, parseXmlToolCalls, parseInlineToolCalls } from "./chat-engine";
+import { buildSystemPrompt, stripThinkTags, windowMessages, updateDailyLog, parseXmlToolCalls, parseInlineToolCalls, buildFelixProtocol } from "./chat-engine";
 import { intelligentExtractMemory } from "./memory-intelligence";
 import { authMiddleware, handleLogin, handleAuthStatus, setAccessPin, clearAllSessions, isValidSession, handleTenantRegister, handleTenantLogin, handleForgotPassword, handleResetPassword, handleVerifyEmail, handleResendVerification, getTenantFromRequest, getTenantFromRequestAsync, isAdminRequest, ADMIN_TENANT_ID, loadSessionsFromDb } from "./auth";
 import { startDiscordBot, stopDiscordBot, getDiscordStatus, initDiscordFromSettings } from "./discord";
@@ -2283,34 +2283,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           } else {
             apiMessages.push({
               role: "system",
-              content: `CEO EXECUTION PROTOCOL: You are Felix, the CEO. You EXECUTE — you do not present menus of options.
-
-ABSOLUTE RULES — NEVER VIOLATE:
-1. NEVER present options like "A) ... B) ... C) ..." or "Which path?" — just DO the right thing
-2. NEVER present a "status dashboard" listing what's done and what's not — FIX what's missing instead
-3. NEVER report tool failures as blockers — if a tool fails, try a different approach immediately
-4. NEVER say "I can't do X because Y" — FIND A WAY or delegate to someone who can
-5. If a delegation returns, CONTINUE WORKING with the result. Don't stop to ask what's next.
-6. If you used 3+ tools and still haven't produced output, you are STUCK — try delegate_task to Neptune or the right specialist
-
-delegate_task with schedule "once" executes INLINE and returns the result immediately. You do NOT need to wait. Neptune can use generate_audio, create_slideshow_video, and generate_social_image — these tools work, FFmpeg is installed.
-
-DELEGATION ROUTING (all use delegate_task with schedule "once"):
-- System checks → Chief of Staff (id=6)
-- Research → Radar (id=9)
-- Writing/content → Scribe (id=7)
-- Code/builds → Forge (id=3)
-- Quality review → Proof (id=8)
-- Audio/video/media production → Neptune (id=10) — TTS, video assembly, images
-- Design/branding → Apollo (id=4)
-- Data/analytics → Atlas (id=5)
-- Finance → Cassandra (id=11)
-
-VIDEO PRODUCTION — USE produce_video (ONE TOOL CALL does everything):
-produce_video({ script: "narration text...", title: "Video Title", email_to: "user@email.com" })
-pdf_path is OPTIONAL — if missing or corrupt, text slides are auto-generated from the script.
-This single tool: generates TTS audio → creates slides (from PDF or auto-generated) → assembles MP4 → uploads to Drive → emails the link.
-Do NOT chain multiple tools or delegate for video production. Just call produce_video with the script text.`
+              content: buildFelixProtocol()
             });
           }
         } catch {}
@@ -2804,6 +2777,16 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
       const routeMeta = autoRouteDecision
         ? `<!-- auto_route:${JSON.stringify({ model: autoRouteDecision.modelId, label: autoRouteDecision.label, category: autoRouteDecision.category, reason: autoRouteDecision.reason })} -->\n`
         : "";
+      if (persona?.id === 2 && executedTools.length === 0 && fullResponse.length > 500) {
+        const deliverableKeywords = /\b(presentation|slide\s*deck|slides|pdf|report|document|proposal|white\s*paper|deck)\b/i;
+        if (deliverableKeywords.test(content)) {
+          const notice = "\n\n---\n\n**Note:** I wrote out the content above but wasn't able to create a file from it. Please ask me again — say something like \"Now create that as a PDF\" or \"Build that as a slide deck\" and I'll produce the actual document for you.";
+          res.write(`data: ${JSON.stringify({ content: notice })}\n\n`);
+          fullResponse += notice;
+          console.warn(`[felix-guard] Felix produced ${fullResponse.length} chars but called 0 tools for a deliverable request — appended notice`);
+        }
+      }
+
       const cleanedFullResponse = fullResponse
         .replace(/<function_calls>[\s\S]*?<\/function_calls>/g, '')
         .replace(/<function_calls>[\s\S]*$/g, '')
@@ -2870,16 +2853,6 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
           updateProjectBrain(pId, conversationId, content, fullResponse, persona?.name).catch(() => {});
         }
       }).catch(() => {});
-
-      if (persona?.id === 2 && executedTools.length === 0 && fullResponse.length > 500) {
-        const deliverableKeywords = /\b(present|deck|slide|pdf|report|document|proposal|create|build|make|generate|write)\b/i;
-        if (deliverableKeywords.test(content)) {
-          const notice = "\n\n---\n\n**Note:** I wrote out the content above but wasn't able to create a file from it. Please ask me again — say something like \"Now create that as a PDF\" or \"Build that as a slide deck\" and I'll produce the actual document for you.";
-          res.write(`data: ${JSON.stringify({ content: notice })}\n\n`);
-          fullResponse += notice;
-          console.warn(`[felix-guard] Felix produced ${fullResponse.length} chars but called 0 tools for a deliverable request — appended notice`);
-        }
-      }
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
