@@ -108,7 +108,9 @@ function getRoleGuidance(persona: string, skillType: string): string {
 - Match the tone to the deliverable: professional for reports/decks, engaging for blogs, persuasive for proposals.
 - For presentations/decks: write slide-by-slide with titles and full speaker notes or body text for each slide.
 - For articles/posts: write the complete piece with intro, body sections, and conclusion.
-- Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.`,
+- Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.
+- NEVER output HTML, code, or markup. Write in plain English prose. The content will be formatted by tools downstream.
+- NEVER create HTML dashboards or presentations. Write the TEXT CONTENT only — headings and paragraphs. Felix handles the PDF creation.`,
 
     "Proof": `ROLE GUIDANCE (Proof — Quality Review):
 - Review the ENTIRE content from previous steps. Don't skip sections.
@@ -410,7 +412,8 @@ CORE RULES:
 - Produce COMPLETE, production-ready output. Not a rough draft, not bullet points, not an outline — the REAL thing.
 - If previous steps gave you context, USE ALL OF IT. Don't summarize or skip parts.
 - Output your results directly — no pleasantries, no meta-commentary, no summaries of what you were asked to do.
-- Your output will be passed to the next agent in the chain. Make it substantial enough to be useful.`;
+- Your output will be passed to the next agent in the chain. Make it substantial enough to be useful.
+- NEVER output HTML, code, CSS, JavaScript, or raw markup. Write in plain English. Content will be formatted by tools.`;
 
       try {
         const targetPersona = cachedPersonas.find(p => p.name === step.assignedPersona) || cachedPersonas.find(p => p.name === "VisionClaw");

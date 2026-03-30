@@ -1511,6 +1511,7 @@ MANDATORY RULES:
 - Do NOT describe steps. Do NOT explain your approach. CALL THE TOOLS and return the results.
 - If you create files, they auto-upload to Google Drive. Report the drive_url from the tool result.
 - Produce COMPLETE output — not outlines, not summaries, not bullet lists of what you "could" write. The ACTUAL deliverable.
+- NEVER dump HTML, code, CSS, JSON, or raw markup into your response. Write in plain English. Use tools to create files.
 - Output ONLY the tool results — no pleasantries, no meta-commentary, no plans.
 ${delegationGuidance}
 - WRONG: "I would use generate_audio to create the narration..."
