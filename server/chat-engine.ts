@@ -1262,7 +1262,7 @@ You are replying via WhatsApp. Adapt your style:
     : { tools: [], matchedCategories: [], totalAvailable: 0 };
   const availableTools = routedResult.tools.filter(t => !blockedTools.has(t.function.name));
 
-  let { client: activeClient, actualModelId: activeModelId } = await getClientForModel(model, conv.tenantId);
+  let { client: activeClient, actualModelId: activeModelId } = await getClientForModel(model, conv.tenantId, { requiresTools: enableTools });
   let currentRegistryModelId = model;
 
   let apiMessages: any[] = [{ role: "system", content: systemPrompt }, ...chatMessages];
@@ -1440,7 +1440,7 @@ RULES:
           if (!fallback) break;
 
           try {
-            const fbResult = await getClientForModel(fallback.id, conv.tenantId);
+            const fbResult = await getClientForModel(fallback.id, conv.tenantId, { requiresTools: useTools });
             activeClient = fbResult.client;
             activeModelId = fbResult.actualModelId;
             currentRegistryModelId = fallback.id;

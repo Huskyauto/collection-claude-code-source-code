@@ -221,7 +221,7 @@ const LEGACY_MODEL_ALIASES: Record<string, string> = {
   "gemini-1.5-pro": "gemini-3-flash-preview",
 };
 
-export async function getClientForModel(modelId: string, tenantId?: number): Promise<{ client: OpenAI; actualModelId: string }> {
+export async function getClientForModel(modelId: string, tenantId?: number, options?: { requiresTools?: boolean }): Promise<{ client: OpenAI; actualModelId: string }> {
   if (LEGACY_MODEL_ALIASES[modelId]) {
     console.log(`[providers] Legacy model alias: "${modelId}" → "${LEGACY_MODEL_ALIASES[modelId]}"`);
     modelId = LEGACY_MODEL_ALIASES[modelId];
@@ -279,15 +279,19 @@ export async function getClientForModel(modelId: string, tenantId?: number): Pro
   if (modelId === "o4-mini-openai") actualModelId = "o4-mini";
 
   if (model.provider === "anthropic" && isClaudeRunnerAvailable()) {
-    const cacheKey = "claude-runner-bridge";
-    if (!clientCache.has(cacheKey)) {
-      clientCache.set(cacheKey, new OpenAI({
-        apiKey: "claude-runner-local",
-        baseURL: getClaudeRunnerBaseUrl(),
-      }));
+    if (options?.requiresTools) {
+      console.log(`[providers] Skipping Claude Runner for ${modelId} (tools required — bridge doesn't support tool calls)`);
+    } else {
+      const cacheKey = "claude-runner-bridge";
+      if (!clientCache.has(cacheKey)) {
+        clientCache.set(cacheKey, new OpenAI({
+          apiKey: "claude-runner-local",
+          baseURL: getClaudeRunnerBaseUrl(),
+        }));
+      }
+      console.log(`[providers] Routing ${modelId} through Claude Runner bridge (Max plan, $0 per-token cost)`);
+      return { client: clientCache.get(cacheKey)!, actualModelId };
     }
-    console.log(`[providers] Routing ${modelId} through Claude Runner bridge (Max plan, $0 per-token cost)`);
-    return { client: clientCache.get(cacheKey)!, actualModelId };
   }
 
   const subClient = await trySubscriptionAuth(model.provider, tenantId);

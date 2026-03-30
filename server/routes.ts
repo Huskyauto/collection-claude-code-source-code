@@ -2181,7 +2181,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let failoverInfo: { used: boolean; from?: string; to?: string; reason?: string } = { used: false };
 
       try {
-        const result = await getClientForModel(model, conv.tenantId);
+        const result = await getClientForModel(model, conv.tenantId, { requiresTools: useTools });
         activeClient = result.client;
         activeModelId = result.actualModelId;
       } catch (primaryErr: any) {
@@ -2197,7 +2197,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const fallback = findFallbackModel(model, filtered.length > 0 ? filtered : available);
           if (!fallback) break;
           try {
-            const fbResult = await getClientForModel(fallback.id, conv.tenantId);
+            const fbResult = await getClientForModel(fallback.id, conv.tenantId, { requiresTools: useTools });
             activeClient = fbResult.client;
             activeModelId = fbResult.actualModelId;
             currentRegistryModelId = fallback.id;
@@ -2421,7 +2421,7 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
               if (!fallback) break;
 
               try {
-                const fbResult = await getClientForModel(fallback.id, conv.tenantId);
+                const fbResult = await getClientForModel(fallback.id, conv.tenantId, { requiresTools: useTools });
                 activeClient = fbResult.client;
                 activeModelId = fbResult.actualModelId;
                 currentRegistryModelId = fallback.id;
