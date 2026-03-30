@@ -131,3 +131,6 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - `shared/schema.ts` — Drizzle ORM schema for all 66 tables
 - `client/src/pages/chat.tsx` — Main chat interface with delegation live feed
 - `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration
+
+## Post-Demo Backlog (Circle Back After April 14)
+- **BillionMail** (https://github.com/Billionmail/BillionMail) — Open-source self-hosted mail server + email marketing platform. AGPLv3. Unlimited sending, open/click analytics, subscriber management, built-in webmail (RoundCube). Requires separate Linux VPS with Docker + domain DNS (SPF/DKIM/DMARC). Could replace AgentMail for tenant email campaigns, newsletters, drip sequences. Agents could drive campaigns via API. No per-email fees.
