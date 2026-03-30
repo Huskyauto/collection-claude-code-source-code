@@ -491,6 +491,22 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "create_slides",
+      description: "Create a professional PowerPoint slide deck presentation using AI. Returns a polished .pptx file uploaded to Google Drive. Use this for presentations, pitch decks, keynotes, meetup talks, and slide-based content. Much better quality than PDF-based presentations.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: { type: "string", description: "The presentation topic and content. Be detailed — include key points, sections, data you want covered. The more detail, the better the slides." },
+          theme: { type: "string", description: "Optional theme preference like 'dark professional', 'corporate minimal', 'colorful modern'. Defaults to a professional dark theme." },
+          filename: { type: "string", description: "Optional filename for the presentation (without extension). Defaults to a name derived from the topic." },
+        },
+        required: ["topic"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "delegate_task",
       description: "Delegate a task to another agent (persona). One-shot tasks (schedule='once') execute INLINE — the specialist runs immediately and returns their result in this conversation. Recurring tasks (cron schedule) are queued for approval. Use this to dispatch work to specialists like Neptune (audio/video), Scribe (writing), Forge (code), Radar (research), Chief of Staff (diagnostics), etc.",
       parameters: {
@@ -2875,6 +2891,91 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       } catch (err: any) {
         console.error("[generate_dashboard] HTML→PDF failed:", err.message);
         return { error: `HTML→PDF conversion failed: ${err.message}` };
+      }
+    }
+    case "create_slides": {
+      const topic = params.topic;
+      if (!topic) return { error: "No topic provided. Describe what the presentation should be about." };
+      const apiKey = process.env.TWO_SLIDES_API_KEY;
+      if (!apiKey) return { error: "2slides API key not configured" };
+      try {
+        let themeId = "st-1763450718138-5utx9lnia";
+        const themeQuery = params.theme || "professional";
+        try {
+          const themeResp = await fetch(`https://2slides.com/api/v1/themes/search?query=${encodeURIComponent(themeQuery)}`, {
+            headers: { "Authorization": `Bearer ${apiKey}` },
+          });
+          if (themeResp.ok) {
+            const themeData = await themeResp.json() as any;
+            if (themeData?.success && themeData.data?.themes?.[0]?.id) {
+              themeId = themeData.data.themes[0].id;
+              console.log(`[create_slides] Using theme: ${themeData.data.themes[0].name} (${themeId})`);
+            }
+          }
+        } catch (themeErr) {
+          console.warn("[create_slides] Theme search failed, using default:", themeErr);
+        }
+
+        console.log(`[create_slides] Generating slides for: ${topic.slice(0, 80)}...`);
+        const genResp = await fetch("https://2slides.com/api/v1/slides/generate", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userInput: topic,
+            themeId,
+            responseLanguage: "English",
+            resolution: "2K",
+            mode: "sync",
+          }),
+        });
+        if (!genResp.ok) {
+          const errText = await genResp.text().catch(() => "");
+          return { error: `Slide generation failed (${genResp.status}): ${errText.slice(0, 200)}` };
+        }
+        const genData = await genResp.json() as any;
+        let downloadUrl = genData?.data?.downloadUrl || genData?.downloadUrl;
+
+        if (!downloadUrl && genData?.data?.jobId) {
+          const jobId = genData.data.jobId;
+          for (let poll = 0; poll < 60; poll++) {
+            await new Promise(r => setTimeout(r, 3000));
+            const jobResp = await fetch(`https://2slides.com/api/v1/jobs/${jobId}`, {
+              headers: { "Authorization": `Bearer ${apiKey}` },
+            });
+            if (jobResp.ok) {
+              const jobData = await jobResp.json() as any;
+              if (jobData.status === "success" && jobData.downloadUrl) {
+                downloadUrl = jobData.downloadUrl;
+                break;
+              }
+              if (jobData.status === "failed") return { error: "Slide generation job failed" };
+            }
+          }
+        }
+
+        if (!downloadUrl) return { error: "No download URL returned from slide generation" };
+
+        const pptxResp = await fetch(downloadUrl);
+        if (!pptxResp.ok) return { error: `Failed to download generated slides (${pptxResp.status})` };
+        const pptxBuffer = Buffer.from(await pptxResp.arrayBuffer());
+
+        const filename = (params.filename || topic.slice(0, 50).replace(/[^a-zA-Z0-9\s-]/g, "").trim().replace(/\s+/g, "_")) + ".pptx";
+        const { uploadAndShare } = await import("./google-drive");
+        const driveResult = await uploadAndShare(pptxBuffer, filename, "application/vnd.openxmlformats-officedocument.presentationml.presentation", "presentations");
+
+        const pageCount = genData?.data?.slidePageCount || "unknown";
+        console.log(`[create_slides] Success: ${pageCount} slides → ${driveResult.webViewLink || driveResult.id}`);
+        return {
+          success: true,
+          driveLink: driveResult.webViewLink || driveResult.webContentLink,
+          driveFileId: driveResult.id,
+          filename,
+          slideCount: pageCount,
+          message: `Created ${pageCount}-slide presentation "${filename}" and uploaded to Google Drive`,
+        };
+      } catch (err: any) {
+        console.error("[create_slides] Error:", err.message);
+        return { error: `Slide creation failed: ${err.message}` };
       }
     }
     case "delegate_task":
