@@ -109,8 +109,9 @@ function getRoleGuidance(persona: string, skillType: string): string {
 - For presentations/decks: write slide-by-slide with titles and full speaker notes or body text for each slide.
 - For articles/posts: write the complete piece with intro, body sections, and conclusion.
 - Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.
-- NEVER output HTML, code, or markup. Write in plain English prose. The content will be formatted by tools downstream.
-- NEVER create HTML dashboards or presentations. Write the TEXT CONTENT only — headings and paragraphs. Felix handles the PDF creation.`,
+- When delegating content writing to other agents, tell them to write in plain English prose — no HTML or code in their responses.
+- For presentations: use the generate_dashboard tool with styled HTML. The tool converts HTML to a polished PDF and uploads to Google Drive automatically.
+- For documents/reports: use create_pdf with sections. For rich visual presentations, generate_dashboard is better.`,
 
     "Proof": `ROLE GUIDANCE (Proof — Quality Review):
 - Review the ENTIRE content from previous steps. Don't skip sections.

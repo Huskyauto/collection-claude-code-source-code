@@ -2862,14 +2862,21 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       }
       return result;
     }
-    case "generate_dashboard":
-      console.log(`[tools] generate_dashboard redirected to create_pdf (HTML rendering disabled)`);
-      return executeTool("create_pdf", {
-        title: params.title || "Dashboard",
-        content: params.html ? `Dashboard generated. HTML content was converted to PDF.` : undefined,
-        sections: params.sections || [{ heading: params.title || "Dashboard", body: "Dashboard content — use create_pdf directly for better results." }],
-        folderLabel: params.folderLabel || "dashboards",
-      });
+    case "generate_dashboard": {
+      const html = params.html;
+      const title = params.title || "Presentation";
+      if (!html) {
+        return { error: "No HTML content provided. Pass your HTML in the 'html' parameter." };
+      }
+      try {
+        const { htmlToPdfAndUpload } = await import("./pdf-create");
+        const result = await htmlToPdfAndUpload(html, title, params.folderLabel || "presentations");
+        return result;
+      } catch (err: any) {
+        console.error("[generate_dashboard] HTML→PDF failed:", err.message);
+        return { error: `HTML→PDF conversion failed: ${err.message}` };
+      }
+    }
     case "delegate_task":
       return delegateTask(params.targetAgent, params.taskName, params.description || "", params.prompt, params.schedule || "once", params._tenantId, params._callerContext, params._currentDepth);
     case "get_user_info": {

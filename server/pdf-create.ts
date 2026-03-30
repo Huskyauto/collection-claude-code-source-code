@@ -5,6 +5,7 @@ import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { fileStorage } from "@shared/schema";
 import { uploadAndShare } from "./google-drive";
+import fetch from "node-fetch";
 
 const WORKSPACE_ROOT = process.cwd();
 const OUTPUT_DIR = path.join(WORKSPACE_ROOT, "uploads");
@@ -632,4 +633,78 @@ export async function listPdfFields(inputPath: string): Promise<{ success: boole
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+export async function htmlToPdfAndUpload(html: string, title: string, folderLabel: string): Promise<any> {
+  const browserlessKey = process.env.BROWSERLESS_API_KEY;
+  if (!browserlessKey) {
+    return { error: "BROWSERLESS_API_KEY not configured — cannot convert HTML to PDF" };
+  }
+
+  const fullHtml = html.includes("<html") ? html : `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  @page { size: letter landscape; margin: 0.5in; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+</style>
+</head><body>${html}</body></html>`;
+
+  console.log(`[pdf] Converting HTML to PDF via Browserless (${html.length} chars)...`);
+
+  const resp = await fetch(`https://production-sfo.browserless.io/pdf?token=${browserlessKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      html: fullHtml,
+      options: {
+        format: "Letter",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "0.5in", bottom: "0.5in", left: "0.5in", right: "0.5in" },
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error(`[pdf] Browserless PDF failed: ${resp.status} ${errText.slice(0, 200)}`);
+    return { error: `Browserless PDF conversion failed: ${resp.status}` };
+  }
+
+  const pdfBuffer = Buffer.from(await resp.arrayBuffer());
+  console.log(`[pdf] Browserless PDF generated: ${pdfBuffer.length} bytes`);
+
+  const slug = title.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const filename = `${slug}-${Date.now()}.pdf`;
+  const filePath = path.join(OUTPUT_DIR, filename);
+
+  ensureOutputDir();
+  fs.writeFileSync(filePath, pdfBuffer);
+
+  await persistToDb(filename, `${title}.pdf`, new Uint8Array(pdfBuffer));
+
+  let driveUrl: string | null = null;
+  try {
+    const driveResult = await uploadAndShare(filePath, `${title}.pdf`, "application/pdf", folderLabel);
+    if (driveResult?.webViewLink) {
+      driveUrl = driveResult.webViewLink;
+      console.log(`[pdf] Uploaded to Drive: ${driveUrl}`);
+    }
+  } catch (err: any) {
+    console.warn(`[pdf] Drive upload failed: ${err.message}`);
+  }
+
+  return {
+    success: true,
+    title,
+    filename,
+    size: pdfBuffer.length,
+    driveUrl,
+    localPath: `/uploads/${filename}`,
+    message: driveUrl
+      ? `Presentation "${title}" created and uploaded to Google Drive: ${driveUrl}`
+      : `Presentation "${title}" created: /uploads/${filename}`,
+  };
 }
