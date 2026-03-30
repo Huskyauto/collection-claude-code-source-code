@@ -230,33 +230,25 @@ export async function getClientForModel(modelId: string, tenantId?: number, opti
 
   if (!model || model.provider === "replit") {
     const mapped = mapReplitToOpenAI(modelId);
-    if (mapped) {
-      const subClient = await trySubscriptionAuth("openai", tenantId);
-      if (subClient) return { client: subClient, actualModelId: mapped };
+
+    const openaiEnvKey = process.env.OPENAI_API_KEY;
+    if (mapped && openaiEnvKey && openaiEnvKey.length > 5) {
+      console.log(`[providers] Replit model ${modelId} → OpenAI env key direct (${mapped})`);
+      return { client: getUserClient("openai", openaiEnvKey), actualModelId: mapped };
     }
 
     const tenantKey = tenantId ? await storage.getTenantProviderKey(tenantId, "openai") : null;
-    if (tenantKey?.api_key) {
-      const mapped2 = mapReplitToOpenAI(modelId);
-      if (mapped2) {
-        return { client: getUserClient("openai", decryptApiKey(tenantKey.api_key)), actualModelId: mapped2 };
-      }
+    if (tenantKey?.api_key && mapped) {
+      return { client: getUserClient("openai", decryptApiKey(tenantKey.api_key)), actualModelId: mapped };
     }
     const openaiUserKey = await storage.getProviderKey("openai");
-    if (openaiUserKey && openaiUserKey.enabled && openaiUserKey.apiKey) {
-      const mapped2 = mapReplitToOpenAI(modelId);
-      if (mapped2) {
-        return { client: getUserClient("openai", decryptApiKey(openaiUserKey.apiKey)), actualModelId: mapped2 };
-      }
+    if (openaiUserKey && openaiUserKey.enabled && openaiUserKey.apiKey && mapped) {
+      return { client: getUserClient("openai", decryptApiKey(openaiUserKey.apiKey)), actualModelId: mapped };
     }
 
-    const openaiEnvKey = process.env.OPENAI_API_KEY;
-    if (openaiEnvKey && openaiEnvKey.length > 5) {
-      const mapped2 = mapReplitToOpenAI(modelId);
-      if (mapped2) {
-        console.log(`[providers] Replit model ${modelId} → OpenAI env key (${mapped2})`);
-        return { client: getUserClient("openai", openaiEnvKey), actualModelId: mapped2 };
-      }
+    if (mapped) {
+      const subClient = await trySubscriptionAuth("openai", tenantId);
+      if (subClient) return { client: subClient, actualModelId: mapped };
     }
 
     const anthropicIntegration = getIntegrationClient("anthropic");
