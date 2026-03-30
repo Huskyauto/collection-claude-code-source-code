@@ -250,16 +250,16 @@ export async function getClientForModel(modelId: string, tenantId?: number): Pro
       }
     }
 
-    const anthropicSub = await trySubscriptionAuth("anthropic", tenantId);
-    if (anthropicSub) {
-      console.log(`[providers] Replit model ${modelId} unavailable, falling back to Anthropic integration (claude-sonnet-4-20250514)`);
-      return { client: anthropicSub, actualModelId: "claude-sonnet-4-20250514" };
-    }
-
     const anthropicIntegration = getIntegrationClient("anthropic");
     if (anthropicIntegration) {
-      console.log(`[providers] Replit model ${modelId} unavailable, falling back to Anthropic integration client (claude-sonnet-4-20250514)`);
+      console.log(`[providers] Replit model ${modelId} → Anthropic integration fallback (claude-sonnet-4-20250514)`);
       return { client: anthropicIntegration, actualModelId: "claude-sonnet-4-20250514" };
+    }
+
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey && anthropicKey.length > 5) {
+      console.log(`[providers] Replit model ${modelId} → Anthropic env key fallback (claude-sonnet-4-20250514)`);
+      return { client: getUserClient("anthropic", anthropicKey), actualModelId: "claude-sonnet-4-20250514" };
     }
 
     const mappedFinal = mapReplitToOpenAI(modelId);

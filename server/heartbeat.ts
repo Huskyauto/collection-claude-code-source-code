@@ -1470,7 +1470,7 @@ export async function delegateTaskFromChat(
 
       const childConv = await storage.createConversation({
         title: `[Delegation] ${taskName}`,
-        model: "auto",
+        model: model || "gemini-2.5-flash",
         personaId: target.id,
         tenantId,
       });

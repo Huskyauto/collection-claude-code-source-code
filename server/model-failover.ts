@@ -324,7 +324,7 @@ export async function executeWithFailover<T>(
 
   if (primaryProvider && unhealthyProviders.has(primaryProvider)) {
     const healthyModels = availableModels.filter(m => !unhealthyProviders.has(m.provider));
-    const preemptiveFallback = findFallbackModel(modelId, healthyModels.length > 0 ? healthyModels : availableModels);
+    const preemptiveFallback = healthyModels.length > 0 ? findFallbackModel(modelId, healthyModels) : null;
     if (preemptiveFallback) {
       console.log(`[failover] Skipping unhealthy ${primaryProvider}, using ${preemptiveFallback.id} (${preemptiveFallback.provider})`);
       try {
@@ -377,7 +377,11 @@ export async function executeWithFailover<T>(
       let lastError = execError;
       for (let attempt = 0; attempt < MAX_FAILOVER_ATTEMPTS; attempt++) {
         const filteredModels = availableModels.filter((m) => !excludedProviders.has(m.provider));
-        const fallback = findFallbackModel(modelId, filteredModels.length > 0 ? filteredModels : availableModels);
+        if (filteredModels.length === 0) {
+          console.warn(`[failover] No remaining providers after excluding ${[...excludedProviders].join(", ")}`);
+          break;
+        }
+        const fallback = findFallbackModel(modelId, filteredModels);
         if (!fallback) break;
 
         try {

@@ -2413,7 +2413,11 @@ Do NOT chain multiple tools or delegate for video production. Just call produce_
             let streamResolved = false;
             for (let attempt = 0; attempt < 5 && !streamResolved; attempt++) {
               const filtered = available.filter(m => !excludedProviders.has(m.provider));
-              const fallback = findFallbackModel(currentRegistryModelId, filtered.length > 0 ? filtered : available);
+              if (filtered.length === 0) {
+                console.warn(`[failover] No remaining providers after excluding ${[...excludedProviders].join(", ")}`);
+                break;
+              }
+              const fallback = findFallbackModel(currentRegistryModelId, filtered);
               if (!fallback) break;
 
               try {
