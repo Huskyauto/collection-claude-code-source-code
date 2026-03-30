@@ -193,6 +193,8 @@ const FAILOVER_ELIGIBLE: Set<FailoverReason> = new Set([
   "timeout",
   "network",
   "model_not_found",
+  "format",
+  "unknown",
 ]);
 
 const EXCLUDE_PROVIDER_REASONS: Set<FailoverReason> = new Set([

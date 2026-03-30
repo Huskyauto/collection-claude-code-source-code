@@ -46,7 +46,11 @@ interface PdfResult {
 
 async function loadPdfParse() {
   const mod = await import("pdf-parse");
-  return mod.default || mod;
+  const fn = mod.default?.default || mod.default || mod;
+  if (typeof fn !== "function") {
+    throw new Error(`pdf-parse module loaded but is not a function (type: ${typeof fn}). Keys: ${Object.keys(mod).join(", ")}`);
+  }
+  return fn;
 }
 
 export async function extractPdfText(input: string, options?: {
