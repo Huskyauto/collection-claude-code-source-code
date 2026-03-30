@@ -249,6 +249,19 @@ export async function getClientForModel(modelId: string, tenantId?: number): Pro
         return { client: getUserClient("openai", decryptApiKey(openaiUserKey.apiKey)), actualModelId: mapped2 };
       }
     }
+
+    const anthropicSub = await trySubscriptionAuth("anthropic", tenantId);
+    if (anthropicSub) {
+      console.log(`[providers] Replit model ${modelId} unavailable, falling back to Anthropic integration (claude-sonnet-4-20250514)`);
+      return { client: anthropicSub, actualModelId: "claude-sonnet-4-20250514" };
+    }
+
+    const anthropicIntegration = getIntegrationClient("anthropic");
+    if (anthropicIntegration) {
+      console.log(`[providers] Replit model ${modelId} unavailable, falling back to Anthropic integration client (claude-sonnet-4-20250514)`);
+      return { client: anthropicIntegration, actualModelId: "claude-sonnet-4-20250514" };
+    }
+
     const mappedFinal = mapReplitToOpenAI(modelId);
     return { client: getReplit(), actualModelId: mappedFinal || modelId };
   }

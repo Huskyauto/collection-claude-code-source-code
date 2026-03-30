@@ -226,7 +226,7 @@ const TIER_FALLBACK_ORDER: Record<string, string[]> = {
   fast: [],
 };
 
-const PROVIDER_PRIORITY = ["openrouter", "google", "xai", "openai", "anthropic", "perplexity", "replit"];
+const PROVIDER_PRIORITY = ["anthropic", "openai", "google", "openrouter", "xai", "perplexity", "replit"];
 
 export function findFallbackModel(
   failedModelId: string,
