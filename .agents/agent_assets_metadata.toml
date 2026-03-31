@@ -54,3 +54,9 @@ id = "6lyG6SoMF2LlCNJEsJIbC"
 uri = "file://project-assets/AI-Tinkerers-Presentation-Guide.pdf"
 type = "pdf"
 title = "AI Tinkerers Presentation Guide (PDF)"
+
+[[outputs]]
+id = "G37ZWNkUXXmjvK0MMLiAd"
+uri = "file://attached_assets/visionclaw-system-delta-march2026.md"
+type = "text"
+title = "VisionClaw System Delta — March 2026"
