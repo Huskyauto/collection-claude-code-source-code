@@ -2594,9 +2594,22 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const filePath = params.path;
       if (!filePath || typeof filePath !== "string") return { error: "path is required" };
       const safeParts = filePath.replace(/\.\./g, "").replace(/^\/+/, "");
-      const absPath = path.resolve("/home/runner/workspace", safeParts);
+      let absPath = path.resolve("/home/runner/workspace", safeParts);
       if (!absPath.startsWith("/home/runner/workspace")) return { error: "Access denied: path outside workspace" };
-      if (!fs.existsSync(absPath)) return { error: `File not found: ${safeParts}` };
+      if (!fs.existsSync(absPath)) {
+        const basename = path.basename(safeParts);
+        const searchDirs = ["attached_assets", "uploads", "client/public"];
+        let found = false;
+        for (const dir of searchDirs) {
+          const candidate = path.resolve("/home/runner/workspace", dir, basename);
+          if (fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+            absPath = candidate;
+            found = true;
+            break;
+          }
+        }
+        if (!found) return { error: `File not found: ${safeParts} (also checked attached_assets/, uploads/)` };
+      }
       const stat = fs.statSync(absPath);
       if (stat.isDirectory()) return { error: "Path is a directory, not a file" };
       if (stat.size > 500_000) return { error: `File too large (${Math.round(stat.size / 1024)}KB). Max 500KB.` };
@@ -2606,7 +2619,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const truncated = lines.length > maxLines;
       return {
         success: true,
-        path: safeParts,
+        path: path.relative("/home/runner/workspace", absPath),
         content: truncated ? lines.slice(0, maxLines).join("\n") : content,
         lines: lines.length,
         truncated,
