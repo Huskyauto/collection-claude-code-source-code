@@ -4890,17 +4890,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!skill) return res.status(404).json({ error: "Skill not found" });
     res.json(skill);
     if (body.enabled !== undefined) {
-      import("./persona-sync").then(m => m.syncPersonaDocs()).catch(() => {});
+      import("./persona-sync").then(m => m.syncPersonaDocs()).catch(e => console.error("[persona-sync] Auto-sync after skill toggle failed:", e.message));
     }
   });
 
   // ─── Persona Sync ────────────────────────────────────────
   app.post("/api/personas/sync", async (req, res) => {
     try {
-      const tenantId = getTenantFromRequest(req);
-      if (!tenantId || tenantId !== 1) return res.status(403).json({ error: "Admin only" });
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
       const { syncPersonaDocs } = await import("./persona-sync");
-      const personaId = req.body.personaId ? parseInt(req.body.personaId) : undefined;
+      const raw = req.body.personaId ? parseInt(req.body.personaId) : undefined;
+      const personaId = raw && !isNaN(raw) && raw >= 1 && raw <= 14 ? raw : undefined;
+      if (req.body.personaId && !personaId) return res.status(400).json({ error: "personaId must be 1-14" });
       const result = await syncPersonaDocs(personaId);
       res.json(result);
     } catch (e: any) {
@@ -4911,8 +4912,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/personas/sync/status", async (req, res) => {
     try {
-      const tenantId = getTenantFromRequest(req);
-      if (!tenantId || tenantId !== 1) return res.status(403).json({ error: "Admin only" });
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
       const { getSyncStatus } = await import("./persona-sync");
       res.json(await getSyncStatus());
     } catch (e: any) {

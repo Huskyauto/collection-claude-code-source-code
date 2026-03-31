@@ -3921,8 +3921,17 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       }
     }
     case "sync_personas": {
+      const { ADMIN_TENANT_ID } = await import("./auth");
+      const tenantId = params._tenantId;
+      if (tenantId && tenantId !== ADMIN_TENANT_ID) {
+        return { error: "Admin access required. Only the admin tenant can sync persona documents." };
+      }
+      const personaId = params.personaId ? parseInt(params.personaId) : undefined;
+      if (personaId && (isNaN(personaId) || personaId < 1 || personaId > 14)) {
+        return { error: "personaId must be between 1 and 14" };
+      }
       const { syncPersonaDocs } = await import("./persona-sync");
-      const result = await syncPersonaDocs(params.personaId);
+      const result = await syncPersonaDocs(personaId);
       return result;
     }
 

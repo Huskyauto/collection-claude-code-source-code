@@ -27,7 +27,11 @@ interface CustomToolRow {
   name: string;
   description: string;
   is_active: boolean;
+  tenant_id: number | null;
 }
+
+let syncInProgress = false;
+let pendingSync: (() => void) | null = null;
 
 const PERSONA_TOOL_FOCUS: Record<number, string[]> = {
   1: ["memory", "knowledge", "web", "files", "email", "code", "pdf", "project", "browser"],
@@ -94,19 +98,16 @@ function categorizeTools(tools: ToolDef[]): Record<string, string[]> {
   return categories;
 }
 
-function buildToolsDoc(personaId: number, personaName: string, allTools: ToolDef[], customTools: CustomToolRow[], enabledSkills: SkillRow[]): string {
+function buildToolsDoc(personaId: number, _personaName: string, allTools: ToolDef[], customTools: CustomToolRow[], enabledSkills: SkillRow[]): string {
   const focusKeywords = PERSONA_TOOL_FOCUS[personaId] || PERSONA_TOOL_FOCUS[1];
-  const toolMap = new Map(allTools.map(t => [t.function.name, t.function.description]));
   const categories = categorizeTools(allTools);
 
   const primaryTools: string[] = [];
-  const secondaryTools: string[] = [];
 
   for (const t of allTools) {
     const name = t.function.name;
     const isPrimary = focusKeywords.some(kw => name.includes(kw));
     if (isPrimary) primaryTools.push(name);
-    else secondaryTools.push(name);
   }
 
   let doc = `PRIMARY TOOLS:\n`;
@@ -152,7 +153,6 @@ function buildToolsDoc(personaId: number, personaName: string, allTools: ToolDef
 
 function buildAgentsDoc(personaId: number, personas: PersonaRow[]): string {
   const delegationMap = PERSONA_DELEGATION_MAP[personaId] || PERSONA_DELEGATION_MAP[1];
-  const personaNames = new Map(personas.map(p => [p.id, p.name]));
 
   let doc = "";
 
@@ -185,50 +185,89 @@ export interface SyncResult {
 }
 
 export async function syncPersonaDocs(targetPersonaId?: number): Promise<SyncResult> {
-  console.log(`[persona-sync] Starting sync${targetPersonaId ? ` for persona ${targetPersonaId}` : " for all personas"}...`);
-
-  const allTools = await getAllToolDefinitions() as ToolDef[];
-
-  const customToolsResult = await db.execute(sql`SELECT id, name, description, is_active FROM custom_tools WHERE is_active = true`);
-  const customTools = customToolsResult.rows as unknown as CustomToolRow[];
-
-  const skillsResult = await db.execute(sql`SELECT id, name, category, enabled, persona_id FROM skills WHERE enabled = true`);
-  const enabledSkills = skillsResult.rows as unknown as SkillRow[];
-
-  const personasQuery = targetPersonaId
-    ? sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id = ${targetPersonaId}`
-    : sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id <= 14 ORDER BY id`;
-  const personasResult = await db.execute(personasQuery);
-  const personas = personasResult.rows as unknown as PersonaRow[];
-
-  const allPersonasResult = await db.execute(sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id <= 14 ORDER BY id`);
-  const allPersonas = allPersonasResult.rows as unknown as PersonaRow[];
-
-  const synced: string[] = [];
-
-  for (const persona of personas) {
-    const newToolsDoc = buildToolsDoc(persona.id, persona.name, allTools, customTools, enabledSkills);
-    const newAgentsDoc = buildAgentsDoc(persona.id, allPersonas);
-
-    await db.execute(sql`
-      UPDATE personas SET tools_doc = ${newToolsDoc}, agents_doc = ${newAgentsDoc} WHERE id = ${persona.id}
-    `);
-
-    synced.push(persona.name);
-    console.log(`[persona-sync] Updated ${persona.name} (${persona.id}): tools_doc=${newToolsDoc.length} chars, agents_doc=${newAgentsDoc.length} chars`);
+  if (targetPersonaId !== undefined && (isNaN(targetPersonaId) || targetPersonaId < 1 || targetPersonaId > 14)) {
+    throw new Error("personaId must be between 1 and 14");
   }
 
-  const result: SyncResult = {
-    synced: synced.length,
-    personas: synced,
-    toolCount: allTools.length,
-    customToolCount: customTools.length,
-    skillCount: enabledSkills.length,
-    timestamp: new Date().toISOString(),
-  };
+  if (syncInProgress) {
+    console.log("[persona-sync] Sync already in progress, queuing...");
+    return new Promise((resolve) => {
+      pendingSync = () => {
+        syncPersonaDocs(targetPersonaId).then(resolve).catch(() => resolve({
+          synced: 0, personas: [], toolCount: 0, customToolCount: 0, skillCount: 0,
+          timestamp: new Date().toISOString(),
+        }));
+      };
+    });
+  }
 
-  console.log(`[persona-sync] Complete: ${synced.length} personas synced, ${allTools.length} tools, ${customTools.length} custom, ${enabledSkills.length} skills`);
-  return result;
+  syncInProgress = true;
+  try {
+    console.log(`[persona-sync] Starting sync${targetPersonaId ? ` for persona ${targetPersonaId}` : " for all personas"}...`);
+
+    const allTools = await getAllToolDefinitions() as ToolDef[];
+
+    const { ADMIN_TENANT_ID } = await import("./auth");
+    const customToolsResult = await db.execute(
+      sql`SELECT id, name, description, is_active, tenant_id FROM custom_tools WHERE is_active = true AND (tenant_id = ${ADMIN_TENANT_ID} OR tenant_id IS NULL)`
+    );
+    const customTools = customToolsResult.rows as unknown as CustomToolRow[];
+
+    const skillsResult = await db.execute(sql`SELECT id, name, category, enabled, persona_id FROM skills WHERE enabled = true`);
+    const enabledSkills = skillsResult.rows as unknown as SkillRow[];
+
+    const personasQuery = targetPersonaId
+      ? sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id = ${targetPersonaId}`
+      : sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id <= 14 ORDER BY id`;
+    const personasResult = await db.execute(personasQuery);
+    const personas = personasResult.rows as unknown as PersonaRow[];
+
+    const allPersonasResult = await db.execute(sql`SELECT id, name, tools_doc, agents_doc FROM personas WHERE id <= 14 ORDER BY id`);
+    const allPersonas = allPersonasResult.rows as unknown as PersonaRow[];
+
+    const synced: string[] = [];
+    const errors: string[] = [];
+
+    for (const persona of personas) {
+      try {
+        const newToolsDoc = buildToolsDoc(persona.id, persona.name, allTools, customTools, enabledSkills);
+        const newAgentsDoc = buildAgentsDoc(persona.id, allPersonas);
+
+        await db.execute(sql`
+          UPDATE personas SET tools_doc = ${newToolsDoc}, agents_doc = ${newAgentsDoc} WHERE id = ${persona.id}
+        `);
+
+        synced.push(persona.name);
+        console.log(`[persona-sync] Updated ${persona.name} (${persona.id}): tools_doc=${newToolsDoc.length} chars, agents_doc=${newAgentsDoc.length} chars`);
+      } catch (e: any) {
+        errors.push(`${persona.name}: ${e.message}`);
+        console.error(`[persona-sync] Failed to update ${persona.name} (${persona.id}):`, e.message);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error(`[persona-sync] ${errors.length} errors during sync:`, errors.join("; "));
+    }
+
+    const result: SyncResult = {
+      synced: synced.length,
+      personas: synced,
+      toolCount: allTools.length,
+      customToolCount: customTools.length,
+      skillCount: enabledSkills.length,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log(`[persona-sync] Complete: ${synced.length} personas synced, ${allTools.length} tools, ${customTools.length} custom, ${enabledSkills.length} skills`);
+    return result;
+  } finally {
+    syncInProgress = false;
+    if (pendingSync) {
+      const next = pendingSync;
+      pendingSync = null;
+      setTimeout(next, 100);
+    }
+  }
 }
 
 export async function getSyncStatus(): Promise<{
@@ -238,7 +277,8 @@ export async function getSyncStatus(): Promise<{
   personas: { id: number; name: string; toolsDocLength: number; agentsDocLength: number }[];
 }> {
   const allTools = await getAllToolDefinitions() as ToolDef[];
-  const customResult = await db.execute(sql`SELECT count(*) as cnt FROM custom_tools WHERE is_active = true`);
+  const { ADMIN_TENANT_ID } = await import("./auth");
+  const customResult = await db.execute(sql`SELECT count(*) as cnt FROM custom_tools WHERE is_active = true AND (tenant_id = ${ADMIN_TENANT_ID} OR tenant_id IS NULL)`);
   const skillResult = await db.execute(sql`SELECT count(*) as cnt FROM skills WHERE enabled = true`);
   const personasResult = await db.execute(sql`SELECT id, name, length(tools_doc) as tdl, length(agents_doc) as adl FROM personas WHERE id <= 14 ORDER BY id`);
 

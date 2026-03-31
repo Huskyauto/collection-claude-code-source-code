@@ -139,7 +139,7 @@ export async function createCustomTool(description: string): Promise<{ tool?: Cu
     const [finalTool] = await db.select().from(customTools).where(eq(customTools.id, inserted.id));
     const toolData = finalTool || inserted;
 
-    import("./persona-sync").then(m => m.syncPersonaDocs()).catch(() => {});
+    import("./persona-sync").then(m => m.syncPersonaDocs()).catch(e => console.error("[persona-sync] Auto-sync after tool creation failed:", e.message));
 
     return {
       tool: {
