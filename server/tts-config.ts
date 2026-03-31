@@ -64,6 +64,7 @@ export function loadTTSConfig(): TTSConfig {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      if (data.provider === "vibevoice") data.provider = "openai";
       cachedConfig = { ...DEFAULT_CONFIG, ...data };
       return cachedConfig;
     }
