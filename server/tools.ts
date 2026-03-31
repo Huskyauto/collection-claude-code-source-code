@@ -2933,11 +2933,11 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         });
 
         const pageCount = genData?.data?.slidePageCount || "unknown";
-        console.log(`[create_slides] Success: ${pageCount} slides → ${driveResult.webViewLink || driveResult.id}`);
+        console.log(`[create_slides] Success: ${pageCount} slides → ${driveResult.viewUrl || driveResult.fileId}`);
         return {
           success: true,
-          driveLink: driveResult.webViewLink || driveResult.webContentLink,
-          driveFileId: driveResult.id,
+          driveLink: driveResult.viewUrl || driveResult.downloadUrl,
+          driveFileId: driveResult.fileId,
           filename,
           slideCount: pageCount,
           message: `Created ${pageCount}-slide presentation "${filename}" and uploaded to Google Drive`,

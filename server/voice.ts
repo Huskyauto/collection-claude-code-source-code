@@ -216,6 +216,11 @@ export async function handleVoiceMessage(req: Request, res: Response) {
     return res.status(404).json({ error: "Conversation not found" });
   }
 
+  const authenticatedTenantId = (req as any).tenantId || (req as any).user?.tenantId;
+  if (authenticatedTenantId && conv.tenantId && conv.tenantId !== authenticatedTenantId) {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");

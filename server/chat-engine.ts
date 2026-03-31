@@ -1201,6 +1201,7 @@ When the user says "send it to me", "email me", or "send me the file", use their
     }
   } catch {}
 
+  const depth = opts?.depth || 0;
   if (persona?.id && persona.id !== 1 && depth <= 1) {
     try {
       const { getTrustSummary, getAutonomyLevel } = await import("./trust-engine");
@@ -1279,7 +1280,6 @@ You are replying via WhatsApp. Adapt your style:
   const providerSupportsTools = PROVIDERS_SUPPORTING_TOOLS.has(activeProvider);
   const enableTools = opts?.enableTools !== false && providerSupportsTools;
   const blockedTools = opts?.blockedTools || new Set<string>();
-  const depth = opts?.depth || 0;
   const MAX_DELEGATION_DEPTH = 5;
 
   if (depth >= MAX_DELEGATION_DEPTH) {
