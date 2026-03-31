@@ -96,8 +96,9 @@ await sendEmail({
   inboxId,
   to: process.env.OWNER_ALERT_EMAIL || "huskyauto@gmail.com",
   subject: "VisionClaw Updated Features - PDF + Text",
-  body: `... include both Drive viewUrl links ...`
+  text: `... include both Drive viewUrl links ...`
 });
+// IMPORTANT: The parameter is "text" NOT "body". Using "body" results in blank emails.
 ```
 
 ### Step 8: Present Files
