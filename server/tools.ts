@@ -2911,7 +2911,13 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
 
         const filename = (params.filename || topic.slice(0, 50).replace(/[^a-zA-Z0-9\s-]/g, "").trim().replace(/\s+/g, "_")) + ".pptx";
         const { uploadAndShare } = await import("./google-drive");
-        const driveResult = await uploadAndShare(pptxBuffer, filename, "application/vnd.openxmlformats-officedocument.presentationml.presentation", "presentations");
+        const driveResult = await uploadAndShare({
+          fileData: pptxBuffer,
+          fileName: filename,
+          mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          folderLabel: "presentations",
+          share: true,
+        });
 
         const pageCount = genData?.data?.slidePageCount || "unknown";
         console.log(`[create_slides] Success: ${pageCount} slides → ${driveResult.webViewLink || driveResult.id}`);
