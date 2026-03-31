@@ -2161,7 +2161,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let failoverInfo: { used: boolean; from?: string; to?: string; reason?: string } = { used: false };
 
       try {
-        const result = await getClientForModel(model, conv.tenantId, { requiresTools: useTools });
+        const result = await getClientForModel(model, conv.tenantId);
         activeClient = result.client;
         activeModelId = result.actualModelId;
       } catch (primaryErr: any) {
@@ -2177,7 +2177,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const fallback = findFallbackModel(model, filtered.length > 0 ? filtered : available);
           if (!fallback) break;
           try {
-            const fbResult = await getClientForModel(fallback.id, conv.tenantId, { requiresTools: useTools });
+            const fbResult = await getClientForModel(fallback.id, conv.tenantId);
             activeClient = fbResult.client;
             activeModelId = fbResult.actualModelId;
             currentRegistryModelId = fallback.id;
