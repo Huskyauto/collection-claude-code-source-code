@@ -1,0 +1,669 @@
+================================================================================
+  VISIONCLAW AGENT PLATFORM — COMPREHENSIVE FEATURE DOCUMENT
+  AI Buddy LLC, Illinois | March 2026
+  Platform: visionclawagent.com
+================================================================================
+
+A Self-Actualizing Multi-Tenant Agentic AI Corporation Platform
+~89,000 lines of TypeScript | 130+ files | 22 page components | 190+ API endpoints
+95 agentic tools | 36+ AI models | 66 database tables | 14 AI personas
+
+================================================================================
+  PLATFORM OVERVIEW
+================================================================================
+
+- Full-stack monolith: React 18 + Express.js + PostgreSQL, single-port (5000)
+- Multi-tenant SaaS with isolated workspaces per user
+- 14-persona AI agent team with autonomous background tasks
+- 6+ AI provider integrations with intelligent routing
+- Real-time streaming via Server-Sent Events (SSE)
+- Dark/light theme with full mobile PWA support
+- Installable as a Progressive Web App on any device
+
+================================================================================
+  AUTHENTICATION & USER MANAGEMENT
+================================================================================
+
+- Three sign-up methods: Replit Social Login (Google/Apple/GitHub via OpenID
+  Connect), Email + Password, Admin PIN
+- PBKDF2-SHA512 password hashing (100,000 iterations) with timing-safe comparison
+- HMAC-SHA256 PIN hashing with timing-safe comparison
+- Database-backed sessions (survive server restarts)
+- 7-day session tokens stored in localStorage
+- Auto-provisioning: new users automatically get a tenant on first login
+- Account linking prevents duplicate accounts for Replit social login users
+- Auth-aware file serving with query parameter token support
+
+================================================================================
+  MULTI-TENANT ISOLATION
+================================================================================
+
+- Every piece of data scoped by tenant_id — conversations, memories, knowledge,
+  heartbeat tasks, marketing data, experiments, browser sessions, email inboxes
+- IDOR-protected routes verify ownership on all CRUD operations
+- Plan tiers: Trial (5 conversations), Starter, Pro, Enterprise
+- Trial limits with upgrade prompts and banners
+- Admin vs user separation — admin has full access, non-admin see filtered sidebar
+- Per-tenant email inboxes auto-provisioned via AgentMail
+- Per-tenant browser contexts with separate cookies/storage
+- Per-tenant API key management (BYOK)
+- Per-tenant WhatsApp connections
+- Per-tenant Coinbase Commerce keys
+- Per-tenant file storage
+- Per-tenant usage metering
+
+================================================================================
+  AI CHAT ENGINE
+================================================================================
+
+- Unlimited concurrent conversations, each with its own model and persona
+- Real-time token streaming via SSE — tokens appear as generated
+- Markdown rendering with syntax highlighting, LaTeX math, and code blocks
+- "Think then Act" reasoning mode — step-by-step thoughts in collapsible blocks
+- Conversation management — create, rename, delete, search
+- Auto-titling based on first message
+- Abort generation mid-stream with cancel button
+- Multi-round tool loops — AI chains up to 5 tool calls per turn
+- Copy to clipboard, view raw content
+- Smart Context Injection — time-of-day greeting, recent conversations, remembered
+  user facts
+- Context window auto-compaction — conversations over 20 messages are summarized
+- Conversation truncation at 95% context usage (preserves system prompt + recent)
+
+================================================================================
+  MULTI-PROVIDER AI ROUTING (36+ MODELS)
+================================================================================
+
+OPENAI: GPT-5.4, GPT-5.1, GPT-5, GPT-5-Mini, GPT-5-Nano, GPT-4o, o4-mini
+ANTHROPIC: Claude Opus 4.6, Claude Sonnet 4.6, Claude Sonnet 4
+GOOGLE: Gemini 3 Flash Preview, Gemini 2.5 Pro
+xAI: Grok 4.1, Grok-3, Grok-3-mini
+PERPLEXITY: Sonar, Sonar Pro, Sonar Deep Research, Sonar Reasoning Pro
+OPENROUTER: DeepSeek V3.2, DeepSeek R1, GLM-5, GLM-4.5, Kimi K2.5,
+  MiniMax M2.5, Qwen 3.5, Llama 4, Mistral, and more
+
+- Dynamic model discovery from each provider's API
+- Cost tier badges per model (Free, Low, Medium, High, Premium)
+- Per-conversation model selection — switch models mid-conversation
+- Automatic failover if a provider is unavailable
+- Provider API key management UI with connection testing
+
+================================================================================
+  INTELLIGENT AUTO-SELECT ROUTER
+================================================================================
+
+- Classifies each message across 10 task categories: simple-chat, coding,
+  reasoning, research, vision, agentic, writing, translation, data-analysis,
+  general
+- Fast heuristic classification via pattern matching (< 1ms)
+- LLM fallback when heuristics are inconclusive
+- Only routes to models the user has configured and available
+- Route decisions streamed as SSE events, stored in message metadata
+- Amber badges in UI showing the routed model name
+
+================================================================================
+  INTELLIGENT MODEL COST ROUTER (HEARTBEAT)
+================================================================================
+
+- Automatically assigns cheapest appropriate model to autonomous tasks
+- Fast tier ($): Radar, Atlas, Scribe, Chief of Staff -> gpt-5-nano
+- Balanced tier ($$): Apollo, Forge, Proof -> gpt-5-mini
+- Powerful tier ($$$): VisionClaw, Felix, Neptune -> conversation model
+- User-created tasks keep their explicit model selection
+- Heartbeat logs record the effective (routed) model for cost analytics
+
+================================================================================
+  14-PERSONA AI AGENT SYSTEM
+================================================================================
+
+ 1. VisionClaw — Personal Assistant (default conversational agent)
+ 2. Felix — CEO & Orchestrator (revenue growth, high-leverage execution)
+ 3. Forge — Staff Engineer (code quality, reliability)
+ 4. Teagan — Content Marketing (strategy and copy)
+ 5. Blueprint — Multi-Agent Operator (orchestration and coordination)
+ 6. Chief of Staff — Operations Director (task routing, chain of command)
+ 7. Scribe — Content Creator (blog posts, social media, emails)
+ 8. Proof — Content Reviewer (quality gate, approves/revises Scribe's output)
+ 9. Radar — Intelligence Analyst (daily scans, trend detection)
+10. Neptune — Deep Research Specialist (activated on Radar escalation)
+11. Apollo — Revenue & Pipeline (sales tracking, deal progression)
+12. Atlas — Metrics & Reporting (ROI tracking, cost analysis)
+13. Cassandra — Risk & Compliance
+14. Luna — Creative & Design
+
+PERSONA FEATURES:
+- 8 document fields per persona: Soul, Identity, Memory Doc, Operating Loop,
+  Heartbeat Doc, Tools Doc, Agents Doc, Brand Voice Doc
+- Quick-switch dropdown in chat header
+- Chain of command enforcement (Neptune only via Radar, no direct CEO access)
+- Content two-gate rule (Scribe drafts, Proof must review)
+- Full CRUD for custom personas
+- Paid users can rename personas (tenant-scoped, original preserved)
+
+================================================================================
+  95 AGENTIC TOOLS
+================================================================================
+
+SYSTEM TOOLS (3):
+- test_api_keys, check_system_status, list_models
+
+MEMORY & KNOWLEDGE TOOLS (7):
+- search_memory, create_memory, update_memory, search_knowledge,
+  create_knowledge, recall_context, get/write daily notes
+
+COMMUNICATION TOOLS (3):
+- send_email (AgentMail), check_inbox, list_conversations
+
+WEB & RESEARCH TOOLS (3):
+- web_fetch (Jina AI reader), web_search (Wikipedia/Perplexity/Jina),
+  deep_research (multi-stage pipeline with structured reports)
+
+BROWSER TOOL (18 ACTIONS):
+- navigate, screenshot, content, click, type, evaluate, smart_browse,
+  form_fill, open_tab, close_tab, focus_tab, tabs, snapshot, wait,
+  select, pdf, health, close_session
+
+PDF TOOLS (5):
+- analyze_pdf, create_pdf, fill_pdf, edit_pdf, list_pdf_fields
+
+CODE & EXECUTION TOOLS (4):
+- execute_code (hardened VM sandbox), exec (sandboxed shell),
+  show_diff, llm_task
+
+PLANNING & ORCHESTRATION TOOLS (6):
+- plan_and_execute, delegate_task, sessions_spawn, sessions_list,
+  sessions_history, sessions_send, subagents
+
+WORKFLOW TOOLS (1):
+- lobster (multi-step workflows with approval gates)
+
+VISUALIZATION (1):
+- generate_chart (bar, line, pie, area — inline interactive charts)
+
+FILE & STORAGE TOOLS (5):
+- list_uploads, google_drive, deliver_product, delivery_status, project
+
+SELF-IMPROVEMENT TOOLS (6):
+- create_tool, list_custom_tools, delete_custom_tool, log_experiment,
+  get_experiments, run_self_improvement
+
+MARKETING TOOLS (4):
+- draft_social_post, manage_content_calendar, marketing_analytics,
+  marketing_experiment
+
+SKILLS MANAGEMENT (1):
+- manage_skills (50+ toggleable agent capabilities)
+
+ADDITIONAL TOOLS (28+):
+- Credential vault, Google Drive operations, calendar & scheduling,
+  WhatsApp messaging, Discord bot, voice TTS/STT, file reading,
+  read_file with multi-directory search, and more
+
+================================================================================
+  TOOL INTELLIGENCE FEATURES
+================================================================================
+
+- Multi-round tool loops — chains multiple tool calls (up to 5 rounds/turn)
+- Self-healing tool loop — failed calls get error analysis hints injected back
+  to the model (up to 2 retries)
+- Tool loop detection — hash-based tracking prevents infinite loops
+  (generic repeat, ping-pong, poll-no-progress, circuit breaker)
+- Mutation tracking — classifies every tool call by risk level
+  (read-only, write, destructive)
+- Tool execution timeouts — 60s default, 120s for slow tools
+- Failover with tool-support recomputation — provider failure triggers cascade
+- Tool results rendered inline with collapsible detail sections in chat
+
+================================================================================
+  SELF-HEALING & ADAPTIVE PLANNING
+================================================================================
+
+- Self-Healing Tool Loop: error detection -> structured recovery hints ->
+  retry tracking (max 2) -> SSE events -> UI indicators -> graceful degradation
+- Adaptive Re-Planning: failed task planner steps trigger dynamic restructuring
+  -> only affected steps modified -> alternative approaches -> max 2 re-plans
+  -> step ID continuity -> progress events
+
+================================================================================
+  AGENT SELF-REFLECTION
+================================================================================
+
+- 4-axis evaluation: accuracy, completeness, relevance, tone (1-10 each)
+- Automatic refinement if overall score < 7 or any axis < 5
+- Fast evaluation via GPT-5-Nano (< 500ms)
+- Refinement via GPT-5-Mini with specific critique
+- Max 2 reflection rounds
+- SSE streaming with mirror indicator in UI
+- Skips for short responses (< 50 chars) and thinking mode
+
+================================================================================
+  TOOL LEARNING SYSTEM (RUNTIME CUSTOM TOOLS)
+================================================================================
+
+- Natural language tool creation — describe what it should do, system generates
+  implementation
+- LLM-generated implementations with sandboxed execution
+- Persistent registry in database (survives restarts)
+- Dynamic loading into tool definitions at runtime
+- Validation on create with try-and-revert testing (3 LLM-written test cases)
+- Auto-fix on failure (up to 2 attempts), revert on exhaustion
+- Every creation attempt logged as an experiment
+- Auto-prefixed names (custom_) to distinguish from built-in tools
+
+================================================================================
+  AUTONOMOUS SELF-IMPROVEMENT ENGINE
+================================================================================
+
+- Hypothesis generation based on recent reflection scores
+- A/B experiment execution (baseline vs experimental response)
+- Self-reflection evaluation on both responses
+- Head-to-head LLM judge comparison for marginal differences
+- Automatic keep/revert (score gain >= 0.5 kept, regressions reverted)
+- Heartbeat integration — schedulable via cron
+- Categories: prompt_optimization, response_quality, tool_usage, persona_tuning
+- Max 3 experiments per cycle
+- Stagnation detection: auto-skip after 6+ consecutive failures
+- Evolution strategies: balanced, innovate, harden, repair-only
+- Signal extraction from server logs (error patterns, tool failures, rate limits)
+
+================================================================================
+  SUB-AGENT SYSTEM
+================================================================================
+
+- Depth-controlled spawning (main -> sub-agent -> sub-sub-agent, max depth 2)
+- Structured Analyze->Execute->Verify->Report task prompts
+- Full tool access (except spawning at max depth)
+- Results reported back to main agent for verification
+- Max 8 concurrent sub-agents, max 5 per parent
+
+================================================================================
+  SEMANTIC THREE-TIER MEMORY
+================================================================================
+
+- DURABLE FACTS: 8 categories — identity, preference, relationship, goal,
+  context, skill, milestone, status
+- DAILY NOTES: date-scoped logs with events, decisions, lessons, tomorrow's plan
+- KNOWLEDGE BASE: permanent reference library with title, content, category,
+  priority (1-5)
+- LLM-powered fact extraction with confidence scoring on every turn
+- Contradiction detection — auto-supersedes outdated memories
+- Deduplication via cosine similarity + LLM classification
+- Semantic search via OpenAI text-embedding-3-small with keyword fallback
+- MMR Diversity Re-Ranking (Maximal Marginal Relevance)
+- Recency tiers: Hot (< 7 days), Warm (7-30 days), Cold (> 30 days) with decay
+- Memory Health Monitoring endpoint
+- Automated memory snapshots to Google Drive (every 12h, 60-snapshot retention)
+- Token budget controls for system prompt injection
+- Persona-scoped memories
+- Full CRUD management on the Memory page
+
+================================================================================
+  AUTONOMOUS HEARTBEAT ENGINE
+================================================================================
+
+- Cron-based scheduling with 60-second tick loop
+- 10+ supported task types: routine, daily_planning, reflection,
+  memory_consolidation, knowledge, model_scout, delegation, content,
+  content_review, cloud_backup, self_improvement
+- Intelligent cost routing per persona tier
+- One-click task templates for 6 agents
+- Self-task creation and cross-agent delegation
+- Dead-letter protection (auto-disable after 5 consecutive failures)
+- Exception-safe mutex with try/finally
+- Maintenance cycles every 10 ticks
+- Activity-based skip to avoid redundant runs
+- Guardrails: max 10 active delegation tasks, max 60 AI calls/hour,
+  max 5 tasks/tick
+- 2-hour delegation expiry
+
+================================================================================
+  DEEP RESEARCH ENGINE (KARPATHY-INSPIRED)
+================================================================================
+
+- Autonomous multi-session research with experiment-based design
+- Pre-built research programs with configurable objectives and constraints
+- "Run All Programs" batch execution — one-click start for all programs
+- Automated scheduling with timezone support (Central, Eastern, Mountain,
+  Pacific, UTC)
+- Preset times: Nightly 2 AM, Midnight, Every Morning 6 AM, Every 6/12 Hours,
+  Weekly, etc.
+- Self-evaluating experiments with Keep/Discard/Crash status
+- Chained results — experiments build on prior findings
+- Executive summary generation
+- Cost-efficient model routing (DeepSeek V3.2, Qwen 3.5 Flash, R1 Reasoning)
+- Dev-to-prod auto-sync on publish
+
+================================================================================
+  CEO ORCHESTRATOR ("WAR ROOM")
+================================================================================
+
+- LLM-powered task decomposition and routing
+- Delegates work to specialist personas
+- Synthesizes multi-persona responses
+- Tracks delegation history and performance
+
+================================================================================
+  REMOTE BROWSER CONTROL (VIRTUAL BROWSER)
+================================================================================
+
+- Per-tenant BrowserContext isolation via Chrome DevTools Protocol
+- Multi-profile support: Browserless, Browserbase, self-hosted Chrome
+- Auto-configure from BROWSERLESS_API_KEY
+- 18 browser actions including smart_browse, form_fill, close_session
+- Screenshots stored per-tenant, auto-pruned after 24h
+- Optional base64 inline screenshots for chat context
+- SSRF hardening: IPv4 normalization, IPv6-mapped, DNS fail-closed,
+  cloud metadata blocking, scheme restrictions (http/https only)
+- Rate limiting: max 3 concurrent sessions/tenant, max 30 actions/min/tenant
+- Idle session auto-close after 5 minutes
+- WebSocket health probe for Browserless endpoints
+
+================================================================================
+  VOICE CONVERSATIONS
+================================================================================
+
+- Text-to-Speech via OpenAI (onyx voice, gpt-4o-mini-tts) — primary
+- ElevenLabs with configurable voice, model, stability, similarity boost
+- Microsoft Edge TTS as free fallback
+- Speech-to-Text via browser Web Speech API
+- Voice Wake and Talk Mode — hands-free continuous conversation
+- Auto mode toggles in Settings
+- Configurable max text length and timeout
+
+================================================================================
+  EMAIL INTEGRATION (AGENTMAIL)
+================================================================================
+
+- Per-tenant auto-provisioned @agentmail.to inbox
+- Compose, reply, and auto-refresh
+- Agent tools: send_email and check_inbox
+- Tenant-scoped routes filter by requesting tenant's inbox
+- Full email page UI at /email
+
+================================================================================
+  WEB SEARCH & CONTENT EXTRACTION
+================================================================================
+
+- Perplexity Sonar integration (AI-summarized deep web search)
+- Jina AI reader (clean text extraction from URLs)
+- Wikipedia search (factual lookups)
+- Firecrawl integration (advanced web page extraction and crawling)
+- SSRF protection on all web fetching
+- Configurable search provider and model
+
+================================================================================
+  LOBSTER WORKFLOW ENGINE
+================================================================================
+
+- YAML-based multi-step workflow definitions
+- Step-by-step execution with approval gates for user review
+- Security hardening: path traversal protection, token validation
+- Settings UI with workflow list, create/delete, pending approval count
+
+================================================================================
+  STRIPE PAYMENTS
+================================================================================
+
+- Product catalog with one-time or subscription pricing
+- 3 subscription tiers: Starter ($29/mo), Pro ($99/mo), Enterprise ($299/mo)
+- Stripe Checkout for seamless payment
+- Transaction history with status tracking
+- Webhook-driven sync
+
+DUAL TENANT PAYMENT MODES:
+- Managed (Stripe Connect) — $99 setup fee, 3% platform commission
+- BYOK (Bring Your Own Key) — $29 setup fee, no ongoing fee, tenant's own
+  Stripe keys (AES-256-GCM encrypted)
+
+================================================================================
+  COINBASE CRYPTO PAYMENTS
+================================================================================
+
+- Dual-mode: CDP wallet-based payments + Commerce checkout
+- CDP Wallet: create EVM wallets, list accounts, check token balances
+- Commerce: create charges, list transactions, webhook-verified
+- HMAC-SHA256 webhook verification
+
+================================================================================
+  THREE-TIER AUTOMATED BACKUP
+================================================================================
+
+- Tier 1: Google Drive Full Backup (daily 3 AM) — all 17 tables as JSON,
+  30-backup retention, sensitive data auto-redacted
+- Tier 2: Memory Snapshots (every 12h) — active + superseded memories,
+  60-snapshot retention
+- Tier 3: GitHub Code Push (after daily backup) — auto-commit and force-push
+- Manual triggers available via API endpoints
+
+================================================================================
+  ANALYTICS DASHBOARD
+================================================================================
+
+- Messages per day (area chart)
+- Model usage breakdown (pie chart)
+- Hourly activity patterns (bar chart)
+- Tool usage rankings (bar chart)
+- KPI cards: total conversations, messages, period summaries
+
+================================================================================
+  SOCIAL MARKETING SUITE
+================================================================================
+
+- draft_social_post — platform-optimized drafting (X, LinkedIn, TikTok, Instagram)
+- manage_content_calendar — scheduling, campaign grouping, lifecycle
+- marketing_analytics — performance analytics
+- marketing_experiment — A/B experiment tracking with automatic winner detection
+- Brand voice configured per tenant
+
+================================================================================
+  PUBLIC CHAT & EMBEDDABLE WIDGET
+================================================================================
+
+- Shareable link: /public-chat/:token — standalone dark-themed chat with SSE
+- Embeddable widget: one-line <script> tag adds floating chat bubble to any site
+- Settings toggle with unique 16-character token generation
+- Scope isolation: public conversations tagged separately
+- Rate limiting: 30 req/min general, 10 msg/min streaming
+- Safety: max 2,000 char messages, max 3 tool rounds, only safe tools
+- Cost control: always uses DeepSeek V3.2 via OpenRouter
+- Anti-hijacking: 7-rule security constraint block in system prompt
+
+================================================================================
+  VANITY SLUG URLs
+================================================================================
+
+- Clean branded URLs: /c/my-company instead of random tokens
+- Settings UI with live preview
+- Validation: 3-40 chars, lowercase alphanumeric + hyphens
+- Reserved word blocking
+- Global uniqueness with database constraint
+- Paid-only feature
+
+================================================================================
+  PROVIDER KEY PROXY / MASKING SYSTEM
+================================================================================
+
+- Two-tier architecture: Platform keys (master) + Tenant BYOK keys
+- Resolution order: Tenant BYOK -> Platform master -> Replit integration -> Error
+- Key masking: API never returns full values (sk-...xxxx format)
+- Health tracking: last_verified_at, consecutive_failures, last_error
+- AES-256-GCM encryption for stored keys
+
+================================================================================
+  SKILLS SYSTEM
+================================================================================
+
+- 50+ toggleable agent capabilities organized by category
+- Skills page at /skills with search and category filtering
+- Skills inject additional context and instructions into agent system prompts
+- Specialized skills: Vibe Marketing, Browser Automation, Caption Generation,
+  Coding Agent Loops, and more
+
+================================================================================
+  INLINE CHART GENERATION
+================================================================================
+
+- Bar, line, pie, and area chart types
+- Generated via generate_chart tool, rendered inline in chat
+- Interactive Recharts components with tooltips and legends
+
+================================================================================
+  DIGITAL PRODUCT DELIVERY
+================================================================================
+
+- Google Drive + email delivery pipeline
+- Delivery tracking and status endpoints
+- File manifest management
+
+================================================================================
+  DAILY BRIEFING & WEATHER
+================================================================================
+
+- AI-powered personalized daily briefings with weather
+- Text-to-Speech option via ElevenLabs
+- IP geolocation automatic location detection
+
+================================================================================
+  DISCORD BOT INTEGRATION
+================================================================================
+
+- Bot token configured in Settings
+- Responds to Discord messages using active persona and model
+- Shares same processMessage engine as chat (full tool access)
+
+================================================================================
+  SECURITY HARDENING
+================================================================================
+
+- Multi-tenant IDOR protection on all CRUD operations
+- LLM cost enforcement — server-side model validation
+- Public chat anti-hijacking (7-rule constraint block)
+- Public chat rate limiting (30 req/min, 10 msg/min)
+- Tool loop detection (hash-based, 4 detection modes)
+- Mutation tracking (read-only, write, destructive classification)
+- SSRF protection on web_fetch, web_search, and browser tool
+- Browser SSRF: IPv4 normalization, IPv6-mapped, DNS fail-closed, metadata block
+- Path traversal protection (basename-only, realpath checks)
+- Token validation (strict regex)
+- Context window guard (85%/95% threshold auto-truncation)
+- External content security (sanitization, 13 suspicious pattern detection)
+- Code sandbox isolation (VM context, blocked patterns, frozen objects, 5s timeout)
+- Sub-agent depth limits (max depth 2, max 8 concurrent, max 5 per parent)
+- Sandboxed shell execution
+- HMAC-SHA256 PIN hashing with timing-safe comparison
+- PBKDF2-SHA512 password hashing (100k iterations)
+- AES-256-GCM encryption for API keys
+- DB-backed sessions (not in-memory)
+- Secret scanner runs before every GitHub push
+- Content Security Policy via Helmet
+
+================================================================================
+  RESILIENCE & RECOVERY
+================================================================================
+
+- Multi-round model failover across providers
+- Tool execution timeouts (60s default, 120s for slow tools)
+- Self-healing tool retries with error analysis
+- Heartbeat dead-letter protection (auto-disable after 5 failures)
+- Exception-safe heartbeat mutex (try/finally)
+- Adaptive re-planning (up to 2 re-plans)
+- Context window auto-compaction via summarization
+- Conversation truncation at 95% context usage
+- Health Monitor: automated checks for 6+ core services with auto-remediation
+
+================================================================================
+  TECH STACK
+================================================================================
+
+FRONTEND:
+- React 18 + TypeScript
+- TailwindCSS + shadcn/ui component library
+- Wouter (client-side routing)
+- TanStack Query v5 (server state)
+- Recharts (data visualization)
+- ReactMarkdown (rendering)
+- Lucide React + react-icons (icons)
+
+BACKEND:
+- Express.js + TypeScript
+- Drizzle ORM + PostgreSQL
+- Zod (request validation)
+- SSE (real-time streaming)
+- cron-parser v5 (heartbeat scheduling)
+- AgentMail SDK (email)
+- Puppeteer-core (browser control)
+- js-yaml (workflow parsing)
+
+INFRASTRUCTURE:
+- PostgreSQL (primary database, 66 tables)
+- Replit AI Integrations (OpenAI, Anthropic, Google)
+- Replit Connectors (ElevenLabs, Stripe, Google Drive)
+- Vite (frontend build)
+- Replit Autoscale deployment (8 vCPU / 16 GiB RAM / 8 Max)
+
+EXTERNAL SERVICES:
+- OpenAI, Anthropic, xAI, Google Gemini, Perplexity, OpenRouter (AI providers)
+- Stripe (payments — managed + BYOK)
+- Coinbase CDP + Commerce (crypto payments)
+- ElevenLabs (TTS/STT)
+- Google Drive (cloud backups)
+- AgentMail (email)
+- Firecrawl (web extraction)
+- Jina AI (URL content extraction)
+- Perplexity Sonar (web search)
+- Browserless (remote browser)
+
+================================================================================
+  PAGES & NAVIGATION (22 PAGES)
+================================================================================
+
+ 1. Dashboard (/) — stats, templates, activity feed, quick start
+ 2. Chat (/chat/:id) — streaming conversations with tool calls
+ 3. Memory (/memory) — 3-tier memory management UI
+ 4. Knowledge (/knowledge) — permanent knowledge base
+ 5. Analytics (/analytics) — interactive charts and KPIs
+ 6. Skills (/skills) — 50+ toggleable capabilities
+ 7. Email (/email) — AgentMail inbox
+ 8. Marketing (/marketing) — content calendar and analytics
+ 9. Browser (/browser) — virtual browser interface
+10. Heartbeat (/heartbeat) — autonomous task management
+11. Deep Research (/research) — programs, sessions, experiments, schedules
+12. WhatsApp (/whatsapp) — WhatsApp Web integration
+13. WhatsApp Approvals (/whatsapp-approvals) — approval management
+14. Wallet (/wallet) — Coinbase crypto management
+15. Settings (/settings) — full platform configuration
+16. Uploads (/uploads) — file management
+17. Projects (/projects) — project management
+18. Pricing (/pricing) — subscription plans
+19. Terms (/terms) — Terms of Service
+20. Privacy (/privacy) — Privacy Policy
+21. Public Chat (/public-chat/:token) — shareable chat
+22. Landing Page — hero, agent showcase, live stats, pricing
+
+================================================================================
+  PLATFORM STATISTICS
+================================================================================
+
+- ~89,000 lines of TypeScript
+- 130+ server-side files
+- 66 database tables
+- 95 agentic tools
+- 36+ AI models across 6+ providers
+- 14 AI personas
+- 22 page components
+- 190+ API endpoints
+- 50+ toggleable skills
+- 3 subscription tiers + crypto payments
+
+================================================================================
+  DOMAINS & DEPLOYMENT
+================================================================================
+
+- Primary: visionclawagent.com
+- Replit: openclaw-agent.replit.app
+- Repository: github.com/Huskyauto/VisionClaw-Agent
+
+================================================================================
+  VisionClaw Agent Platform — Built by AI Buddy LLC
+  Document compiled: March 31, 2026
+================================================================================
