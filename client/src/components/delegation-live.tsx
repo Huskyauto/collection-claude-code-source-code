@@ -273,6 +273,34 @@ export function DelegationLiveFeed({
                   <p className="text-xs text-gray-300 mt-0.5 leading-relaxed truncate">
                     {event.message}
                   </p>
+                  {event.type === "completed" && event.metadata?.costUsd != null && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-400 font-mono" data-testid={`cost-badge-${event.id}`}>
+                        ${event.metadata.costUsd < 0.001 ? "<0.001" : event.metadata.costUsd.toFixed(4)}
+                      </span>
+                      {event.metadata.inputTokens != null && (
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          {(event.metadata.inputTokens / 1000).toFixed(1)}k/{(event.metadata.outputTokens / 1000).toFixed(1)}k tok
+                        </span>
+                      )}
+                      {event.metadata.durationMs != null && (
+                        <span className="text-[10px] text-gray-500">
+                          {event.metadata.durationMs < 1000 ? `${event.metadata.durationMs}ms` : `${(event.metadata.durationMs / 1000).toFixed(1)}s`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {event.metadata?.qaResult && (
+                    <div className="mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        event.metadata.qaResult.verdict === "approved" ? "bg-green-900/50 text-green-400" :
+                        event.metadata.qaResult.verdict === "needs-revision" ? "bg-yellow-900/50 text-yellow-400" :
+                        "bg-red-900/50 text-red-400"
+                      }`} data-testid={`qa-badge-${event.id}`}>
+                        QA: {event.metadata.qaResult.verdict} ({event.metadata.qaResult.score}/10)
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

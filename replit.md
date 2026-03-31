@@ -84,6 +84,9 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Autonomous Self-Tuning Engine:** Runs every 24h, collects 7-day performance metrics, computes parameter adjustments, and applies changes within safe bounds. Includes a bootstrap mode for new tenants and dynamic express lane caps based on trust scores.
 - **Per-Tool Rate Limiter:** Sliding-window rate limiting per tenant per tool to prevent runaway agent loops.
 - **Agentic Design Patterns:** Includes Parallel Tool Execution, Critique Agent / Self-Correction Loop, Chain of Debates, Tree-of-Thought Reasoning, Proactive Resource Prediction, and Adaptive Model Downgrade.
+- **Instinct Learning System:** Agents automatically extract reusable execution patterns from successful multi-tool tasks. Patterns stored as instincts in memory with confidence scores; after 3+ successful observations above 70% confidence, instincts "graduate" to permanent knowledge entries. Graduated patterns are injected into system prompts so agents get progressively better at recurring task types. Inspired by everything-claude-code's continuous learning system.
+- **Auto-QA Pipeline (De-Sloppify):** After successful delegation, Proof (persona 8) automatically reviews output quality asynchronously. Scores on completeness, accuracy, clarity, and professionalism (1-10 scale). Results visible in the live delegation event feed with color-coded verdict badges. Non-blocking — runs fire-and-forget so delegation returns are never delayed.
+- **Per-Task Cost Tracking:** Every agent interaction emits real-time cost data (USD, token counts, duration, model breakdown) through the delegation event system. Cost badges display in the live delegation feed. Uses the existing LiveCostTracker from resource-predictor.ts integrated with delegation events.
 - **OpenClaw-Inspired Features:** MCP Client Support, Webhook Triggers, Channel Routing, Skills Marketplace, Live Canvas, Personality Files, Firecrawl Search, Per-Agent Reasoning Config, and Smart Error Classification.
 - **Communication & Marketing:** Social Marketing skills, AgentMail, WhatsApp, Discord Bot, and Telegram Bot Integration.
 - **Browser & Web:** Tenant-scoped Virtual Browser with Puppeteer, screenshots, form filling, Credential Vault, vision-enabled capabilities, and Live Browser Preview.
@@ -131,7 +134,9 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - `server/routes.ts` — All API endpoints including SSE delegation event streaming
 - `shared/schema.ts` — Drizzle ORM schema for all 66 tables
 - `client/src/pages/chat.tsx` — Main chat interface with delegation live feed
-- `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration
+- `server/instinct-learning.ts` — Pattern extraction from successful multi-tool tasks, instinct graduation to knowledge
+- `server/auto-qa.ts` — Automatic quality review of delegated outputs via Proof persona
+- `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration, cost badges, QA verdicts
 
 ## Post-Demo Backlog (Circle Back After April 14)
 - **BillionMail** (https://github.com/Billionmail/BillionMail) — Open-source self-hosted mail server + email marketing platform. AGPLv3. Unlimited sending, open/click analytics, subscriber management, built-in webmail (RoundCube). Requires separate Linux VPS with Docker + domain DNS (SPF/DKIM/DMARC). Could replace AgentMail for tenant email campaigns, newsletters, drip sequences. Agents could drive campaigns via API. No per-email fees.

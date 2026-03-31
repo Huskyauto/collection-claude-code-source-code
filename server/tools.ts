@@ -2544,7 +2544,20 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
         tenantId || 1,
         delegationDepth
       );
-      if (result.success) return result;
+      if (result.success) {
+        if (result.response && targetAgent.toLowerCase() !== "proof" && delegationDepth <= 1) {
+          try {
+            const responseText = typeof result.response === "string" ? result.response : JSON.stringify(result.response);
+            if (responseText.length > 200) {
+              const { runAutoQAAsync } = await import("./auto-qa");
+              runAutoQAAsync(targetAgent, taskName, responseText, tenantId || 1);
+            }
+          } catch (qaErr: any) {
+            console.warn(`[auto-qa] Skipped: ${qaErr.message}`);
+          }
+        }
+        return result;
+      }
       if (attempt < MAX_RETRIES && result.error && !result.error.includes("not found") && !result.error.includes("Chain-of-command")) {
         console.log(`[delegation] Attempt ${attempt + 1} failed: ${result.error}. Retrying...`);
         await new Promise(r => setTimeout(r, 1000));

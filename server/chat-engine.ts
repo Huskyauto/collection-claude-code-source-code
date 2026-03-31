@@ -1235,6 +1235,12 @@ When the user says "send it to me", "email me", or "send me the file", use their
         expansionBlocks.push(`## ${ciCtx}`);
       }
 
+      try {
+        const { getRelevantInstincts } = await import("./instinct-learning");
+        const instinctCtx = await getRelevantInstincts(tenantId, pid, content.trim());
+        if (instinctCtx) expansionBlocks.push(instinctCtx);
+      } catch {}
+
       if (expansionBlocks.length > 0) {
         systemPrompt += "\n\n" + expansionBlocks.join("\n\n");
       }
@@ -1875,10 +1881,6 @@ This is the MINIMUM team for any professional deliverable. Always delegate resea
 
   await storage.createMessage({ conversationId, role: "assistant", content: toolMeta + cleanedResponse });
 
-  if (costTracker.steps.length > 0) {
-    console.log(`[cost-tracker] Conv ${conversationId}: ${costTracker.getSummary()}`);
-  }
-
   let titleForLog = conv.title;
   const needsTitle = conv.title === "New Chat" || allMessages.length <= 2;
   if (needsTitle) {
@@ -1915,6 +1917,41 @@ This is the MINIMUM team for any professional deliverable. Always delegate resea
 
   intelligentExtractMemory(cleanedResponse, content.trim(), persona?.id, conv.tenantId ?? 1).catch(() => {});
   updateDailyLog(titleForLog, persona?.id, opts?.source).catch(() => {});
+
+  if (costTracker.steps.length > 0) {
+    try {
+      const { emitDelegationEvent } = await import("./delegation-events");
+      const summary = costTracker.getSummary();
+      emitDelegationEvent({
+        conversationId,
+        tenantId: conv.tenantId || 1,
+        type: "completed",
+        agentName: persona?.name || "Agent",
+        depth: depth,
+        message: `Task complete. ${summary}`,
+        metadata: {
+          costUsd: costTracker.totalCostUsd,
+          inputTokens: costTracker.totalTokens.input,
+          outputTokens: costTracker.totalTokens.output,
+          modelSteps: costTracker.steps.length,
+          durationMs: costTracker.elapsedMs,
+        },
+      });
+    } catch {}
+  }
+
+  if (executedTools.length >= 2 && !opts?.source?.startsWith("subagent:")) {
+    try {
+      const { learnFromCompletion } = await import("./instinct-learning");
+      learnFromCompletion(
+        conv.tenantId ?? 1,
+        persona?.id ?? 1,
+        content.trim(),
+        executedTools,
+        true
+      ).catch((err: any) => console.warn(`[instinct] Background learning failed: ${err.message}`));
+    } catch {}
+  }
 
   const cleanResponse = stripThinkTags(cleanedResponse);
   const thinkMatch = cleanedResponse.match(/<think>([\s\S]*?)<\/think>/);
