@@ -60,3 +60,9 @@ id = "G37ZWNkUXXmjvK0MMLiAd"
 uri = "file://attached_assets/visionclaw-system-delta-march2026.md"
 type = "text"
 title = "VisionClaw System Delta — March 2026"
+
+[[outputs]]
+id = "KUL6eUW8dgThSoEpd01rx"
+uri = "file://attached_assets/felix-presentation-runbook-final.md"
+type = "text"
+title = "Felix Presentation Runbook — Corrected Final (March 31, 2026)"
