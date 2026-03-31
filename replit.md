@@ -121,7 +121,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 
 ## Key Files
 - `server/chat-engine.ts` — Core message processing, model routing, tool execution loop, delegation event emission
-- `server/tools.ts` — 95 tool definitions and executeTool dispatcher
+- `server/tools.ts` — 96 tool definitions and executeTool dispatcher
 - `server/heartbeat.ts` — Heartbeat engine, delegation execution, scheduled tasks
 - `server/ceo-orchestrator.ts` — Felix's multi-step task decomposition engine
 - `server/delegation-events.ts` — Real-time delegation event emitter with tenant isolation
@@ -133,6 +133,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - `server/routes.ts` — All API endpoints including SSE delegation event streaming
 - `shared/schema.ts` — Drizzle ORM schema for all 66 tables
 - `client/src/pages/chat.tsx` — Main chat interface with delegation live feed
+- `server/persona-sync.ts` — Persona documentation sync engine (tools_doc, agents_doc) with mutex and admin-only scope
 - `server/instinct-learning.ts` — Pattern extraction from successful multi-tool tasks, instinct graduation to knowledge
 - `server/auto-qa.ts` — Automatic quality review of delegated outputs via Proof persona
 - `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration, cost badges, QA verdicts
