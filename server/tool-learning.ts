@@ -139,6 +139,8 @@ export async function createCustomTool(description: string): Promise<{ tool?: Cu
     const [finalTool] = await db.select().from(customTools).where(eq(customTools.id, inserted.id));
     const toolData = finalTool || inserted;
 
+    import("./persona-sync").then(m => m.syncPersonaDocs()).catch(() => {});
+
     return {
       tool: {
         id: toolData.id,

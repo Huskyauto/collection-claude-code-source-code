@@ -1312,6 +1312,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "sync_personas",
+      description: "Synchronize all persona documents (tools_doc and agents_doc) with the current state of the platform. Run this after creating custom tools, toggling skills, or when you want to ensure all agents have up-to-date knowledge of available tools, skills, and delegation paths. Can target a single persona or sync all 14.",
+      parameters: {
+        type: "object",
+        properties: {
+          personaId: { type: "number", description: "Optional: sync only this persona (1-14). Omit to sync all personas." },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "log_experiment",
       description: "Log a self-improvement experiment with hypothesis, approach, and results. Used to track what the agent has tried and whether it worked.",
       parameters: {
@@ -3906,6 +3920,12 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
           return { error: `Unknown manage_skills command: ${params.command}. Use: create, list, update, enable, disable, delete` };
       }
     }
+    case "sync_personas": {
+      const { syncPersonaDocs } = await import("./persona-sync");
+      const result = await syncPersonaDocs(params.personaId);
+      return result;
+    }
+
     case "log_experiment": {
       const { logExperiment } = await import("./self-improvement");
       return logExperiment({

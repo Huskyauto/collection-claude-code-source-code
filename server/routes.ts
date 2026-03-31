@@ -4889,6 +4889,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const skill = await storage.updateSkill(parseInt(req.params.id), parsed.data);
     if (!skill) return res.status(404).json({ error: "Skill not found" });
     res.json(skill);
+    if (body.enabled !== undefined) {
+      import("./persona-sync").then(m => m.syncPersonaDocs()).catch(() => {});
+    }
+  });
+
+  // ─── Persona Sync ────────────────────────────────────────
+  app.post("/api/personas/sync", async (req, res) => {
+    try {
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId || tenantId !== 1) return res.status(403).json({ error: "Admin only" });
+      const { syncPersonaDocs } = await import("./persona-sync");
+      const personaId = req.body.personaId ? parseInt(req.body.personaId) : undefined;
+      const result = await syncPersonaDocs(personaId);
+      res.json(result);
+    } catch (e: any) {
+      console.error("[persona-sync] Route error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/personas/sync/status", async (req, res) => {
+    try {
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId || tenantId !== 1) return res.status(403).json({ error: "Admin only" });
+      const { getSyncStatus } = await import("./persona-sync");
+      res.json(await getSyncStatus());
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ─── Personas ─────────────────────────────────────────────

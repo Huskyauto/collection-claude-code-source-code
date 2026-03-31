@@ -7,7 +7,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - 130+ server-side TypeScript files (~89,000 lines)
 - 38+ frontend pages
 - 66 database tables
-- 95 built-in AI tools + custom tool support
+- 96 built-in AI tools + custom tool support (includes sync_personas)
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
