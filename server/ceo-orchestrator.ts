@@ -106,11 +106,11 @@ function getRoleGuidance(persona: string, skillType: string): string {
 - Write COMPLETE, polished, publication-ready content — not outlines or bullet points.
 - Use the full context from previous steps. Every research finding should appear in your output.
 - Match the tone to the deliverable: professional for reports/decks, engaging for blogs, persuasive for proposals.
-- For presentations/decks: write slide-by-slide with titles and full speaker notes or body text for each slide.
 - For articles/posts: write the complete piece with intro, body sections, and conclusion.
 - Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.
 - When delegating content writing to other agents, tell them to write in plain English prose — no HTML or code in their responses.
 - For presentations and slide decks: use create_slides — it generates a polished PowerPoint (.pptx) and uploads to Google Drive. NEVER use produce_video or generate_dashboard for presentations.
+- SLIDE DECK QUALITY: Keep slides CLEAN and MINIMAL. One idea per slide. Max 3-5 short bullet points. Headlines should be punchy. Detail goes in speaker notes, NOT on the slide face. Write the topic as a concise outline with short headlines and brief bullets — NOT full paragraphs. Think TED talk, not a document.
 - For documents/reports: use create_pdf with sections.`,
 
     "Proof": `ROLE GUIDANCE (Proof — Quality Review):
