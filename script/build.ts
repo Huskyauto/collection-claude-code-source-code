@@ -6,7 +6,6 @@ import { execSync } from "child_process";
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
 const allowlist = [
-  "@google/generative-ai",
   "axios",
   "connect-pg-simple",
   "cors",
@@ -24,7 +23,6 @@ const allowlist = [
   "passport",
   "passport-local",
   "pg",
-  "stripe",
   "uuid",
   "ws",
   "zod",
@@ -70,7 +68,9 @@ async function buildAll() {
     define: {
       "process.env.NODE_ENV": '"production"',
     },
-    minify: true,
+    minifySyntax: true,
+    minifyWhitespace: true,
+    keepNames: true,
     external: externals,
     logLevel: "info",
   });
