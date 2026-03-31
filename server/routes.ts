@@ -675,8 +675,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.use("/api", authMiddleware);
+
+  app.use("/api", async (req: Request, _res: Response, next: Function) => {
+    if (!getTenantFromRequest(req)) {
+      await getTenantFromRequestAsync(req);
+    }
+    next();
+  });
+
   app.post("/api/gdrive/refresh-token", express.json(), async (req: Request, res: Response) => {
     try {
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Admin access required" });
       const gd = await import("./google-drive");
       const body = req.body || {};
       const token = body.token;
@@ -695,15 +705,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
-  });
-
-  app.use("/api", authMiddleware);
-
-  app.use("/api", async (req: Request, _res: Response, next: Function) => {
-    if (!getTenantFromRequest(req)) {
-      await getTenantFromRequestAsync(req);
-    }
-    next();
   });
 
   app.use("/api/stripe-connect", stripeConnectRouter);
@@ -1463,19 +1464,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/personality-files", async (req, res) => {
-    const tenantId = (req as any).tenantId || 1;
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     try { res.json(await getAllPersonalityFiles(tenantId)); }
     catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
   app.get("/api/personality-files/:personaId", async (req, res) => {
-    const tenantId = (req as any).tenantId || 1;
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     try { res.json(await getPersonalityFiles(tenantId, parseInt(req.params.personaId))); }
     catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
   app.post("/api/personality-files/:personaId", async (req, res) => {
-    const tenantId = (req as any).tenantId || 1;
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     const { fileType, content } = req.body;
     if (!fileType || content === undefined) return res.status(400).json({ error: "fileType and content required" });
     try {
@@ -1485,7 +1489,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.delete("/api/personality-files/:personaId/:fileType", async (req, res) => {
-    const tenantId = (req as any).tenantId || 1;
+    const tenantId = getTenantFromRequest(req);
+    if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     try {
       await deletePersonalityFile(tenantId, parseInt(req.params.personaId), req.params.fileType);
       res.json({ success: true });
@@ -8358,7 +8363,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.get("/api/agency/trust-scores", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const personaId = req.query.personaId ? parseInt(req.query.personaId as string) : undefined;
       const { getAllTrustScores } = await import("./trust-engine");
       const scores = await getAllTrustScores(tenantId, personaId);
@@ -8368,7 +8374,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.post("/api/agency/trust-scores/initialize", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { initializeTrustScores } = await import("./trust-engine");
       await initializeTrustScores(tenantId);
       res.json({ success: true });
@@ -8377,7 +8384,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.post("/api/agency/trust-scores/event", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { personaId, event, reason } = req.body;
       if (!personaId || !event || typeof personaId !== "number" || typeof event !== "string") {
         return res.status(400).json({ error: "personaId (number) and event (string) are required" });
@@ -8397,7 +8405,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.post("/api/agency/express-lanes/check", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { fromPersonaId, toPersonaId, workType } = req.body;
       const { checkExpressLaneEligibility } = await import("./express-lanes");
       const result = await checkExpressLaneEligibility(tenantId, fromPersonaId, toPersonaId, workType);
@@ -8407,7 +8416,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.get("/api/agency/proactive/:personaId", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const personaId = parseInt(req.params.personaId);
       const { getAvailablePAB, getTriggersForPersona, getProactiveQualityStats } = await import("./proactive-engine");
       const [pab, triggers, quality] = await Promise.all([
@@ -8421,7 +8431,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.get("/api/agency/evaluators", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { runAllEvaluators } = await import("./evaluators");
       const results = await runAllEvaluators(tenantId);
       res.json(results);
@@ -8445,7 +8456,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.get("/api/agency/collective-intelligence", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { getProtocolUsage } = await import("./collective-intelligence");
       const usage = getProtocolUsage(tenantId);
       res.json({ usage });
@@ -8475,7 +8487,8 @@ STRICT RULES — VIOLATION IS NOT POSSIBLE:
 
   app.post("/api/agency/auto-tuner/run", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).tenantId || 1;
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
       const { runTuningCycle } = await import("./auto-tuner");
       const snapshot = await runTuningCycle(tenantId);
       res.json(snapshot);
