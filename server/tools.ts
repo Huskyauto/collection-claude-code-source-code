@@ -3966,7 +3966,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         try {
           const OpenAI = (await import("openai")).default;
           const client = new OpenAI({ apiKey });
-          const voice = params.voice || "alloy";
+          const voice = params.voice || "onyx";
           const response = await client.audio.speech.create({ model: "gpt-4o-mini-tts", voice: voice as any, input: text, response_format: "mp3" });
           const ab = await response.arrayBuffer();
           audioBuffer = Buffer.from(ab);
@@ -4014,7 +4014,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
             try {
               const OpenAI = (await import("openai")).default;
               const client = new OpenAI({ apiKey: oaiKey });
-              const oaiResp = await client.audio.speech.create({ model: "gpt-4o-mini-tts", voice: "alloy" as any, input: text, response_format: "mp3" });
+              const oaiResp = await client.audio.speech.create({ model: "gpt-4o-mini-tts", voice: "onyx" as any, input: text, response_format: "mp3" });
               const oaiAb = await oaiResp.arrayBuffer();
               audioBuffer = Buffer.from(oaiAb);
               console.log(`[generate_audio] OpenAI TTS fallback succeeded (${audioBuffer.length} bytes)`);

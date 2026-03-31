@@ -52,7 +52,7 @@ function getOpenAITTSClient(): OpenAI {
 
 async function ttsOpenAI(text: string): Promise<{ buffer: Buffer; format: "mp3" }> {
   const ttsConfig = loadTTSConfig();
-  const voice = ttsConfig.openai.voice || "alloy";
+  const voice = ttsConfig.openai.voice || "onyx";
   const model = ttsConfig.openai.model || "gpt-4o-mini-tts";
   const client = getOpenAITTSClient();
 

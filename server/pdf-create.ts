@@ -687,7 +687,7 @@ export async function htmlToPdfAndUpload(html: string, title: string, folderLabe
 
   let driveUrl: string | null = null;
   try {
-    const driveResult = await uploadAndShare(filePath, `${title}.pdf`, "application/pdf", folderLabel);
+    const driveResult = await uploadAndShare({ filePath, fileName: `${title}.pdf`, mimeType: "application/pdf", folderLabel, share: true });
     if (driveResult?.webViewLink) {
       driveUrl = driveResult.webViewLink;
       console.log(`[pdf] Uploaded to Drive: ${driveUrl}`);
