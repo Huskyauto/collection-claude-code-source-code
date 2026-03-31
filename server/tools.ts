@@ -1487,7 +1487,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: "function" as const,
     function: {
       name: "produce_video",
-      description: "ONE-SHOT video production: generates TTS audio from script text, assembles MP4 with slides + audio, uploads to Google Drive, and optionally emails the link. If pdf_path is provided and valid it uses those slides; otherwise it AUTO-GENERATES text slides from the script. Use this instead of chaining generate_audio + create_slideshow_video separately. This is the PREFERRED way to make videos — works even without a PDF.",
+      description: "ONE-SHOT VIDEO production: generates TTS audio from script text, assembles MP4 video with visual frames + audio, uploads to Google Drive, and optionally emails the link. This creates VIDEO FILES (.mp4), NOT presentation decks. For PowerPoint presentations or slide decks, use create_slides instead. If pdf_path is provided it uses those pages as video frames; otherwise it auto-generates text frames from the script.",
       parameters: {
         type: "object",
         properties: {
