@@ -2,15 +2,11 @@ import fs from "fs";
 import path from "path";
 
 const HF_ASR_MODEL = "microsoft/VibeVoice-ASR";
-const HF_TTS_MODEL = "microsoft/VibeVoice-1.5B";
-const HF_REALTIME_MODEL = "microsoft/VibeVoice-Realtime-0.5B";
 
 const GRADIO_ASR_ENDPOINT = "https://aka.ms/vibevoice-asr";
 
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
-const MAX_TEXT_LENGTH = 50000;
 const ALLOWED_AUDIO_DIRS = ["/tmp", path.resolve(process.cwd(), "uploads"), path.resolve(process.cwd(), "project-assets"), path.resolve(process.cwd(), "data")];
-const ALLOWED_OUTPUT_DIRS = ["/tmp", path.resolve(process.cwd(), "project-assets"), path.resolve(process.cwd(), "data")];
 
 function getHFToken(): string | undefined {
   return process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN;
@@ -50,17 +46,6 @@ export interface VibeVoiceASRResult {
   duration_seconds?: number;
   error?: string;
   provider: "vibevoice-asr";
-}
-
-export interface VibeVoiceTTSResult {
-  success: boolean;
-  audio_base64?: string;
-  audio_url?: string;
-  format?: string;
-  duration_seconds?: number;
-  speakers_used?: string[];
-  error?: string;
-  provider: "vibevoice-tts";
 }
 
 export async function vibevoiceTranscribe(params: {
@@ -273,213 +258,13 @@ function parseStructuredTranscript(raw: string): VibeVoiceASRResult {
   };
 }
 
-export async function vibevoiceTTS(params: {
-  text: string;
-  speakers?: Array<{ name: string; text: string }>;
-  voice?: string;
-  output_path?: string;
-}): Promise<VibeVoiceTTSResult> {
-  try {
-    if (!params.text && (!params.speakers || params.speakers.length === 0)) {
-      return { success: false, error: "Text or speakers array is required", provider: "vibevoice-tts" };
-    }
-
-    if (params.output_path) {
-      const safePath = sanitizePath(params.output_path, ALLOWED_OUTPUT_DIRS);
-      if (!safePath) {
-        return { success: false, error: "Output path not allowed. Must be in /tmp, project-assets, or data directories.", provider: "vibevoice-tts" };
-      }
-      params.output_path = safePath;
-    }
-
-    const hfToken = getHFToken();
-
-    const apiUrl = `https://router.huggingface.co/hf-inference/models/${HF_TTS_MODEL}`;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (hfToken) {
-      headers["Authorization"] = `Bearer ${hfToken}`;
-    }
-
-    let inputText = params.text;
-    if (params.speakers && params.speakers.length > 0) {
-      inputText = params.speakers
-        .map(s => `[${s.name}]: ${s.text}`)
-        .join("\n");
-    }
-
-    if (inputText.length > MAX_TEXT_LENGTH) {
-      return { success: false, error: `Text too long (${inputText.length} chars). Maximum is ${MAX_TEXT_LENGTH}.`, provider: "vibevoice-tts" };
-    }
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        inputs: inputText,
-        parameters: {
-          voice: params.voice,
-        },
-      }),
-      signal: AbortSignal.timeout(120000),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-
-      if (response.status === 503) {
-        return {
-          success: false,
-          error: "VibeVoice TTS model is loading or unavailable on HF Inference API. The model (1.5B parameters) may require a dedicated endpoint. Try again in a few minutes or use an alternative TTS provider.",
-          provider: "vibevoice-tts",
-        };
-      }
-
-      return {
-        success: false,
-        error: `VibeVoice TTS failed (${response.status}): ${errorText}`,
-        provider: "vibevoice-tts",
-      };
-    }
-
-    const contentType = response.headers.get("content-type") || "";
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = Buffer.from(arrayBuffer);
-
-    const format = contentType.includes("wav") ? "wav" : contentType.includes("flac") ? "flac" : "mp3";
-
-    if (params.output_path) {
-      const dir = path.dirname(params.output_path);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(params.output_path, audioBuffer);
-    }
-
-    const audio_base64 = audioBuffer.toString("base64");
-
-    return {
-      success: true,
-      audio_base64,
-      format,
-      duration_seconds: estimateAudioDuration(audioBuffer.length, format),
-      speakers_used: params.speakers?.map(s => s.name),
-      provider: "vibevoice-tts",
-    };
-  } catch (err: any) {
-    if (err.name === "AbortError" || err.name === "TimeoutError") {
-      return { success: false, error: "VibeVoice TTS timed out (120s limit)", provider: "vibevoice-tts" };
-    }
-    console.error("[vibevoice-tts] TTS failed:", err.message);
-    return { success: false, error: `VibeVoice TTS failed: ${err.message}`, provider: "vibevoice-tts" };
-  }
-}
-
-function estimateAudioDuration(bytes: number, format: string): number {
-  switch (format) {
-    case "wav": return Math.round(bytes / (24000 * 2));
-    case "mp3": return Math.round(bytes / 16000);
-    default: return Math.round(bytes / 16000);
-  }
-}
-
-export async function vibevoiceRealtimeTTS(params: {
-  text: string;
-  speaker?: string;
-  output_path?: string;
-}): Promise<VibeVoiceTTSResult> {
-  try {
-    if (!params.text || params.text.length > MAX_TEXT_LENGTH) {
-      return { success: false, error: params.text ? `Text too long (max ${MAX_TEXT_LENGTH} chars)` : "Text is required", provider: "vibevoice-tts" };
-    }
-    if (params.output_path) {
-      const safePath = sanitizePath(params.output_path, ALLOWED_OUTPUT_DIRS);
-      if (!safePath) {
-        return { success: false, error: "Output path not allowed. Must be in /tmp, project-assets, or data directories.", provider: "vibevoice-tts" };
-      }
-      params.output_path = safePath;
-    }
-    const hfToken = getHFToken();
-
-    const apiUrl = `https://router.huggingface.co/models/${HF_REALTIME_MODEL}`;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (hfToken) {
-      headers["Authorization"] = `Bearer ${hfToken}`;
-    }
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        inputs: params.text,
-        parameters: {
-          speaker: params.speaker || "Carter",
-        },
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return {
-        success: false,
-        error: `VibeVoice Realtime TTS failed (${response.status}): ${errorText}`,
-        provider: "vibevoice-tts",
-      };
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = Buffer.from(arrayBuffer);
-    const contentType = response.headers.get("content-type") || "";
-    const format = contentType.includes("wav") ? "wav" : "mp3";
-
-    if (params.output_path) {
-      const dir = path.dirname(params.output_path);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(params.output_path, audioBuffer);
-    }
-
-    return {
-      success: true,
-      audio_base64: audioBuffer.toString("base64"),
-      format,
-      duration_seconds: estimateAudioDuration(audioBuffer.length, format),
-      speakers_used: [params.speaker || "Carter"],
-      provider: "vibevoice-tts",
-    };
-  } catch (err: any) {
-    console.error("[vibevoice-realtime] TTS failed:", err.message);
-    return { success: false, error: `VibeVoice Realtime TTS failed: ${err.message}`, provider: "vibevoice-tts" };
-  }
-}
-
 export function isVibeVoiceAvailable(): boolean {
   return true;
 }
 
-export const VIBEVOICE_SPEAKERS = [
-  "Carter", "Alyssa", "Angelo", "Bella", "Davis",
-  "Elijah", "Evelyn", "James", "Joanna", "Kenji",
-  "Madeline", "Nova",
-];
-
-export const VIBEVOICE_INFO = {
-  asr: {
-    model: HF_ASR_MODEL,
-    features: ["60-minute single-pass processing", "Speaker diarization (Who, When, What)", "50+ languages", "Custom hotwords", "Timestamped output"],
-    maxDuration: "60 minutes",
-    languages: "50+",
-  },
-  tts: {
-    model: HF_TTS_MODEL,
-    features: ["90-minute long-form generation", "Up to 4 speakers", "Expressive conversational speech", "Multi-lingual (English, Chinese)"],
-    maxDuration: "90 minutes",
-    maxSpeakers: 4,
-  },
-  realtime: {
-    model: HF_REALTIME_MODEL,
-    features: ["Real-time streaming TTS", "~200ms first-speech latency", "0.5B parameters (lightweight)", "10-minute generation per pass"],
-    speakers: VIBEVOICE_SPEAKERS,
-  },
+export const VIBEVOICE_ASR_INFO = {
+  model: HF_ASR_MODEL,
+  features: ["60-minute single-pass processing", "Speaker diarization (Who, When, What)", "50+ languages", "Custom hotwords", "Timestamped output"],
+  maxDuration: "60 minutes",
+  languages: "50+",
 };

@@ -448,34 +448,6 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "vibevoice_speak",
-      description: "Generate speech audio using Microsoft VibeVoice TTS — a frontier text-to-speech model supporting up to 90 minutes of expressive conversational audio with up to 4 distinct speakers. Best for generating podcast-style conversations, multi-speaker dialogues, narrations, and long-form audio content. Available speakers include Carter, Alyssa, Angelo, Bella, Davis, Elijah, Evelyn, James, Joanna, Kenji, Madeline, Nova.",
-      parameters: {
-        type: "object",
-        properties: {
-          text: { type: "string", description: "Text to convert to speech. For single-speaker output." },
-          speakers: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string", description: "Speaker name (e.g., Carter, Alyssa)" },
-                text: { type: "string", description: "What this speaker says" },
-              },
-              required: ["name", "text"],
-            },
-            description: "Multi-speaker dialogue. Each entry is a speaker turn. Supports up to 4 speakers.",
-          },
-          voice: { type: "string", description: "Voice/speaker name for single-speaker mode (default: Carter)" },
-          output_path: { type: "string", description: "Optional local file path to save the audio output" },
-        },
-        required: ["text"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "generate_dashboard",
       description: "Generate an interactive HTML dashboard that will be rendered in a live canvas inside the chat. Use for rich visualizations, status boards, KPI displays, data tables, or any complex visual output that goes beyond a simple chart. The HTML can include inline CSS and JavaScript. Use semantic HTML with the built-in utility classes: .card, .metric, .metric-value, .metric-label, .grid, .badge, .badge-green, .badge-red, .badge-blue, .badge-yellow.",
       parameters: {
@@ -1483,13 +1455,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: "function" as const,
     function: {
       name: "generate_audio",
-      description: "Generate audio narration from text using text-to-speech. Default provider is VibeVoice (free, no token costs). Saves the audio file and uploads to Google Drive. Use this to create voiceover narration for videos, podcasts, or audio content. ALWAYS use the default VibeVoice provider unless the user specifically requests ElevenLabs or OpenAI.",
+      description: "Generate audio narration from text using text-to-speech. Default provider is OpenAI TTS (high quality, reliable). Saves the audio file and uploads to Google Drive. Use this to create voiceover narration for videos, podcasts, or audio content.",
       parameters: {
         type: "object",
         properties: {
           text: { type: "string", description: "The text to convert to speech. Can be a full script or narration." },
-          voice: { type: "string", description: "Voice to use. For VibeVoice: Carter, Alyssa, Angelo, Bella, Davis, Elijah, Evelyn, James, Joanna, Kenji, Madeline, Nova. For ElevenLabs: any voice ID. For OpenAI: alloy, echo, fable, onyx, nova, shimmer. Default: Carter." },
-          provider: { type: "string", enum: ["vibevoice", "elevenlabs", "openai"], description: "TTS provider. Default: vibevoice (free). Use elevenlabs or openai only as fallback." },
+          voice: { type: "string", description: "Voice to use. For OpenAI: alloy, echo, fable, onyx, nova, shimmer. For ElevenLabs: any voice ID. Default: onyx." },
+          provider: { type: "string", enum: ["openai", "elevenlabs"], description: "TTS provider. Default: openai. Use elevenlabs as alternative." },
           filename: { type: "string", description: "Output filename (without extension). Default: 'narration'" },
           project_id: { type: "number", description: "Project ID to attach the audio file to (optional)" },
         },
@@ -1508,7 +1480,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           script: { type: "string", description: "The narration script text. Will be converted to audio via TTS." },
           pdf_path: { type: "string", description: "Path to PDF slide deck (optional). If missing or corrupt, text slides are auto-generated from the script." },
           title: { type: "string", description: "Video title (used in filename and metadata). Default: 'video'" },
-          voice_provider: { type: "string", enum: ["vibevoice", "elevenlabs", "openai"], description: "TTS provider for narration. Default: vibevoice (free). Use elevenlabs or openai only if user requests." },
+          voice_provider: { type: "string", enum: ["openai", "elevenlabs"], description: "TTS provider for narration. Default: openai. Use elevenlabs as alternative." },
           email_to: { type: "string", description: "Email address to send the Drive link to (optional)" },
           project_id: { type: "number", description: "Project ID to register the video file (optional)" },
         },
@@ -2856,28 +2828,6 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         enable_timestamps: params.enable_timestamps,
       });
     }
-    case "vibevoice_speak": {
-      const { vibevoiceTTS } = await import("./vibevoice");
-      const result = await vibevoiceTTS({
-        text: params.text,
-        speakers: params.speakers,
-        voice: params.voice,
-        output_path: params.output_path,
-      });
-      if (result.success && result.audio_base64) {
-        const truncatedPreview = result.audio_base64.slice(0, 100) + "...";
-        return {
-          success: true,
-          format: result.format,
-          duration_seconds: result.duration_seconds,
-          speakers_used: result.speakers_used,
-          audio_preview: truncatedPreview,
-          audio_size_bytes: Math.round((result.audio_base64.length * 3) / 4),
-          provider: result.provider,
-        };
-      }
-      return result;
-    }
     case "generate_dashboard": {
       const html = params.html;
       const title = params.title || "Presentation";
@@ -3991,7 +3941,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       return marketingExperiment(params as any);
     }
     case "generate_audio": {
-      const provider = params.provider || "vibevoice";
+      const provider = params.provider || "openai";
       const text = params.text;
       if (!text) return { error: "text is required" };
 
@@ -4004,35 +3954,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       let audioBuffer: Buffer;
       let ext = "mp3";
 
-      if (provider === "vibevoice") {
-        try {
-          const { vibevoiceTTS } = await import("./vibevoice");
-          const vvResult = await vibevoiceTTS({ text, voice: params.voice || "Carter", output_path: path.join(outputDir, `${filename}.mp3`) });
-          if (vvResult.success && vvResult.audio_base64) {
-            audioBuffer = Buffer.from(vvResult.audio_base64, "base64");
-            ext = vvResult.format || "mp3";
-            console.log(`[generate_audio] VibeVoice TTS succeeded (${audioBuffer.length} bytes, $0 cost)`);
-          } else {
-            console.warn(`[generate_audio] VibeVoice failed: ${vvResult.error}, falling back to edge TTS`);
-            const { synthesizeSpeech } = await import("./voice-utils");
-            throw new Error("VibeVoice unavailable, will fall through to ElevenLabs path");
-          }
-        } catch (vvErr: any) {
-          console.warn(`[generate_audio] VibeVoice failed (${vvErr.message}), falling back to edge/Google TTS`);
-          try {
-            const ttsGoogleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 200))}&tl=en&client=tw-ob`;
-            const gResp = await fetch(ttsGoogleUrl, { headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://translate.google.com/" } });
-            if (gResp.ok) {
-              audioBuffer = Buffer.from(await gResp.arrayBuffer());
-              console.log(`[generate_audio] Google TTS fallback succeeded (${audioBuffer.length} bytes, $0 cost)`);
-            } else {
-              return { error: `VibeVoice and Google TTS both failed. VibeVoice: ${vvErr.message}` };
-            }
-          } catch (gErr: any) {
-            return { error: `VibeVoice and Google TTS both failed. Try provider 'elevenlabs' or 'openai' as a last resort.` };
-          }
-        }
-      } else if (provider === "openai") {
+      if (provider === "openai") {
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) return { error: "OPENAI_API_KEY not configured" };
         try {
@@ -4163,7 +4085,7 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       try {
         const audioResult = await executeTool("generate_audio", {
           text: params.script,
-          provider: params.voice_provider || "vibevoice",
+          provider: params.voice_provider || "openai",
           filename: `${title}_narration`,
           project_id: params.project_id,
           _tenantId: params._tenantId,

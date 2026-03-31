@@ -984,8 +984,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/voice/wake", authMiddleware, handleVoiceWakeSet);
 
   app.get("/api/vibevoice/info", authMiddleware, async (_req: Request, res: Response) => {
-    const { VIBEVOICE_INFO, VIBEVOICE_SPEAKERS } = await import("./vibevoice");
-    res.json({ ...VIBEVOICE_INFO, speakers: VIBEVOICE_SPEAKERS });
+    const { VIBEVOICE_ASR_INFO } = await import("./vibevoice");
+    res.json({ asr: VIBEVOICE_ASR_INFO });
   });
 
   app.post("/api/vibevoice/transcribe", authMiddleware, async (req: Request, res: Response) => {
@@ -996,26 +996,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) {
       console.error("[vibevoice] Transcribe route error:", err.message);
       res.status(500).json({ success: false, error: "Internal server error during transcription", provider: "vibevoice-asr" });
-    }
-  });
-
-  app.post("/api/vibevoice/speak", authMiddleware, async (req: Request, res: Response) => {
-    try {
-      const { vibevoiceTTS } = await import("./vibevoice");
-      const result = await vibevoiceTTS(req.body);
-      if (result.success && result.audio_base64) {
-        const audioBuffer = Buffer.from(result.audio_base64, "base64");
-        res.set("Content-Type", `audio/${result.format || "mp3"}`);
-        res.set("X-VibeVoice-Provider", "vibevoice-tts");
-        res.set("X-VibeVoice-Duration", String(result.duration_seconds || 0));
-        res.send(audioBuffer);
-      } else {
-        const status = result.error?.includes("too long") || result.error?.includes("required") ? 400 : 502;
-        res.status(status).json(result);
-      }
-    } catch (err: any) {
-      console.error("[vibevoice] Speak route error:", err.message);
-      res.status(500).json({ success: false, error: "Internal server error during speech generation", provider: "vibevoice-tts" });
     }
   });
 

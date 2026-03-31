@@ -131,7 +131,7 @@ async function ttsGoogle(text: string): Promise<{ buffer: Buffer; format: "mp3" 
 async function synthesizeSpeech(text: string, voiceId?: string): Promise<{ buffer: Buffer; format: "mp3" | "pcm"; usedProvider: TTSProvider }> {
   const ttsConfig = loadTTSConfig();
   const provider = ttsConfig.provider;
-  const baseOrder: TTSProvider[] = [provider, "openai", "elevenlabs", "edge", "vibevoice"];
+  const baseOrder: TTSProvider[] = [provider, "openai", "elevenlabs", "edge"];
   const fallbackOrder = baseOrder.filter((v, i, a) => a.indexOf(v) === i);
 
   for (const p of fallbackOrder) {
@@ -144,13 +144,6 @@ async function synthesizeSpeech(text: string, voiceId?: string): Promise<{ buffe
           return { ...(await ttsElevenLabs(text, voiceId)), usedProvider: "elevenlabs" };
         case "edge":
           return { ...(await ttsGoogle(text)), usedProvider: "edge" };
-        case "vibevoice": {
-          const { vibevoiceTTS } = await import("./vibevoice");
-          const vvResult = await vibevoiceTTS({ text, voice: voiceId });
-          if (!vvResult.success || !vvResult.audio_base64) throw new Error(vvResult.error || "VibeVoice TTS failed");
-          const vvFormat = vvResult.format === "wav" ? "pcm" as const : "mp3" as const;
-          return { buffer: Buffer.from(vvResult.audio_base64, "base64"), format: vvFormat, usedProvider: "vibevoice" };
-        }
       }
     } catch (err: any) {
       console.error(`[tts] ${p} failed: ${err.message}`);
