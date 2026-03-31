@@ -1341,8 +1341,9 @@ DELIVERABLE ORCHESTRATION PATTERN (presentations, decks, reports, proposals, whi
 1. Radar: research the topic, gather data/stats/competitive info
 2. Scribe: write the content/narrative using Radar's research
 3. Proof: review and polish the content for quality
-4. Felix: assemble the final deliverable (PDF/slides) from the polished content
-This is the MINIMUM team for any professional deliverable. Always delegate research and writing — NEVER do those yourself.`;
+4. Felix: assemble the final deliverable — use create_slides for presentations/decks (.pptx), create_pdf for documents/reports
+This is the MINIMUM team for any professional deliverable. Always delegate research and writing — NEVER do those yourself.
+CRITICAL: For presentations, the final step MUST use create_slides. NEVER use produce_video, generate_dashboard, or create_slideshow_video for presentation deliverables.`;
         if (scaffoldBlock) {
           orchestrationPrompt += `\n\n${scaffoldBlock}`;
         }

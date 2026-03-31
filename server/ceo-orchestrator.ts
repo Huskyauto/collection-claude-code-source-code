@@ -110,8 +110,8 @@ function getRoleGuidance(persona: string, skillType: string): string {
 - For articles/posts: write the complete piece with intro, body sections, and conclusion.
 - Aim for depth and substance. A 200-word summary is never acceptable when 1000+ words of content was requested.
 - When delegating content writing to other agents, tell them to write in plain English prose — no HTML or code in their responses.
-- For presentations: use the generate_dashboard tool with styled HTML. The tool converts HTML to a polished PDF and uploads to Google Drive automatically.
-- For documents/reports: use create_pdf with sections. For rich visual presentations, generate_dashboard is better.`,
+- For presentations and slide decks: use create_slides — it generates a polished PowerPoint (.pptx) and uploads to Google Drive. NEVER use produce_video or generate_dashboard for presentations.
+- For documents/reports: use create_pdf with sections.`,
 
     "Proof": `ROLE GUIDANCE (Proof — Quality Review):
 - Review the ENTIRE content from previous steps. Don't skip sections.
