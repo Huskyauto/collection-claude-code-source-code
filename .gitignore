@@ -15,9 +15,12 @@ sedFtEuid
 uploads/
 attached_assets/
 project-assets/
+project-transcripts/
 .whatsapp-auth/
 data/browser-config.json
 data/lobster-workflows/
-*.docx*.pem
-.replit
+*.docx
+*.pem
 .git-rewrite/
+.local/
+/tmp/

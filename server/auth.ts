@@ -178,7 +178,8 @@ export async function getOrCreateTenantForReplitUser(replitUserId: string, email
   if (cached) return cached;
 
   const replitOwner = process.env.REPL_OWNER;
-  const ownerEmails = ["huskyauto@gmail.com", "huskyauto@hotmail.com"];
+  const ownerEmailsStr = process.env.OWNER_EMAILS || "";
+  const ownerEmails = ownerEmailsStr.split(",").map(e => e.trim()).filter(Boolean);
   const isOwner = (replitOwner && (
     (name && name.toLowerCase().includes(replitOwner.toLowerCase())) ||
     (email && email.toLowerCase().includes(replitOwner.toLowerCase())) ||

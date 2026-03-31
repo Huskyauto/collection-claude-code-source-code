@@ -775,4 +775,4 @@ Six production research programs for Project #13 (AI Buddy Health — weight los
 ---
 
 *VisionClaw Agent — Built by AI Buddy LLC*
-*Founder: Robert Washburn*
+*VisionClaw Agent Platform*

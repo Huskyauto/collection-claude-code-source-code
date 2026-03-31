@@ -943,7 +943,7 @@ export async function seedYouTubeIfMissing(tenantId: number = 1): Promise<void> 
 
     await db.execute(sql`
       INSERT INTO oauth_subscriptions (provider, tenant_id, access_token, refresh_token, expires_at, is_active, scope, email, token_type)
-      VALUES ('youtube', ${tenantId}, ${encAccess}, ${encRefresh}, ${expiresAt}, true, ${scope}, 'Robert Washburn', 'Bearer')
+      VALUES ('youtube', ${tenantId}, ${encAccess}, ${encRefresh}, ${expiresAt}, true, ${scope}, 'Channel Owner', 'Bearer')
     `);
     console.log(`[youtube] Seeded YouTube OAuth for tenant ${tenantId} (token valid for ${data.expires_in}s)`);
   } catch (err: any) {

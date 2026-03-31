@@ -478,7 +478,7 @@ export async function sendSystemHealthAlert(report: any): Promise<boolean> {
 
     await sendEmail({
       inboxId: inboxId as string,
-      to: "huskyauto@gmail.com",
+      to: process.env.OWNER_ALERT_EMAIL || "admin@visionclaw.ai",
       subject: `🚨 VisionClaw: System ${report.overall.toUpperCase()}`,
       text,
       html,

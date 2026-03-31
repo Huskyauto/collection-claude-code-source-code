@@ -672,7 +672,8 @@ async function executeTaskInner(task: HeartbeatTask, start: number, persona: Per
           execSync("bash /tmp/push-gh.sh 'Auto-backup commit'", { cwd: process.cwd(), timeout: 60000, stdio: "pipe" });
           gitStatus = " + GitHub push OK (secret scan passed)";
         } else if (process.env.GITHUB_TOKEN) {
-          const gitEnv = { ...process.env, GIT_AUTHOR_NAME: "VisionClaw Agent", GIT_AUTHOR_EMAIL: "visionclaw@huskyauto.dev", GIT_COMMITTER_NAME: "VisionClaw Agent", GIT_COMMITTER_EMAIL: "visionclaw@huskyauto.dev" };
+          const gitEmail = process.env.GIT_COMMIT_EMAIL || "agent@visionclaw.ai";
+          const gitEnv = { ...process.env, GIT_AUTHOR_NAME: "VisionClaw Agent", GIT_AUTHOR_EMAIL: gitEmail, GIT_COMMITTER_NAME: "VisionClaw Agent", GIT_COMMITTER_EMAIL: gitEmail };
           execSync("git add -A && git diff --cached --quiet || git commit -m 'Auto-backup commit'", { cwd: process.cwd(), timeout: 15000, stdio: "pipe", env: gitEnv });
           execSync(`git push "https://${process.env.GITHUB_TOKEN}@github.com/Huskyauto/VisionClaw-Agent.git" main`, { cwd: process.cwd(), timeout: 30000, stdio: "pipe", env: gitEnv });
           gitStatus = " + GitHub push OK (no secret scan — push script missing)";

@@ -3498,12 +3498,12 @@ export async function seedDatabase() {
       await db.execute(sql`
         INSERT INTO research_programs (tenant_id, persona_id, name, objective, constraints, metrics, exploration_strategy, model, max_experiments_per_session) VALUES
         (1, 10, 'Emotional Eating Crisis Interventions',
-         'Research and develop empathetic, evidence-based intervention scripts for people experiencing emotional eating episodes. Cover the top triggers: stress/anxiety, loneliness/boredom, late-night cravings, celebration/reward eating, and shame spirals after a binge. Each experiment should produce a ready-to-use 2-4 sentence intervention message that redirects without judgment. Reference CBT, DBT, and mindfulness techniques. Founder Robert Washburn lost 220 lbs — use his lived experience as inspiration for authentic voice.',
+         'Research and develop empathetic, evidence-based intervention scripts for people experiencing emotional eating episodes. Cover the top triggers: stress/anxiety, loneliness/boredom, late-night cravings, celebration/reward eating, and shame spirals after a binge. Each experiment should produce a ready-to-use 2-4 sentence intervention message that redirects without judgment. Reference CBT, DBT, and mindfulness techniques.',
          'Never shame or guilt the reader. No diet culture language (no cheat days, no clean eating, no good/bad foods). Must feel like a supportive friend, not a clinician. Keep messages under 100 words. Must work at 2 AM when someone is standing at the fridge.',
          'Empathy and warmth score, Practical actionability, Authenticity (does it feel real, not generic)',
          'aggressive', 'z-ai/glm-5-turbo', 25),
         (1, 4, 'AI Buddy Content Marketing Pipeline',
-         'Generate content frameworks for the AI Buddy Weight Loss Protocol + 90-Day AI Companion product (ai-buddyhealth.com). Create social media posts, blog outlines, email sequences, and ad copy angles targeting adults struggling with emotional eating. Focus on the transformation story: Robert Washburn, 61, lost 220 lbs in 2+ years. Each experiment should produce one complete, ready-to-publish content piece or framework.',
+         'Generate content frameworks for AI-powered health coaching products. Create social media posts, blog outlines, email sequences, and ad copy angles targeting adults struggling with emotional eating. Focus on transformation stories and evidence-based approaches. Each experiment should produce one complete, ready-to-publish content piece or framework.',
          'Must comply with FTC guidelines — no income or specific weight loss guarantees. Use transformation language but not before/after claims that could trigger ad platform bans. Target platforms: Instagram, Facebook, TikTok, email. Voice should be warm, relatable, and non-preachy.',
          'Hook strength (would you stop scrolling?), Emotional resonance, Call-to-action clarity, Platform appropriateness',
          'balanced', 'z-ai/glm-5-turbo', 20),
@@ -3536,9 +3536,13 @@ export async function seedDatabase() {
       await db.execute(sql`SELECT setval('tenants_id_seq', GREATEST((SELECT MAX(id) FROM tenants), 1))`);
     }
 
-    await db.execute(sql`INSERT INTO tenants (email, password_hash, name, plan, is_active, onboarding_seen)
-      VALUES ('huskyauto@gmail.com', 'ffe6fabf6725e275ef6bc1da8700e360:a2f8329abf88b382bbff881b45f4691a779b0349271b19111afe0920f056e218836985ab168aa4244975ffea9cafebf3ce8758798eda65a7065895fa5972891d', 'Bob Washburn', 'trial', true, false)
-      ON CONFLICT (email) DO NOTHING`);
+    if (process.env.OWNER_ALERT_EMAIL) {
+      const ownerEmail = process.env.OWNER_ALERT_EMAIL;
+      const ownerName = process.env.OWNER_NAME || "Owner";
+      await db.execute(sql`INSERT INTO tenants (email, password_hash, name, plan, is_active, onboarding_seen)
+        VALUES (${ownerEmail}, 'needs-password-reset', ${ownerName}, 'trial', true, false)
+        ON CONFLICT (email) DO NOTHING`);
+    }
 
     const [existingSettings] = await db.select().from(agentSettings).limit(1);
     if (!existingSettings) {
@@ -3804,7 +3808,7 @@ Rules:
 
     const [settings] = await db.select().from(agentSettings).where(eq(agentSettings.id, 1));
     if (settings) {
-      const defaultPin = "0429";
+      const defaultPin = process.env.ADMIN_PIN || "0000";
       const hash = crypto.createHmac("sha256", "visionclaw-pin-v1").update(defaultPin).digest("hex");
       if (settings.accessPin !== hash) {
         await db.update(agentSettings).set({ accessPin: hash }).where(eq(agentSettings.id, 1));
@@ -3916,11 +3920,11 @@ async function seedAIBuddyHealthProject() {
     await db.execute(sql`
       INSERT INTO projects (name, description, status, tags, metadata, tenant_id)
       VALUES (
-        'AI Buddy Health',
-        'AI Buddy LLC — Weight loss protocol + AI companion business. Digital product: AI Buddy Weight Loss Protocol + 90-Day AI Companion. Domain: ai-buddyhealth.com (Cloudflare). Trademark filed. Founder: Robert Washburn, 61, lost 220 lbs in 2+ years. Entity: AI Buddy LLC (Illinois, EIN registered).',
+        'Sample Project',
+        'Sample project for demonstration purposes. Configure your own projects after deployment.',
         'active',
-        ARRAY['weight-loss','digital-product','ai-buddy','health','stripe','llc']::text[],
-        '{"state":"Illinois","domain":"ai-buddyhealth.com","entity":"AI Buddy LLC","customer_name":"Robert Washburn","customer_email":"huskyauto@gmail.com"}'::jsonb,
+        ARRAY['sample','demo']::text[],
+        '{}'::jsonb,
         1
       )
     `);
@@ -3931,107 +3935,21 @@ async function seedAIBuddyHealthProject() {
     const projId = projRows[0].id;
 
     const notes = [
-      `BUSINESS BRIEF — AI Buddy Weight Loss Protocol + AI Companion
+      `SAMPLE PROJECT NOTE — Getting Started
 
-ENTITY: AI Buddy LLC (Illinois, EIN registered)
-DOMAIN: ai-buddyhealth.com (Cloudflare)
-TRADEMARK: Filed
-FOUNDER: Robert Washburn, 61, lost 220 lbs in 2+ years
-CONTACT: huskyauto@gmail.com
+This is a sample project created during database seeding. 
+Configure your own projects, notes, and business data after deployment.
+Use the Projects section in the admin dashboard to manage your projects.`,
 
-PRODUCT: AI Buddy Weight Loss Protocol (digital eBook) + 90-Day AI Companion (daily coaching via app)
-PRICING: Protocol $47-$97, Companion $19.99/mo or $149/yr
-TECH: Replit (app), Stripe (payments), ChatGPT/Claude (AI coaching)
-TARGET: Adults 35-65 who have tried everything, GLP-1 users hitting plateaus, emotional eaters
-SOCIAL: TikTok, Instagram, YouTube, Facebook group planned
-APPS: AI-BUDDY (Flask), MetaBalance (TypeScript), MindfulBite (PWA)`,
+      `PLATFORM CAPABILITIES
 
-      `FOUNDER STORY — Robert Washburn Weight Loss Journey
-
-KEY STATS:
-- 220 lbs lost in ~2 years (from ~400 lbs)
-- Age 61, male
-- Used GLP-1 medications (Mounjaro/tirzepatide)
-- Hit 3 major plateaus, broke through each
-- Wearables: WHOOP band, Oura ring
-- Fasting: 16:8 and 20:4 protocols
-- Exercise: Walking first, then strength training
-- Mental health: CBT techniques, journaling, meditation
-- Existing apps: AI-BUDDY (Flask), MetaBalance, MindfulBite
-
-STORY ARC: Started at ~400 lbs, doctor recommended GLP-1. Lost first 100 lbs with medication + basic changes. Hit plateau at 300, added structured fasting. Hit plateau at 250, added strength training. Hit plateau at 200, added mental/emotional work. Now maintaining at ~180. Built apps along the way to track progress and help others.`,
-
-      `THE 7 RULES — AI Buddy Lead Magnet Content (Approved Draft)
-
-Title: "The 7 Rules That Helped Me Lose 220 Pounds — And Keep It Off"
-
-Rule 1: Never Diet Again (Lifestyle Protocol Instead)
-Rule 2: Move Before You're Ready (Walking First Philosophy)
-Rule 3: Track What Matters (Data-Driven Weight Loss)
-Rule 4: Break Plateaus With Fasting Windows
-Rule 5: Build Muscle to Burn Fat (Strength Training After 50)
-Rule 6: Fix Your Mind to Fix Your Body (CBT + Journaling)
-Rule 7: Get an AI Buddy (Technology-Assisted Accountability)
-
-FORMAT: PDF lead magnet, 15-20 pages, personal story + actionable steps per rule
-FUNNEL: Free download → email sequence → Protocol upsell → Companion subscription`,
-
-      `PROTOCOL TABLE OF CONTENTS — Approved Structure
-
-INTRODUCTION: Story, what this protocol is, who it's for
-PHASE 0 — FOUNDATION (Weeks 1-2): Mindset reset, baseline measurements, kitchen cleanup, walking habit
-PHASE 1 — IGNITION (Weeks 3-6): GLP-1 optimization, 16:8 fasting intro, whole food basics, daily tracking
-PHASE 2 — MOMENTUM (Weeks 7-12): 20:4 fasting option, strength training intro, plateau-breaking strategies
-PHASE 3 — TRANSFORMATION (Weeks 13-24): Advanced training, emotional eating toolkit, social navigation
-PHASE 4 — MAINTENANCE (Week 25+): Sustainable habits, wearable optimization, community, long-term mindset
-APPENDICES: Supplement guide, meal templates, workout templates, journaling prompts, emergency plateau protocol`,
-
-      `BRAND ASSETS & DESIGN DECISIONS
-
-LOGO: Blue heart with green laurel wreath, arched "AI-BUDDY" text above in bold blue uppercase, white wing/dove detail on heart
-COLORS: Primary blue (#1B3A8C or similar), green laurel (#4A8C3B or similar), white accents
-FONT: Bold sans-serif for logo text
-TRADEMARK: Filed for AI-BUDDY mark
-DOMAIN: ai-buddyhealth.com (Cloudflare DNS)
-
-BUILD STATUS:
-- Logo: DONE (trademark filed)
-- Domain: DONE (Cloudflare)
-- LLC: DONE (Illinois)
-- EIN: DONE
-- Stripe: IN PROGRESS
-- Protocol v1 content: IN PROGRESS (TOC approved)
-- 7 Rules lead magnet: IN PROGRESS (draft approved)
-- Landing page / static site: TODO
-- Email sequences: TODO
-- Social content batch: TODO
-- Branded PDF with logo: TODO`,
-
-      `GITHUB REPOSITORIES — Source Code for AI Buddy Apps
-
-1. AI-BUDDY-Latest-Backup (Primary App)
-   URL: https://github.com/Huskyauto/AI-BUDDY-Latest-Backup
-   Stack: Python/Flask
-   Features: Fasting tracker, food tracker, CBT tools, challenge routes, dashboard, admin dashboard, auth
-   Role: Primary customer-facing AI Buddy app concept
-
-2. MetaBalance (Metabolic Health Platform)
-   URL: https://github.com/Huskyauto/MetaBalance
-   Stack: TypeScript, client/server/drizzle (modern full-stack)
-   Features: 90lb journey content, work summary, review notes, metabolic health tracking
-   Role: Internal reference for structured journey docs and architecture
-
-3. MindfulBite (Emotional Eating Support)
-   URL: https://github.com/Huskyauto/mindfulbite-emotional-eating-support
-   Stack: TypeScript, Vite, PWA
-   Features: Emotional eating coaching, AI coaching, guided meditations, journaling, coping techniques
-   Role: Emotional eating module content source — bundled into AI Buddy v1, not separate product
-
-OFFICIAL LOGO FILE: ai_buddy_trademark_logo.png (in project files)
-- Blue heart with white wing/dove detail
-- Green laurel wreath surrounding heart
-- "AI-BUDDY" text arched above in bold blue uppercase
-- This is the trademark-filed version — use on ALL customer-facing materials`
+VisionClaw supports:
+- Multi-persona AI agents with delegation
+- Project management with notes, files, and conversations
+- Tool execution (95+ built-in tools)
+- Memory and knowledge base
+- Automated research and reporting
+- File management via Google Drive integration`
     ];
 
     for (const note of notes) {

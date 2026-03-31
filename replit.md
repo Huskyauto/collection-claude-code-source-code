@@ -4,18 +4,17 @@
 VisionClaw is an agentic AI platform designed as a fully autonomous AI corporation, built by AI Buddy LLC (Illinois). It features 14 specialized AI personas operating as a complete corporate team. The platform runs under rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards, implementing the Claude Opus 4.6 Agentic Spec. Agents handle tasks autonomously and escalate only mission-critical issues to human owners. Built for multi-tenancy, cost-effectiveness, and robust security.
 
 **Platform Stats (March 2026):**
-- 120+ server-side TypeScript files (~62,000 lines)
-- 38 frontend pages
+- 130+ server-side TypeScript files (~89,000 lines)
+- 38+ frontend pages
 - 66 database tables
-- 92 built-in AI tools + custom tool support
+- 95 built-in AI tools + custom tool support
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
 - 40 governance rules
-- 11 research programs (6 AI Buddy business + 5 nightly platform)
-- 7 research schedules (6 weekly Sunday midnight + 1 nightly 2AM)
+- 11 research programs
+- 7 research schedules
 - 13 heartbeat tasks
-- 3 project folders (AI Buddy Health, YouTube Channel, VisionClaw Agent Platform)
 
 ## User Preferences
 - **NEVER modify `shared/schema.ts`** without explicit owner approval. Use direct SQL (`psql $DATABASE_URL`) for new tables.
@@ -35,7 +34,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - **Persona IDs**: VisionClaw=1, Felix=2, Forge=3, Teagan=4, Blueprint=5, Chief of Staff=6, Scribe=7, Proof=8, Radar=9, Neptune=10, Apollo=11, Atlas=12, Cassandra=13, Luna=14.
 - **Model tier priority (OAuth-first)**: Fast=Gemini 3 Flash → Gemini 2.5 Flash → GPT-4.1 Mini, Balanced=Gemini 3 Flash → GPT-4.1 → Sonnet 4, Powerful=Gemini 3.1 Pro → GPT-4.1 → Opus 4.6 → Sonnet 4.6, Reasoning=Gemini 3.1 Pro → o4-mini → Opus 4.6. OAuth subscription and Claude Runner always checked first. OpenRouter models are last-resort fallbacks only. Auto-route logging with 60s dedup.
 - **Subscription-First Routing (BYOS)**: OAuth tokens from OpenAI ChatGPT Plus and Google Gemini used as PRIMARY inference. Google OAuth via redirect with PKCE (`generative-language` scope stored as provider='google'). OpenAI via code-paste with STS exchange. Drive connector stored as provider='google-workspace' (separate from Gemini). `markSubscriptionFailed(provider, tenantId, statusCode)` with tiered TTLs.
-- **Admin PIN**: HMAC-SHA256 with salt "visionclaw-pin-v1". Default 0429. Admin = tenant_id 1.
+- **Admin PIN**: HMAC-SHA256 with salt "visionclaw-pin-v1". Set via `ADMIN_PIN` env var. Admin = tenant_id 1.
 - **ElevenLabs TTS**: Creator plan active (110K chars/month, 23 voices). Google TTS also available. `continuous=false` is correct.
 - **YouTube OAuth**: provider='youtube' in oauth_subscriptions. Uses YOUTUBE_CLIENT_ID + YOUTUBE_CLIENT_SECRET (Web Application type, not Desktop). Redirect URI: `/api/youtube/callback`. Token auto-refreshed via OAUTH_PROVIDERS config.
 - **Research model validation**: On startup, `fixResearchProgramModels()` auto-corrects any program with an unknown model. `startResearchSession()` validates before session creation. Duplicate-session protection prevents double runs.
@@ -122,7 +121,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 
 ## Key Files
 - `server/chat-engine.ts` — Core message processing, model routing, tool execution loop, delegation event emission
-- `server/tools.ts` — 92 tool definitions and executeTool dispatcher
+- `server/tools.ts` — 95 tool definitions and executeTool dispatcher
 - `server/heartbeat.ts` — Heartbeat engine, delegation execution, scheduled tasks
 - `server/ceo-orchestrator.ts` — Felix's multi-step task decomposition engine
 - `server/delegation-events.ts` — Real-time delegation event emitter with tenant isolation

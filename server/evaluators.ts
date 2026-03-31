@@ -114,7 +114,7 @@ const PII_PATTERNS = [
   { name: "credit_card", pattern: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g },
 ];
 
-const PII_WHITELIST = new Set(["visionclaw@agentmail.to", "huskyauto@gmail.com"]);
+const PII_WHITELIST = new Set(["visionclaw@agentmail.to", ...(process.env.OWNER_ALERT_EMAIL ? [process.env.OWNER_ALERT_EMAIL] : [])]);
 
 export function scanForPII(text: string): { count: number; types: string[]; instances: string[] } {
   const found: { type: string; match: string }[] = [];

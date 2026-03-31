@@ -200,7 +200,7 @@ Each persona has: Unique Soul, Operating Loop, Brand Voice, Specialized Tools, a
 ---
 
 # AI BUDDY HEALTH (Project #13)
-- Founder: Robert Washburn, 61, lost 220 lbs
+- Health coaching platform founder story
 - Domain: ai-buddyhealth.com
 - 90-Day AI Companion Weight Loss Protocol
 - Integrated with VisionClaw research programs
