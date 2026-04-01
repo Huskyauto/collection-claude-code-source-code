@@ -1784,6 +1784,14 @@ CRITICAL: For presentations, the final step MUST use create_slides. NEVER use pr
       loopDetector.record(toolName, parsedArgs, result);
       executedTools.push({ name: toolName, input: parsedArgs, output: result });
 
+      try {
+        const { recordToolCallForStuckDetection } = await import("./stuck-diagnostics");
+        const stuckPattern = recordToolCallForStuckDetection(conversationId, toolName, parsedArgs);
+        if (stuckPattern) {
+          console.log(`[stuck-diagnostics] Circular tool loop detected: ${toolName} x${stuckPattern.metadata.repeatCount} in conversation ${conversationId}`);
+        }
+      } catch {}
+
       const screenshotBase64 = toolName === "browser" && result && typeof result === "object" ? result.base64 : null;
       const resultForMsg = { ...result };
       if (screenshotBase64) delete resultForMsg.base64;

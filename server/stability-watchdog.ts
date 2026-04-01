@@ -67,6 +67,7 @@ async function runWatchdogCycle(): Promise<void> {
     await cleanupStaleData(actions);
     await checkMemoryPressure(actions);
     await pruneOldLogs(actions);
+    await runStuckDiagnostics(actions);
 
     lastWatchdogRun = Date.now();
     watchdogRunCount++;
@@ -255,6 +256,30 @@ async function pruneOldLogs(actions: string[]): Promise<void> {
       actions.push(`Pruned ${rows.length} heartbeat log(s) older than ${MAX_HEARTBEAT_LOG_AGE_HOURS}h`);
     }
   } catch {}
+}
+
+async function runStuckDiagnostics(actions: string[]): Promise<void> {
+  try {
+    const { detectStalledDelegations, detectHungProcesses, postDiagnosticReport } = await import("./stuck-diagnostics");
+    const [stalledPatterns, hungPatterns] = await Promise.all([
+      detectStalledDelegations(),
+      detectHungProcesses(),
+    ]);
+    const allPatterns = [...stalledPatterns, ...hungPatterns];
+
+    for (const p of stalledPatterns) {
+      actions.push(`Stalled delegation: ${p.description}`);
+    }
+    for (const p of hungPatterns) {
+      actions.push(`Hung process: ${p.description}`);
+    }
+
+    if (allPatterns.length > 0) {
+      await postDiagnosticReport(allPatterns).catch(() => {});
+    }
+  } catch (err: any) {
+    console.error("[watchdog] Stuck diagnostics failed:", err.message);
+  }
 }
 
 async function reportToAgentChannel(actions: string[]): Promise<void> {
