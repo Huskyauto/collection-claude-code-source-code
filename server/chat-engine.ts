@@ -879,16 +879,82 @@ CRITICAL FILE RULES:
 
     if (knowledgeEntries && knowledgeEntries.length > 0) {
       const ranked = await rankKnowledgeByRelevance(knowledgeEntries, userMessage);
-      for (const k of ranked) {
-        const line = `- [${k.category}|P${k.priority}] ${k.title}: ${k.content.slice(0, 300)}`;
-        if (charBudget - line.length < 0) break;
-        kLines.push(line);
-        charBudget -= line.length;
-        usedIds.add(k.id);
-      }
-    }
 
-    if (charBudget > 400 && userMessage) {
+      let crossPersonaCandidates: any[] = [];
+      if (userMessage) {
+        try {
+          const cross = await vectorSearchKnowledge(userMessage, {
+            tenantId: tenantId ?? 1,
+            topK: 5,
+            threshold: 0.3,
+          });
+          crossPersonaCandidates = cross.filter(f => !ranked.some((r: any) => r.id === f.id));
+        } catch {}
+      }
+
+      const allCandidates = [
+        ...ranked.map((k: any) => ({
+          id: k.id, title: k.title, content: k.content, category: k.category,
+          similarity: k._score || 0, priority: k.priority, createdAt: k.createdAt, source: "persona",
+        })),
+        ...crossPersonaCandidates.map((f: any) => ({
+          id: f.id, title: f.title, content: f.content, category: f.category,
+          similarity: f.similarity || 0, priority: f.priority || 3, createdAt: f.createdAt, source: "cross-domain",
+        })),
+      ];
+
+      if (allCandidates.length > 7 && userMessage) {
+        try {
+          const { selectRelevantMemories } = await import("./memory-relevance");
+          const { getAllToolDefinitions } = await import("./tools");
+          const activeToolNames = getAllToolDefinitions().map((t: any) => t.function.name);
+          const selections = await selectRelevantMemories(userMessage, allCandidates, {
+            activeTools: activeToolNames,
+            personaName: persona?.name,
+          }, 7);
+
+          const selectedIds = new Set(selections.map(s => s.id));
+          const selectedMap = new Map(selections.map(s => [s.id, s.score]));
+
+          const selectedEntries = allCandidates
+            .filter(c => selectedIds.has(c.id))
+            .sort((a, b) => (selectedMap.get(b.id) || 0) - (selectedMap.get(a.id) || 0));
+
+          for (const k of selectedEntries) {
+            const tag = k.source === "cross-domain" ? `${k.category}|P${k.priority}|cross-domain` : `${k.category}|P${k.priority}`;
+            const line = `- [${tag}] ${k.title}: ${(k.content || "").slice(0, 300)}`;
+            if (charBudget - line.length < 0) break;
+            kLines.push(line);
+            charBudget -= line.length;
+            usedIds.add(k.id);
+          }
+        } catch {
+          for (const k of ranked) {
+            const line = `- [${k.category}|P${k.priority}] ${k.title}: ${k.content.slice(0, 300)}`;
+            if (charBudget - line.length < 0) break;
+            kLines.push(line);
+            charBudget -= line.length;
+            usedIds.add(k.id);
+          }
+        }
+      } else {
+        for (const k of ranked) {
+          const line = `- [${k.category}|P${k.priority}] ${k.title}: ${k.content.slice(0, 300)}`;
+          if (charBudget - line.length < 0) break;
+          kLines.push(line);
+          charBudget -= line.length;
+          usedIds.add(k.id);
+        }
+        for (const f of crossPersonaCandidates) {
+          if (usedIds.has(f.id)) continue;
+          const line = `- [${f.category}|P${f.priority || 3}|cross-domain] ${f.title}: ${(f.content || "").slice(0, 250)}`;
+          if (charBudget - line.length < 0) break;
+          kLines.push(line);
+          charBudget -= line.length;
+          usedIds.add(f.id);
+        }
+      }
+    } else if (userMessage) {
       try {
         const crossPersonaFindings = await vectorSearchKnowledge(userMessage, {
           tenantId: tenantId ?? 1,
