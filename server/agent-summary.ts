@@ -1,9 +1,14 @@
 import OpenAI from "openai";
-import { emitDelegationEvent } from "./delegation-events";
+import { emitDelegationEvent, subscribeToDelegation } from "./delegation-events";
 
 const replit = new OpenAI();
 
-const activeSummarizers = new Map<number, ReturnType<typeof setInterval>>();
+interface SummarizerEntry {
+  timer: ReturnType<typeof setInterval>;
+  unsub: () => void;
+}
+
+const activeSummarizers = new Map<number, SummarizerEntry>();
 
 async function generateStatusSummary(agentName: string, taskName: string, recentContext: string): Promise<string | null> {
   try {
@@ -53,7 +58,6 @@ export function startDelegationSummarizer(
 
   let recentActivity: string[] = [];
 
-  const { subscribeToDelegation } = require("./delegation-events");
   const unsub = subscribeToDelegation(conversationId, (event: { type: string; message: string; metadata?: Record<string, unknown> }) => {
     if (event.metadata?.isSummary) return;
     recentActivity.push(`[${event.type}] ${event.message}`);
@@ -81,20 +85,14 @@ export function startDelegationSummarizer(
     }
   }, intervalMs);
 
-  const cleanup = { timer, unsub };
-  activeSummarizers.set(conversationId, timer);
-  (activeSummarizers as any)[`unsub_${conversationId}`] = unsub;
+  activeSummarizers.set(conversationId, { timer, unsub });
 }
 
 export function stopDelegationSummarizer(conversationId: number): void {
-  const existing = activeSummarizers.get(conversationId);
-  if (existing) {
-    clearInterval(existing);
+  const entry = activeSummarizers.get(conversationId);
+  if (entry) {
+    clearInterval(entry.timer);
+    entry.unsub();
     activeSummarizers.delete(conversationId);
-  }
-  const unsub = (activeSummarizers as any)[`unsub_${conversationId}`];
-  if (unsub) {
-    unsub();
-    delete (activeSummarizers as any)[`unsub_${conversationId}`];
   }
 }

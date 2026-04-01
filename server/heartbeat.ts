@@ -1611,16 +1611,19 @@ ${delegationGuidance}
         startDelegationSummarizer(childConv.id, tenantId, target.name, taskName, depth);
       } catch {}
 
-      const result = await _processMessageFn(
-        childConv.id,
-        taskPrompt,
-        { enableTools: true, depth }
-      );
-
+      let result: any;
       try {
-        const { stopDelegationSummarizer } = await import("./agent-summary");
-        stopDelegationSummarizer(childConv.id);
-      } catch {}
+        result = await _processMessageFn(
+          childConv.id,
+          taskPrompt,
+          { enableTools: true, depth }
+        );
+      } finally {
+        try {
+          const { stopDelegationSummarizer } = await import("./agent-summary");
+          stopDelegationSummarizer(childConv.id);
+        } catch {}
+      }
 
       const resultText = result?.response || JSON.stringify(result);
       console.log(`[delegation] Inline complete: "${taskName}" → ${target.name} (${resultText.length} chars)`);
