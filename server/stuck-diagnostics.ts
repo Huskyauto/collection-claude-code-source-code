@@ -112,69 +112,69 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
     const { activeTaskTracker } = await import("./heartbeat");
     const now = Date.now();
 
-    let delegationEventMap: Map<number, number> | null = null;
+    const delegationEntries: Array<{ taskId: number; info: { taskName: string; personaId: number | null; personaName: string | null; startedAt: number; taskType?: string; conversationId?: number } }> = [];
+    for (const [taskId, info] of activeTaskTracker) {
+      const taskType = info.taskType || "";
+      const isDelegation = taskType === "delegation" || taskType === "sub_delegation" || info.taskName?.includes("delegation");
+      if (isDelegation) {
+        delegationEntries.push({ taskId, info });
+      }
+    }
+
+    if (delegationEntries.length === 0) return patterns;
+
+    let getLastDelegationEventTime: ((convId: number) => number | null) | null = null;
     try {
       const { getRecentEvents } = await import("./delegation-events");
-      delegationEventMap = new Map();
-      for (const [taskId, info] of activeTaskTracker) {
-        const taskType = (info as any).taskType || info.taskName || "";
-        if (taskType.includes("delegation") || taskType.includes("sub_delegation") || info.taskName?.includes("delegation")) {
-          const convId = (info as any).conversationId;
-          if (convId) {
-            const events = getRecentEvents(convId);
-            if (events.length > 0) {
-              delegationEventMap.set(taskId, Math.max(...events.map((e: any) => e.timestamp)));
-            }
-          }
-        }
-      }
+      getLastDelegationEventTime = (convId: number) => {
+        const events = getRecentEvents(convId);
+        if (events.length === 0) return null;
+        return Math.max(...events.map(e => e.timestamp));
+      };
     } catch {}
 
-    for (const [taskId, info] of activeTaskTracker) {
-      const taskType = (info as any).taskType || info.taskName || "";
-      if (taskType.includes("delegation") || taskType.includes("sub_delegation") || info.taskName?.includes("delegation")) {
-        const elapsed = now - info.startedAt;
+    for (const { taskId, info } of delegationEntries) {
+      const elapsed = now - info.startedAt;
 
-        let eventAge = elapsed;
-        if (delegationEventMap) {
-          const lastEventTs = delegationEventMap.get(taskId);
-          if (lastEventTs) {
-            eventAge = now - lastEventTs;
-          }
+      let eventAge = elapsed;
+      if (info.conversationId && getLastDelegationEventTime) {
+        const lastTs = getLastDelegationEventTime(info.conversationId);
+        if (lastTs) {
+          eventAge = now - lastTs;
         }
+      }
 
-        if (eventAge > STALLED_DELEGATION_MS) {
-          const pattern: StuckPattern = {
-            type: "stalled_delegation",
-            detectedAt: now,
-            description: `Delegation "${info.taskName}" (persona: ${info.personaName || "unknown"}) — no events for ${Math.round(eventAge / 60000)}min (total age: ${Math.round(elapsed / 60000)}min)`,
+      if (eventAge > STALLED_DELEGATION_MS) {
+        const pattern: StuckPattern = {
+          type: "stalled_delegation",
+          detectedAt: now,
+          description: `Delegation "${info.taskName}" (persona: ${info.personaName || "unknown"}) — no events for ${Math.round(eventAge / 60000)}min (total age: ${Math.round(elapsed / 60000)}min)`,
+          durationMs: elapsed,
+          probableCause: "Delegation task stalled — no new events emitted for 3+ minutes despite task still being active",
+          remediation: eventAge > STALLED_DELEGATION_MS * 2
+            ? "Cancelling stalled delegation task from active tracker"
+            : "Warning emitted; will auto-cancel if stall persists next cycle",
+          metadata: { taskId, taskName: info.taskName, personaName: info.personaName, taskType: info.taskType, elapsedMs: elapsed, eventAgeMs: eventAge },
+        };
+        patterns.push(pattern);
+        addPattern(pattern);
+
+        if (eventAge > STALLED_DELEGATION_MS * 2) {
+          activeTaskTracker.delete(taskId);
+          console.log(`[stuck-diagnostics] Auto-cancelled stalled delegation task ${taskId} "${info.taskName}" after ${Math.round(eventAge / 60000)}min of inactivity`);
+
+          await storage.createHeartbeatLog({
+            taskId,
+            taskName: info.taskName,
+            status: "error",
+            input: null,
+            output: `Stuck diagnostics: auto-cancelled stalled delegation after ${Math.round(eventAge / 60000)} minutes of event inactivity`,
+            model: null,
+            personaId: info.personaId,
+            personaName: info.personaName,
+            delegatedTasks: null,
             durationMs: elapsed,
-            probableCause: "Delegation task stalled — no new events emitted for 3+ minutes despite task still being active",
-            remediation: eventAge > STALLED_DELEGATION_MS * 2
-              ? "Cancelling stalled delegation task from active tracker"
-              : "Warning emitted; will auto-cancel if stall persists next cycle",
-            metadata: { taskId, taskName: info.taskName, personaName: info.personaName, elapsedMs: elapsed, eventAgeMs: eventAge },
-          };
-          patterns.push(pattern);
-          addPattern(pattern);
-
-          if (eventAge > STALLED_DELEGATION_MS * 2) {
-            activeTaskTracker.delete(taskId);
-            console.log(`[stuck-diagnostics] Auto-cancelled stalled delegation task ${taskId} "${info.taskName}" after ${Math.round(eventAge / 60000)}min of inactivity`);
-
-            await storage.createHeartbeatLog({
-              taskId,
-              taskName: info.taskName,
-              status: "error",
-              input: null,
-              output: `Stuck diagnostics: auto-cancelled stalled delegation after ${Math.round(eventAge / 60000)} minutes of event inactivity`,
-              model: null,
-              personaId: info.personaId,
-              personaName: info.personaName,
-              delegatedTasks: null,
-              durationMs: elapsed,
-            }).catch(() => {});
-          }
+          }).catch(() => {});
         }
       }
     }

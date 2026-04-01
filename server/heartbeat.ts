@@ -106,7 +106,7 @@ function hasRecentActivity(): boolean {
   return lastMessageTimestamp > lastReflectionTimestamp;
 }
 
-export const activeTaskTracker = new Map<number, { taskName: string; personaId: number | null; personaName: string | null; startedAt: number }>();
+export const activeTaskTracker = new Map<number, { taskName: string; personaId: number | null; personaName: string | null; startedAt: number; taskType?: string; conversationId?: number }>();
 
 function switchToActiveInterval() {
   if (currentIntervalMs === HEARTBEAT_INTERVAL_ACTIVE_MS) return;
@@ -474,6 +474,7 @@ async function executeTask(task: HeartbeatTask) {
     personaId: task.personaId,
     personaName: persona?.name || null,
     startedAt: start,
+    taskType: task.type,
   });
 
   try {

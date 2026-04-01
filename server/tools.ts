@@ -4962,6 +4962,14 @@ export async function executeToolWithTimeout(name: string, params: Record<string
   const timeoutMs = VERY_SLOW_TOOLS.has(name) ? VERY_SLOW_TOOL_TIMEOUT_MS : SLOW_TOOLS.has(name) ? SLOW_TOOL_TIMEOUT_MS : DEFAULT_TOOL_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let trackingId: string | undefined;
+  try {
+    const { trackHttpRequest } = await import("./stuck-diagnostics");
+    const tenantId = params._tenantId || 1;
+    trackingId = trackHttpRequest(name, tenantId, name, controller);
+  } catch {}
+
   try {
     const result = await Promise.race([
       executeTool(name, params),
@@ -4974,5 +4982,11 @@ export async function executeToolWithTimeout(name: string, params: Record<string
     return result;
   } finally {
     clearTimeout(timer);
+    if (trackingId) {
+      try {
+        const { untrackHttpRequest } = await import("./stuck-diagnostics");
+        untrackHttpRequest(trackingId);
+      } catch {}
+    }
   }
 }
