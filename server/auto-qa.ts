@@ -106,17 +106,27 @@ Respond with ONLY valid JSON:
       }
     }
 
+    const hasCritical = parsed.adversarialFindings.some(f => f.severity === "critical");
+    const majorCount = parsed.adversarialFindings.filter(f => f.severity === "major").length;
+    const minorOnly = parsed.adversarialFindings.length > 0 && !hasCritical && majorCount === 0;
+
     if (!["approved", "approved-with-notes", "needs-revision", "flagged"].includes(parsed.verdict)) {
-      const hasCritical = parsed.adversarialFindings.some(f => f.severity === "critical");
-      const majorCount = parsed.adversarialFindings.filter(f => f.severity === "major").length;
       if (hasCritical || majorCount >= 2) {
         parsed.verdict = "flagged";
       } else if (majorCount === 1) {
         parsed.verdict = "needs-revision";
-      } else if (parsed.adversarialFindings.length > 0) {
+      } else if (minorOnly) {
         parsed.verdict = "approved-with-notes";
       } else {
         parsed.verdict = parsed.score >= 7 ? "approved" : parsed.score >= 4 ? "needs-revision" : "flagged";
+      }
+    } else {
+      if (hasCritical && parsed.verdict !== "flagged") {
+        parsed.verdict = "flagged";
+      } else if (majorCount >= 1 && parsed.verdict === "approved") {
+        parsed.verdict = "needs-revision";
+      } else if (minorOnly && parsed.verdict === "approved") {
+        parsed.verdict = "approved-with-notes";
       }
     }
 

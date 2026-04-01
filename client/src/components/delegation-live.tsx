@@ -130,7 +130,13 @@ const FINDING_TYPE_LABELS: Record<string, string> = {
   task_alignment: "Alignment",
 };
 
-function QABadgeWithFindings({ qaResult, findings, eventId }: { qaResult: any; findings?: AdversarialFinding[]; eventId: string }) {
+interface QAResultDisplay {
+  verdict: string;
+  score: number;
+  adversarialFindings?: AdversarialFinding[];
+}
+
+function QABadgeWithFindings({ qaResult, findings, eventId }: { qaResult: QAResultDisplay; findings?: AdversarialFinding[]; eventId: string }) {
   const [expanded, setExpanded] = useState(false);
   const adversarialFindings: AdversarialFinding[] = findings || qaResult.adversarialFindings || [];
 
