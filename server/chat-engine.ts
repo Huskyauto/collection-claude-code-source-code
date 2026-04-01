@@ -911,8 +911,12 @@ CRITICAL FILE RULES:
         try {
           const { selectRelevantMemories } = await import("./memory-relevance");
           const activeSkillNames = enabledSkills?.map((s: any) => s.name) || [];
+          const personaToolNames = persona?.toolsDoc
+            ? (persona.toolsDoc.match(/`(\w+)`/g) || []).map((t: string) => t.replace(/`/g, "")).slice(0, 20)
+            : [];
           const selections = await selectRelevantMemories(userMessage, topCandidates, {
             activeSkills: activeSkillNames,
+            activeToolNames: personaToolNames,
             personaName: persona?.name,
           }, 7);
 

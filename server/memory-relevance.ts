@@ -32,6 +32,7 @@ export interface RelevanceContext {
   activeSkills?: string[];
   projectName?: string;
   personaName?: string;
+  activeToolNames?: string[];
 }
 
 function getCacheKey(query: string, candidateIds: number[], context: RelevanceContext): string {
@@ -59,9 +60,12 @@ function applySmartFiltering(
   candidates: MemoryCandidate[],
   context: RelevanceContext
 ): MemoryCandidate[] {
-  const skillNames = context.activeSkills || [];
-  if (skillNames.length === 0) return candidates;
-  const skillsLower = new Set(skillNames.map(s => s.toLowerCase()));
+  const activeNames = [
+    ...(context.activeSkills || []),
+    ...(context.activeToolNames || []),
+  ];
+  if (activeNames.length === 0) return candidates;
+  const namesLower = new Set(activeNames.map(s => s.toLowerCase()));
 
   return candidates.filter(c => {
     const text = `${c.title || ""} ${c.fact || ""} ${c.content || ""}`;
@@ -69,9 +73,9 @@ function applySmartFiltering(
 
     if (WARNING_KEYWORDS.test(text)) return true;
 
-    for (const skill of skillsLower) {
-      const skillInTitle = titleLower.includes(skill);
-      if (skillInTitle && GENERIC_DOC_KEYWORDS.test(titleLower)) {
+    for (const name of namesLower) {
+      const nameInTitle = titleLower.includes(name);
+      if (nameInTitle && GENERIC_DOC_KEYWORDS.test(titleLower)) {
         return false;
       }
     }
@@ -130,7 +134,7 @@ export async function selectRelevantMemories(
     return selections;
   } catch (err: any) {
     console.log(`[memory-relevance] LLM selection failed, falling back to vector ranking: ${err.message}`);
-    return fallbackSelection(filtered, maxSelections);
+    return fallbackSelection(candidates, maxSelections);
   }
 }
 
@@ -144,10 +148,11 @@ async function llmSelectRelevant(
 
   const contextParts: string[] = [];
   if (context.activeSkills?.length) contextParts.push(`Active skills: ${context.activeSkills.slice(0, 10).join(", ")}`);
+  if (context.activeToolNames?.length) contextParts.push(`Active tools: ${context.activeToolNames.slice(0, 10).join(", ")}`);
   if (context.personaName) contextParts.push(`Agent: ${context.personaName}`);
   if (context.projectName) contextParts.push(`Project: ${context.projectName}`);
 
-  const prompt = `Select the ${maxSelections} most relevant memories for this user query. Return ONLY a JSON array of objects with "id" (number) and "score" (0-1 relevance). No explanation.
+  const prompt = `Select the ${maxSelections} most relevant memories for this user query. Return ONLY a JSON array of objects with "id" (number), "score" (0-1 relevance), and "reason" (brief 5-10 word justification).
 
 ${contextParts.length > 0 ? "Context: " + contextParts.join("; ") + "\n" : ""}
 User query: "${query.slice(0, 300)}"
@@ -172,7 +177,7 @@ Return JSON array only:`;
         model: MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 500,
       },
       { signal: controller.signal }
     );
@@ -208,7 +213,8 @@ function parseSelections(
   for (const item of parsed) {
     if (typeof item.id !== "number" || !validIds.has(item.id)) continue;
     const score = typeof item.score === "number" ? Math.min(1, Math.max(0, item.score)) : 0.5;
-    selections.push({ id: item.id, score });
+    const reason = typeof item.reason === "string" ? item.reason.slice(0, 80) : undefined;
+    selections.push({ id: item.id, score, reason });
     if (selections.length >= maxSelections) break;
   }
 
