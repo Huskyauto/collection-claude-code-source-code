@@ -84,3 +84,9 @@ id = "rPKZARbppkWV7lws_u5Iq"
 uri = "file://Felix-New-Capabilities.txt"
 type = "text"
 title = "Felix New Capabilities - Demo Guide"
+
+[[outputs]]
+id = "FETpQNzcqHu7D6hZRm4t2"
+uri = "file://VisionClaw-Platform-Readiness-Report.pdf"
+type = "pdf"
+title = "VisionClaw Platform Readiness Assessment"
