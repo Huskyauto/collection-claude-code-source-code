@@ -1123,11 +1123,26 @@ export default function ChatPage() {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await authFetch("/api/upload", { method: "POST", body: formData });
+        let res: Response;
+        try {
+          const arrayBuf = await file.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuf);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          const b64 = btoa(binary);
+          res = await authFetch("/api/upload-base64", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: b64, fileName: file.name, mimeType: file.type }),
+          });
+        } catch {
+          const formData = new FormData();
+          formData.append("file", file);
+          res = await authFetch("/api/upload", { method: "POST", body: formData });
+        }
         if (!res.ok) {
-          toast({ description: `Failed to upload ${file.name}`, variant: "destructive" });
+          const errText = await res.text().catch(() => "");
+          toast({ description: `Failed to upload ${file.name}: ${errText || res.statusText}`, variant: "destructive" });
           continue;
         }
         const data = await res.json();

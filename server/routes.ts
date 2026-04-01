@@ -1016,6 +1016,62 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/upload-base64", authMiddleware, express.json({ limit: "50mb" }), async (req: Request, res: Response) => {
+    try {
+      console.log("[upload-b64] POST /api/upload-base64 received");
+      const { data, fileName, mimeType } = req.body;
+      if (!data || !fileName) {
+        return res.status(400).json({ error: "Missing data or fileName" });
+      }
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
+
+      const fileBuffer = Buffer.from(data, "base64");
+      const ext = SAFE_EXTENSIONS[mimeType] || path.extname(fileName) || ".bin";
+      const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
+      const filePath = path.join(UPLOADS_DIR, uniqueName);
+      await fsPromises.writeFile(filePath, fileBuffer);
+
+      let storageKey: string | null = null;
+      try {
+        const { uploadTenantFile } = await import("./object-storage");
+        const result = await uploadTenantFile(tenantId, "uploads", fileName, fileBuffer);
+        storageKey = result.storageKey;
+        console.log(`[upload-b64] Stored in Object Storage: ${storageKey}`);
+      } catch (osErr) {
+        console.warn("[upload-b64] Object Storage unavailable:", (osErr as Error).message);
+      }
+
+      let driveUrl: string | null = null;
+      try {
+        const { uploadAndShare } = await import("./google-drive");
+        const tenant = await storage.getTenant(tenantId);
+        const folderLabel = tenant ? `User Vault/${tenant.name}` : `User Vault/tenant-${tenantId}`;
+        const driveResult = await uploadAndShare({ filePath, fileName, mimeType, folderLabel, description: `User upload: ${fileName}`, share: false });
+        if (driveResult.viewUrl) { driveUrl = driveResult.viewUrl; console.log(`[upload-b64] Drive: ${driveUrl}`); }
+      } catch (driveErr) {
+        console.log(`[upload-b64] Drive skipped: ${(driveErr as Error).message}`);
+      }
+
+      try {
+        const { db } = await import("./db");
+        await db.insert(fileStorage).values({
+          filename: uniqueName, originalName: fileName, mimeType: mimeType || "application/octet-stream",
+          size: fileBuffer.length, data: storageKey ? "" : data,
+          storageKey, driveUrl, tenantId,
+        });
+      } catch (dbErr) {
+        console.error("[upload-b64] DB failed:", (dbErr as Error).message);
+      }
+
+      const url = `/uploads/${uniqueName}`;
+      res.json({ url, filename: fileName, type: mimeType || "application/octet-stream", size: fileBuffer.length, storageKey, driveUrl });
+    } catch (e) {
+      console.error("[upload-b64] Error:", e);
+      res.status(500).json({ error: "Upload processing failed" });
+    }
+  });
+
   app.post("/api/upload", authMiddleware, (req: Request, res: Response) => {
     console.log("[upload] POST /api/upload received");
     upload.single("file")(req, res, async (err: any) => {
