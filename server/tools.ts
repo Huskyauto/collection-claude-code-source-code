@@ -4977,7 +4977,7 @@ export async function executeToolWithTimeout(name: string, params: Record<string
     try {
       const { trackHttpRequest } = await import("./stuck-diagnostics");
       const tenantId = params._tenantId || 1;
-      trackingId = trackHttpRequest(name, tenantId, name, controller);
+      trackingId = trackHttpRequest(name, tenantId, name, controller, timeoutMs);
     } catch {}
   }
 

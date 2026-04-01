@@ -73,14 +73,15 @@ interface TrackedHttpRequest {
   tenantId?: number;
   toolName?: string;
   abortController?: AbortController;
+  timeoutMs: number;
 }
 
 const activeHttpRequests = new Map<string, TrackedHttpRequest>();
 let httpReqCounter = 0;
 
-export function trackHttpRequest(url: string, tenantId?: number, toolName?: string, abortController?: AbortController): string {
+export function trackHttpRequest(url: string, tenantId?: number, toolName?: string, abortController?: AbortController, timeoutMs?: number): string {
   const id = `http_${++httpReqCounter}_${Date.now()}`;
-  activeHttpRequests.set(id, { id, url, startedAt: Date.now(), tenantId, toolName, abortController });
+  activeHttpRequests.set(id, { id, url, startedAt: Date.now(), tenantId, toolName, abortController, timeoutMs: timeoutMs || HUNG_HTTP_REQUEST_MS });
   return id;
 }
 
@@ -137,11 +138,11 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
     const now = Date.now();
     if (activeDelegations.size === 0) return patterns;
 
-    let getLastEventTime: ((convId: number) => number | null) | null = null;
+    let getLastEventTimeAfter: ((convId: number, afterTs: number) => number | null) | null = null;
     try {
       const { getRecentEvents } = await import("./delegation-events");
-      getLastEventTime = (convId: number) => {
-        const events = getRecentEvents(convId);
+      getLastEventTimeAfter = (convId: number, afterTs: number) => {
+        const events = getRecentEvents(convId).filter(e => e.timestamp >= afterTs);
         if (events.length === 0) return null;
         return Math.max(...events.map(e => e.timestamp));
       };
@@ -151,8 +152,8 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
       const elapsed = now - deleg.startedAt;
       let eventAge = elapsed;
 
-      if (getLastEventTime) {
-        const lastTs = getLastEventTime(deleg.conversationId);
+      if (getLastEventTimeAfter) {
+        const lastTs = getLastEventTimeAfter(deleg.conversationId, deleg.startedAt);
         if (lastTs) {
           eventAge = now - lastTs;
         }
@@ -173,9 +174,35 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
         patterns.push(pattern);
         addPattern(pattern);
 
+        try {
+          const { emitDelegationEvent } = await import("./delegation-events");
+          emitDelegationEvent({
+            conversationId: deleg.conversationId,
+            tenantId: deleg.tenantId,
+            type: "warning",
+            agentName: deleg.personaName || "unknown",
+            depth: deleg.depth,
+            message: `Stalled: "${deleg.taskName}" — no events for ${Math.round(eventAge / 60000)}min`,
+            metadata: { delegationId: delegId, eventAgeMs: eventAge, elapsedMs: elapsed },
+          });
+        } catch {}
+
         if (eventAge > STALLED_DELEGATION_MS * 2) {
           activeDelegations.delete(delegId);
           console.log(`[stuck-diagnostics] Removed stalled delegation tracking "${deleg.taskName}" (conv: ${deleg.conversationId}) after ${Math.round(eventAge / 60000)}min of event inactivity`);
+
+          try {
+            const { emitDelegationEvent } = await import("./delegation-events");
+            emitDelegationEvent({
+              conversationId: deleg.conversationId,
+              tenantId: deleg.tenantId,
+              type: "failed",
+              agentName: deleg.personaName || "unknown",
+              depth: deleg.depth,
+              message: `Removed from tracking: "${deleg.taskName}" after ${Math.round(eventAge / 60000)}min stall. Underlying process may still run.`,
+              metadata: { delegationId: delegId, reason: "stall_timeout" },
+            });
+          } catch {}
 
           await storage.createHeartbeatLog({
             taskId: 0,
@@ -241,7 +268,8 @@ export async function detectHungProcesses(): Promise<StuckPattern[]> {
     const hungRequests: TrackedHttpRequest[] = [];
     for (const [id, req] of activeHttpRequests) {
       const elapsed = now - req.startedAt;
-      if (elapsed > HUNG_HTTP_REQUEST_MS) {
+      const deadline = req.timeoutMs * 1.5;
+      if (elapsed > deadline) {
         hungRequests.push(req);
       }
     }
@@ -408,6 +436,22 @@ export function cleanupStaleToolCallHistory(): void {
 }
 
 setInterval(cleanupStaleToolCallHistory, 60_000);
+
+async function periodicHungRequestCheck() {
+  const now = Date.now();
+  for (const [id, req] of activeHttpRequests) {
+    const elapsed = now - req.startedAt;
+    const deadline = req.timeoutMs * 1.5;
+    if (elapsed > deadline) {
+      if (req.abortController) {
+        try { req.abortController.abort(); } catch {}
+      }
+      activeHttpRequests.delete(id);
+      console.log(`[stuck-diagnostics] Hung HTTP request aborted: ${req.toolName || req.url} after ${Math.round(elapsed / 1000)}s (deadline: ${Math.round(deadline / 1000)}s)`);
+    }
+  }
+}
+setInterval(periodicHungRequestCheck, 60_000);
 
 function normalizeArgs(args: Record<string, any>): string {
   const cleaned = { ...args };
