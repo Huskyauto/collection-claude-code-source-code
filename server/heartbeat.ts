@@ -394,9 +394,11 @@ async function runMaintenance() {
 
     const allTasks = await storage.getHeartbeatTasks();
     let disabledCount = 0;
+    const STALE_TASK_TYPES = new Set(["delegation", "sub_delegation"]);
     for (const t of allTasks) {
       if (!t.enabled) continue;
       if (t.createdBy === "user") continue;
+      if (!STALE_TASK_TYPES.has(t.type) && !t.runOnce) continue;
       const age = Date.now() - new Date(t.createdAt).getTime();
       if (age > DELEGATION_MAX_AGE_MS) {
         await storage.updateHeartbeatTask(t.id, { enabled: false });

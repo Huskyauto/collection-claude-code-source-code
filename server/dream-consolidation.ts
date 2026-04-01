@@ -317,30 +317,30 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
               result.errors++;
               break;
             }
-            await db.transaction(async (tx) => {
+            const mergedId = await db.transaction(async (tx) => {
               for (const id of action.ids) {
                 await tx.execute(sql`
                   UPDATE memory_entries SET status = 'archived'
                   WHERE id = ${id} AND tenant_id = ${tenantId} AND status = 'active'
                 `);
               }
-              const mergeData: InsertMemoryEntry = {
-                fact: action.fact,
-                category: action.category || "general",
-                source: "dream_consolidation",
-                status: "active",
-                personaId: null,
-                tenantId,
-              };
-              const merged = await storage.createMemoryEntry(mergeData);
-              const emb = await generateEmbedding(merged.fact);
+              const insertResult = await tx.execute(sql`
+                INSERT INTO memory_entries (fact, category, source, status, persona_id, tenant_id)
+                VALUES (${action.fact}, ${action.category || "general"}, 'dream_consolidation', 'active', NULL, ${tenantId})
+                RETURNING id
+              `);
+              const rows = extractRows(insertResult);
+              return rows[0]?.id as number;
+            });
+            if (mergedId) {
+              const emb = await generateEmbedding(action.fact!);
               if (emb) {
-                await storage.updateMemoryEmbedding(merged.id, emb);
-                try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch { /* pgvector optional */ }
+                await storage.updateMemoryEmbedding(mergedId, emb);
+                try { await storeEmbeddingVec("memory_entries", mergedId, emb); } catch { /* pgvector optional */ }
               }
               result.merged++;
-              console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${merged.id}: ${action.reason || ""}`);
-            });
+              console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${mergedId}: ${action.reason || ""}`);
+            }
             break;
           }
           case "archive": {
