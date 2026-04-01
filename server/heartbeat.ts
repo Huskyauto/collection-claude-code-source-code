@@ -1606,11 +1606,21 @@ ${delegationGuidance}
         });
       } catch {}
 
+      try {
+        const { startDelegationSummarizer } = await import("./agent-summary");
+        startDelegationSummarizer(childConv.id, tenantId, target.name, taskName, depth);
+      } catch {}
+
       const result = await _processMessageFn(
         childConv.id,
         taskPrompt,
         { enableTools: true, depth }
       );
+
+      try {
+        const { stopDelegationSummarizer } = await import("./agent-summary");
+        stopDelegationSummarizer(childConv.id);
+      } catch {}
 
       const resultText = result?.response || JSON.stringify(result);
       console.log(`[delegation] Inline complete: "${taskName}" → ${target.name} (${resultText.length} chars)`);

@@ -267,7 +267,7 @@ export function DelegationLiveFeed({
           const event: DelegationEvent = JSON.parse(msg.data);
           setEvents(prev => [...prev, event].slice(-20));
 
-          if (narrationOnRef.current) {
+          if (narrationOnRef.current && !event.metadata?.isSummary) {
             const narration = generateNarration(event);
             if (narration) {
               narrationQueueRef.current.push(narration);
@@ -346,21 +346,35 @@ export function DelegationLiveFeed({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="border-t border-gray-800"
             >
-              <div className="px-3 py-2 flex items-start gap-2">
-                <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 ${AGENT_COLORS[event.agentName] || "bg-gray-600"}`}>
-                  {getEventIcon(event.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-white">{event.agentName}</span>
-                    {event.depth > 0 && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-gray-700 text-gray-400">L{event.depth}</span>
-                    )}
-                    <span className="text-[10px] text-gray-500 ml-auto">{timeAgo(event.timestamp)}</span>
+              <div className={`px-3 ${event.metadata?.isSummary ? "py-1" : "py-2"} flex items-start gap-2`}>
+                {event.metadata?.isSummary ? (
+                  <div className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-gray-500 shrink-0">
+                    <Brain className="w-3 h-3 animate-pulse" />
                   </div>
-                  <p className="text-xs text-gray-300 mt-0.5 leading-relaxed truncate">
-                    {event.message}
-                  </p>
+                ) : (
+                  <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 ${AGENT_COLORS[event.agentName] || "bg-gray-600"}`}>
+                    {getEventIcon(event.type)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  {event.metadata?.isSummary ? (
+                    <p className="text-[11px] text-gray-400 italic leading-relaxed truncate" data-testid={`summary-status-${event.id}`}>
+                      {event.agentName}: {event.message}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-white">{event.agentName}</span>
+                        {event.depth > 0 && (
+                          <span className="text-[9px] px-1 py-0.5 rounded bg-gray-700 text-gray-400">L{event.depth}</span>
+                        )}
+                        <span className="text-[10px] text-gray-500 ml-auto">{timeAgo(event.timestamp)}</span>
+                      </div>
+                      <p className="text-xs text-gray-300 mt-0.5 leading-relaxed truncate">
+                        {event.message}
+                      </p>
+                    </>
+                  )}
                   {event.type === "completed" && event.metadata?.costUsd != null && (
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-400 font-mono" data-testid={`cost-badge-${event.id}`}>
