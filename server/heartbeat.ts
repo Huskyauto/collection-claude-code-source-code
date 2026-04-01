@@ -170,6 +170,29 @@ export async function startHeartbeat() {
   } catch (err) {
     console.warn("[heartbeat] Startup cleanup error:", err);
   }
+  try {
+    const allTasksForSeed = await storage.getHeartbeatTasks();
+    const hasDream = allTasksForSeed.some(t => t.type === "dream_consolidation");
+    if (!hasDream) {
+      await storage.createHeartbeatTask({
+        name: "Dream Memory Consolidation",
+        description: "Background memory consolidation — merges duplicates, archives stale entries, promotes important memories, creates cross-topic summaries. Runs only when system is idle.",
+        type: "dream_consolidation",
+        cronExpression: "0 */6 * * *",
+        enabled: true,
+        promptContent: "Consolidate and reorganize active memories: merge duplicates, archive stale entries, promote important findings, create cross-topic summaries.",
+        model: "gemini-2.5-flash",
+        personaId: null,
+        createdBy: "system",
+        runOnce: false,
+        tenantId: 1,
+      } as any);
+      console.log("[heartbeat] Seeded dream_consolidation task (every 6 hours, idle-only)");
+    }
+  } catch (err) {
+    console.warn("[heartbeat] Could not seed dream task:", err);
+  }
+
   console.log("[heartbeat] Starting heartbeat engine (active: 60s, idle: 5m)");
   heartbeatTimer = setInterval(tick, currentIntervalMs);
   setTimeout(tick, 5000);
@@ -287,6 +310,11 @@ async function tick() {
     }
     const runnableTasks = allDueTasks.filter(t => {
       if ((t.type === "reflection" || t.type === "memory_consolidation") && !hasRecentActivity()) {
+        const nextRun = getNextCronRun(t.cronExpression);
+        storage.markHeartbeatTaskRun(t.id, nextRun).catch(() => {});
+        return false;
+      }
+      if (t.type === "dream_consolidation" && hasRecentActivity()) {
         const nextRun = getNextCronRun(t.cronExpression);
         storage.markHeartbeatTaskRun(t.id, nextRun).catch(() => {});
         return false;
@@ -596,6 +624,45 @@ async function executeTaskInner(task: HeartbeatTask, start: number, persona: Per
     }
     const nextRun = getNextCronRun(task.cronExpression);
     await storage.markHeartbeatTaskRun(task.id, nextRun);
+    activeTaskTracker.delete(task.id);
+    return;
+  }
+
+  if (task.type === "dream_consolidation") {
+    const dreamStart = Date.now();
+    try {
+      const { runDreamConsolidation } = await import("./dream-consolidation");
+      const dreamTenantId = (task as any).tenantId || 1;
+      const dreamResult = await runDreamConsolidation(dreamTenantId, 5);
+      const durationMs = Date.now() - dreamStart;
+
+      if (task.runOnce) {
+        await storage.updateHeartbeatTask(task.id, { enabled: false });
+        await storage.markHeartbeatTaskRun(task.id, new Date());
+      } else {
+        const nextRun = getNextCronRun(task.cronExpression);
+        await storage.markHeartbeatTaskRun(task.id, nextRun);
+      }
+
+      await storage.createHeartbeatLog({
+        taskId: task.id, taskName: task.name, status: dreamResult.errors > 0 ? "error" : "success",
+        input: `Dream consolidation: reviewed ${dreamResult.reviewed}, merged ${dreamResult.merged}, archived ${dreamResult.archived}, promoted ${dreamResult.promoted}, created ${dreamResult.created}`,
+        output: dreamResult.summary.slice(0, 2000),
+        model: task.model, personaId: task.personaId ?? null,
+        personaName: persona?.name ?? null, delegatedTasks: null, durationMs,
+      });
+      console.log(`[heartbeat] Dream consolidation: ${dreamResult.summary} (${durationMs}ms)`);
+    } catch (err: any) {
+      const durationMs = Date.now() - dreamStart;
+      console.error(`[heartbeat] Dream consolidation failed: ${err.message}`);
+      await scheduleNextRunOrDisable(task);
+      await storage.createHeartbeatLog({
+        taskId: task.id, taskName: task.name, status: "error",
+        input: null, output: (err.message || "").slice(0, 2000), model: task.model,
+        personaId: task.personaId ?? null, personaName: persona?.name ?? null,
+        delegatedTasks: null, durationMs,
+      });
+    }
     activeTaskTracker.delete(task.id);
     return;
   }

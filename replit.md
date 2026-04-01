@@ -66,7 +66,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **Vector Knowledge Library:** pgvector-powered cross-persona knowledge retrieval. Research findings get text-embedding-3-small vectors at injection time. `buildSystemPrompt` uses semantic similarity to pull relevant findings from ANY persona's research. 2000-char knowledge budget. 30s embedding cache prevents duplicate API calls.
 - **Deep Research:** Defines Research Programs, Autonomous Sessions, Research Scheduling, and AI-generated Session Summaries with Dev-to-Prod Auto-Sync.
 - **Agentic Intelligence Engines:** Decision-Making, Predictive Analytics, and Process Optimization engines.
-- **Intelligence & Memory:** Hierarchical Memory Graph, Three-Tier Semantic Memory, BM25/Vector/Hybrid Document Search, Zero-Loss Compaction, Per-Tenant Memory Backup, and `pgvector` for native PostgreSQL vector similarity.
+- **Intelligence & Memory:** Hierarchical Memory Graph, Three-Tier Semantic Memory, BM25/Vector/Hybrid Document Search, Zero-Loss Compaction, Per-Tenant Memory Backup, `pgvector` for native PostgreSQL vector similarity, and **DreamTask Memory Consolidation** — background "sleep" engine that reviews sessions, merges duplicate memories, archives stale entries, promotes important findings, and creates cross-topic summaries (runs every 6h when idle).
 - **Data Protection System:** Comprehensive data safety layer including soft-delete for conversations, message save verification, compaction safety gate, Google Drive backup per tenant, and admin endpoints.
 - **Platform Capabilities Briefing:** Auto-injected system prompt for personas enumerating configured API keys, OAuth subscriptions, server capabilities, connected services, available tools, and AI models.
 - **Finance Market Intelligence Tools:** 4 tools for real-time news, OHLCV stock data, stock search, and market overview, mapped to Cassandra and Radar.
@@ -134,6 +134,7 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - `shared/schema.ts` — Drizzle ORM schema for all 66 tables
 - `client/src/pages/chat.tsx` — Main chat interface with delegation live feed
 - `server/persona-sync.ts` — Persona documentation sync engine (tools_doc, agents_doc) with mutex and admin-only scope
+- `server/dream-consolidation.ts` — DreamTask memory consolidation engine (merge, archive, promote, create summaries)
 - `server/instinct-learning.ts` — Pattern extraction from successful multi-tool tasks, instinct graduation to knowledge
 - `server/auto-qa.ts` — Automatic quality review of delegated outputs via Proof persona
 - `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration, cost badges, QA verdicts
