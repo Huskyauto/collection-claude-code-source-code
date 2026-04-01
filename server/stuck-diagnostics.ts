@@ -543,16 +543,44 @@ setInterval(periodicStalledDelegationCheck, 60_000);
 
 async function periodicHungRequestCheck() {
   const now = Date.now();
+  const foundPatterns: StuckPattern[] = [];
   for (const [id, req] of activeHttpRequests) {
     const elapsed = now - req.startedAt;
     const deadline = req.timeoutMs * 1.5;
     if (elapsed > deadline) {
+      let remediationAction = "Timed-out request wrapper removed from tracking";
       if (req.abortController) {
-        try { req.abortController.abort(); } catch {}
+        try {
+          req.abortController.abort();
+          remediationAction = "Timed-out request wrapper aborted via AbortController (underlying tool work may still continue if not signal-aware)";
+        } catch {
+          remediationAction = "Abort attempted but failed; request removed from tracking";
+        }
       }
       activeHttpRequests.delete(id);
-      console.log(`[stuck-diagnostics] Hung HTTP request aborted: ${req.toolName || req.url} after ${Math.round(elapsed / 1000)}s (deadline: ${Math.round(deadline / 1000)}s)`);
+      console.log(`[stuck-diagnostics] Hung HTTP request cleaned: ${req.toolName || req.url} after ${Math.round(elapsed / 1000)}s (deadline: ${Math.round(deadline / 1000)}s)`);
+
+      const pattern: StuckPattern = {
+        type: "hung_process",
+        detectedAt: now,
+        description: `HTTP request "${req.url?.slice(0, 80)}" (tool: ${req.toolName || "unknown"}) exceeded timeout by ${Math.round((elapsed - req.timeoutMs) / 1000)}s`,
+        durationMs: elapsed,
+        probableCause: "HTTP/tool request exceeded its timeout without cleanup — wrapper race resolved but underlying work may be orphaned",
+        remediation: remediationAction,
+        metadata: {
+          processType: "http_request",
+          url: req.url?.slice(0, 200),
+          toolName: req.toolName,
+          tenantId: req.tenantId || 0,
+          timeoutMs: req.timeoutMs,
+        },
+      };
+      foundPatterns.push(pattern);
+      addPattern(pattern);
     }
+  }
+  if (foundPatterns.length > 0) {
+    postDiagnosticReport(foundPatterns).catch(() => {});
   }
 }
 setInterval(periodicHungRequestCheck, 60_000);
