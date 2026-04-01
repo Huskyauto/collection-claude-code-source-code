@@ -5,6 +5,7 @@ import { getClientForModel } from "./providers";
 interface SummarizerEntry {
   timer: ReturnType<typeof setInterval>;
   unsub: () => void;
+  cancelled: boolean;
 }
 
 const activeSummarizers = new Map<number, SummarizerEntry>();
@@ -42,6 +43,8 @@ Respond with ONLY the status summary, nothing else.`,
 
     const summary = resp.choices[0]?.message?.content?.trim();
     if (!summary || summary.length > 60 || summary.length < 5) return null;
+    const wordCount = summary.split(/\s+/).length;
+    if (wordCount < 2 || wordCount > 7) return null;
     return summary;
   } catch {
     return null;
@@ -66,7 +69,11 @@ export function startDelegationSummarizer(
     if (recentActivity.length > 10) recentActivity = recentActivity.slice(-10);
   });
 
-  const timer = setInterval(async () => {
+  const entry: SummarizerEntry = { timer: null as unknown as ReturnType<typeof setInterval>, unsub, cancelled: false };
+
+  entry.timer = setInterval(async () => {
+    if (entry.cancelled) return;
+
     if (recentActivity.length === 0) {
       recentActivity.push(`Working on: ${taskName}`);
     }
@@ -74,7 +81,7 @@ export function startDelegationSummarizer(
     const context = recentActivity.join("\n");
     const summary = await generateStatusSummary(agentName, taskName, context);
 
-    if (summary) {
+    if (summary && !entry.cancelled) {
       emitDelegationEvent({
         conversationId,
         tenantId,
@@ -87,12 +94,13 @@ export function startDelegationSummarizer(
     }
   }, intervalMs);
 
-  activeSummarizers.set(conversationId, { timer, unsub });
+  activeSummarizers.set(conversationId, entry);
 }
 
 export function stopDelegationSummarizer(conversationId: number): void {
   const entry = activeSummarizers.get(conversationId);
   if (entry) {
+    entry.cancelled = true;
     clearInterval(entry.timer);
     entry.unsub();
     activeSummarizers.delete(conversationId);
