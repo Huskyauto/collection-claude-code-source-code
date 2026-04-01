@@ -4904,7 +4904,9 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       const { skillifyConversation } = await import("./skillify");
       const convId = params.conversation_id || params._conversationId;
       if (!convId) return { error: "No conversation context available. Provide a conversation_id or use this tool within a conversation." };
-      const result = await skillifyConversation(convId, params.name, params.persona_id ?? null);
+      const tenantId = params._tenantId;
+      if (!tenantId) return { error: "Authentication required" };
+      const result = await skillifyConversation(convId, tenantId, params.name, params.persona_id ?? null);
       if (result.error) return { error: result.error };
       return {
         success: true,

@@ -1605,7 +1605,7 @@ CRITICAL: For presentations, the final step MUST use create_slides. NEVER use pr
         parsedArgs._sourceSessionKey = `conv:${conversationId}`;
         parsedArgs._sourcePersonaName = persona?.name || "main";
       }
-      if (toolName === "send_email" || toolName === "check_inbox" || toolName === "project" || toolName === "browser" || toolName === "orchestrate" || toolName === "manage_desk" || toolName === "post_to_channel" || toolName === "read_channels" || toolName === "emit_event" || toolName === "debate" || toolName === "delegate_task" || toolName === "firecrawl_scrape" || toolName === "firecrawl_crawl" || toolName === "scraped_pages_query" || toolName === "scraped_page_read" || toolName === "scraped_pages_delete") {
+      if (toolName === "send_email" || toolName === "check_inbox" || toolName === "project" || toolName === "browser" || toolName === "orchestrate" || toolName === "manage_desk" || toolName === "post_to_channel" || toolName === "read_channels" || toolName === "emit_event" || toolName === "debate" || toolName === "delegate_task" || toolName === "firecrawl_scrape" || toolName === "firecrawl_crawl" || toolName === "scraped_pages_query" || toolName === "scraped_page_read" || toolName === "scraped_pages_delete" || toolName === "skillify") {
         parsedArgs._tenantId = conv.tenantId;
       }
       if (toolName === "delegate_task" || toolName === "orchestrate") {

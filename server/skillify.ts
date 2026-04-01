@@ -1,12 +1,11 @@
 import { db } from "./db";
-import { messages, conversations, skills } from "@shared/schema";
+import { messages, conversations, personas } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { getClientForModel } from "./providers";
 import { storage } from "./storage";
 
 interface ToolCall {
   name: string;
-  args: Record<string, unknown>;
 }
 
 interface DelegationStep {
@@ -33,27 +32,25 @@ interface SkillDefinition {
   promptContent: string;
 }
 
-const TOOL_CALL_PATTERN = /Tool:\s*(\w+)\s*\[/g;
-const TOOL_JSON_PATTERN = /"name"\s*:\s*"(\w+)"/g;
+const NOISE_WORDS = new Set(["the", "and", "for", "tool", "this", "that", "with", "from", "call", "calls"]);
 
 function extractToolCalls(content: string): ToolCall[] {
-  const tools: ToolCall[] = [];
   const seen = new Set<string>();
+  const tools: ToolCall[] = [];
 
   const patterns = [
-    /\btool[_\s]*call[s]?.*?["']?(\w+)["']?/gi,
-    /calling\s+(?:tool\s+)?["']?(\w+)["']?/gi,
     /\bTool:\s*(\w+)/g,
-    /"name"\s*:\s*"(\w+)"/g,
+    /\btool_call.*?["'](\w+)["']/gi,
+    /calling\s+tool\s+["']?(\w+)["']?/gi,
   ];
 
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(content)) !== null) {
       const name = match[1];
-      if (!seen.has(name) && name.length > 2 && !["the", "and", "for", "tool", "this", "that"].includes(name.toLowerCase())) {
+      if (!seen.has(name) && name.length > 2 && !NOISE_WORDS.has(name.toLowerCase())) {
         seen.add(name);
-        tools.push({ name, args: {} });
+        tools.push({ name });
       }
     }
   }
@@ -73,12 +70,10 @@ function extractDelegations(content: string): DelegationStep[] {
 
 function extractUserCorrections(msgs: { role: string; content: string }[]): string[] {
   const corrections: string[] = [];
-  const correctionPatterns = [
-    /\b(no|wrong|incorrect|fix|change|instead|actually|not what|redo|try again|different)\b/i,
-  ];
+  const correctionPattern = /\b(no|wrong|incorrect|fix|change|instead|actually|not what|redo|try again|different)\b/i;
 
   for (const m of msgs) {
-    if (m.role === "user" && correctionPatterns.some(p => p.test(m.content))) {
+    if (m.role === "user" && correctionPattern.test(m.content)) {
       corrections.push(m.content.slice(0, 200));
     }
   }
@@ -86,9 +81,13 @@ function extractUserCorrections(msgs: { role: string; content: string }[]): stri
   return corrections;
 }
 
-async function analyzeConversation(conversationId: number): Promise<ConversationAnalysis> {
+async function analyzeConversation(conversationId: number, tenantId: number): Promise<ConversationAnalysis> {
   const conv = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
   if (!conv.length) throw new Error(`Conversation ${conversationId} not found`);
+
+  if (conv[0].tenantId !== tenantId) {
+    throw new Error("Access denied: conversation belongs to a different tenant");
+  }
 
   const msgs = await db.select().from(messages)
     .where(eq(messages.conversationId, conversationId))
@@ -101,8 +100,7 @@ async function analyzeConversation(conversationId: number): Promise<Conversation
     if (m.role === "assistant") {
       allToolCalls.push(...extractToolCalls(m.content));
 
-      const delegateMatches = m.content.match(/delegate_task/gi);
-      if (delegateMatches) {
+      if (m.content.includes("delegate_task")) {
         allDelegations.push(...extractDelegations(m.content));
       }
     }
@@ -113,12 +111,12 @@ async function analyzeConversation(conversationId: number): Promise<Conversation
   let personaName = "VisionClaw";
   if (conv[0].personaId) {
     try {
-      const { sql } = await import("drizzle-orm");
-      const persona = await db.execute(
-        sql`SELECT name FROM personas WHERE id = ${conv[0].personaId}`
-      );
-      if ((persona.rows as any[])[0]?.name) {
-        personaName = (persona.rows as any[])[0].name;
+      const personaRows = await db.select({ name: personas.name })
+        .from(personas)
+        .where(eq(personas.id, conv[0].personaId))
+        .limit(1);
+      if (personaRows[0]?.name) {
+        personaName = personaRows[0].name;
       }
     } catch {}
   }
@@ -163,11 +161,12 @@ Respond with ONLY valid JSON:
 
 export async function skillifyConversation(
   conversationId: number,
+  tenantId: number,
   suggestedName?: string,
   personaId?: number | null,
 ): Promise<{ skill?: { id: number; name: string; description: string }; error?: string }> {
   try {
-    const analysis = await analyzeConversation(conversationId);
+    const analysis = await analyzeConversation(conversationId, tenantId);
 
     if (analysis.totalMessages < 4) {
       return { error: "Conversation is too short to extract a meaningful skill. Need at least 4 messages." };
@@ -186,12 +185,12 @@ ${suggestedName ? `Suggested skill name: "${suggestedName}"` : ""}
 
 Recent conversation excerpt (last messages):`;
 
-    const msgs = await db.select().from(messages)
+    const recentMsgs = await db.select().from(messages)
       .where(eq(messages.conversationId, conversationId))
       .orderBy(desc(messages.createdAt))
       .limit(20);
 
-    const excerpt = msgs.reverse().map(m =>
+    const excerpt = recentMsgs.reverse().map(m =>
       `[${m.role}]: ${m.content.slice(0, 300)}`
     ).join("\n");
 
@@ -258,12 +257,9 @@ Recent conversation excerpt (last messages):`;
         description: created.description,
       },
     };
-  } catch (err: any) {
-    console.error(`[skillify] Failed:`, err.message);
-    return { error: `Skill extraction failed: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[skillify] Failed:`, message);
+    return { error: `Skill extraction failed: ${message}` };
   }
-}
-
-export function shouldSuggestSkillify(toolCount: number, personaCount: number): boolean {
-  return toolCount >= 3 && personaCount >= 2;
 }

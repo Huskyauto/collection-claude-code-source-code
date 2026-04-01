@@ -1645,25 +1645,26 @@ ${delegationGuidance}
       let skillSuggestion: string | undefined;
       try {
         const childMessages = await storage.getMessages(childConv.id);
-        const assistantMsgs = childMessages.filter(m => m.role === "assistant");
-        const toolMentions = new Set<string>();
-        const personaMentions = new Set<string>();
-        personaMentions.add(target.name);
+        const toolNames = new Set<string>();
+        const agentNames = new Set<string>();
+        agentNames.add(target.name);
 
-        for (const m of assistantMsgs) {
-          const toolMatches = m.content.match(/\btool[_\s]*call.*?["']?(\w+)["']?|Tool:\s*(\w+)/gi);
-          if (toolMatches) toolMatches.forEach(t => toolMentions.add(t));
-          if (m.content.includes("delegate_task")) {
-            const delegateMatch = m.content.match(/targetAgent["']?\s*[:=]\s*["'](\w+)/g);
-            if (delegateMatch) delegateMatch.forEach(d => {
-              const name = d.match(/["'](\w+)$/)?.[1];
-              if (name) personaMentions.add(name);
-            });
+        for (const m of childMessages) {
+          if (m.role !== "assistant") continue;
+          const toolPattern = /\bTool:\s*(\w+)/g;
+          let toolMatch;
+          while ((toolMatch = toolPattern.exec(m.content)) !== null) {
+            toolNames.add(toolMatch[1]);
+          }
+          const delegatePattern = /targetAgent["']?\s*[:=]\s*["'](\w+)["']/g;
+          let delegateMatch;
+          while ((delegateMatch = delegatePattern.exec(m.content)) !== null) {
+            agentNames.add(delegateMatch[1]);
           }
         }
 
-        if (toolMentions.size >= 3 && personaMentions.size >= 2) {
-          skillSuggestion = `💡 This workflow used ${toolMentions.size}+ tools across ${personaMentions.size} agents. Want me to save it as a reusable skill? Just say "skillify this" or "save this as a skill."`;
+        if (toolNames.size >= 3 && agentNames.size >= 2) {
+          skillSuggestion = `This workflow used ${toolNames.size} tools across ${agentNames.size} agents. Want me to save it as a reusable skill? Just say "skillify this" or "save this as a skill."`;
         }
       } catch {}
 
