@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Zap, Search, FileText, Send, Brain, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Volume2, VolumeX } from "lucide-react";
+import { Bot, Zap, Search, FileText, Send, Brain, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Volume2, VolumeX, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 
 interface DelegationEvent {
   id: string;
@@ -102,6 +102,88 @@ function generateNarration(event: DelegationEvent): string | null {
     default:
       return null;
   }
+}
+
+interface AdversarialFinding {
+  type: string;
+  description: string;
+  severity: "critical" | "major" | "minor";
+}
+
+const SEVERITY_STYLES: Record<string, string> = {
+  critical: "bg-red-900/60 text-red-300 border-red-700/50",
+  major: "bg-yellow-900/60 text-yellow-300 border-yellow-700/50",
+  minor: "bg-blue-900/60 text-blue-300 border-blue-700/50",
+};
+
+const SEVERITY_ICONS: Record<string, typeof ShieldAlert> = {
+  critical: ShieldAlert,
+  major: ShieldQuestion,
+  minor: ShieldCheck,
+};
+
+const FINDING_TYPE_LABELS: Record<string, string> = {
+  factual_accuracy: "Factual",
+  logical_consistency: "Logic",
+  completeness_gap: "Completeness",
+  hallucination: "Hallucination",
+  task_alignment: "Alignment",
+};
+
+function QABadgeWithFindings({ qaResult, findings, eventId }: { qaResult: any; findings?: AdversarialFinding[]; eventId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const adversarialFindings: AdversarialFinding[] = findings || qaResult.adversarialFindings || [];
+
+  const verdictStyle =
+    qaResult.verdict === "approved" ? "bg-green-900/50 text-green-400" :
+    qaResult.verdict === "approved-with-notes" ? "bg-emerald-900/50 text-emerald-400" :
+    qaResult.verdict === "needs-revision" ? "bg-yellow-900/50 text-yellow-400" :
+    "bg-red-900/50 text-red-400";
+
+  const verdictLabel = qaResult.verdict === "approved-with-notes" ? "approved w/ notes" : qaResult.verdict;
+
+  return (
+    <div className="mt-1">
+      <div className="flex items-center gap-1.5">
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${verdictStyle}`} data-testid={`qa-badge-${eventId}`}>
+          QA: {verdictLabel} ({qaResult.score}/10)
+        </span>
+        {adversarialFindings.length > 0 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-300 hover:bg-gray-600/60 transition-colors flex items-center gap-0.5"
+            data-testid={`qa-findings-toggle-${eventId}`}
+          >
+            <ShieldAlert className="w-2.5 h-2.5" />
+            {adversarialFindings.length} finding{adversarialFindings.length !== 1 ? "s" : ""}
+            {expanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+          </button>
+        )}
+      </div>
+      {expanded && adversarialFindings.length > 0 && (
+        <div className="mt-1.5 space-y-1" data-testid={`qa-findings-list-${eventId}`}>
+          {adversarialFindings.map((finding, idx) => {
+            const Icon = SEVERITY_ICONS[finding.severity] || ShieldCheck;
+            return (
+              <div
+                key={idx}
+                className={`text-[10px] px-2 py-1 rounded border ${SEVERITY_STYLES[finding.severity] || SEVERITY_STYLES.minor}`}
+                data-testid={`qa-finding-${eventId}-${idx}`}
+              >
+                <div className="flex items-center gap-1 font-medium">
+                  <Icon className="w-2.5 h-2.5 shrink-0" />
+                  <span className="uppercase">{finding.severity}</span>
+                  <span className="text-gray-400">|</span>
+                  <span>{FINDING_TYPE_LABELS[finding.type] || finding.type}</span>
+                </div>
+                <p className="mt-0.5 leading-relaxed">{finding.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface DelegationLiveFeedProps {
@@ -291,15 +373,7 @@ export function DelegationLiveFeed({
                     </div>
                   )}
                   {event.metadata?.qaResult && (
-                    <div className="mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                        event.metadata.qaResult.verdict === "approved" ? "bg-green-900/50 text-green-400" :
-                        event.metadata.qaResult.verdict === "needs-revision" ? "bg-yellow-900/50 text-yellow-400" :
-                        "bg-red-900/50 text-red-400"
-                      }`} data-testid={`qa-badge-${event.id}`}>
-                        QA: {event.metadata.qaResult.verdict} ({event.metadata.qaResult.score}/10)
-                      </span>
-                    </div>
+                    <QABadgeWithFindings qaResult={event.metadata.qaResult} findings={event.metadata.adversarialFindings} eventId={event.id} />
                   )}
                 </div>
               </div>
