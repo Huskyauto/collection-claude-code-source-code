@@ -29,14 +29,13 @@ export interface RelevanceSelection {
 }
 
 export interface RelevanceContext {
-  activeTools?: string[];
   activeSkills?: string[];
   projectName?: string;
   personaName?: string;
 }
 
 function getCacheKey(query: string, candidateIds: number[], context: RelevanceContext): string {
-  const contextStr = (context.activeTools || []).sort().join(",") + "|" + (context.personaName || "");
+  const contextStr = (context.activeSkills || []).sort().join(",") + "|" + (context.personaName || "");
   const hash = crypto.createHash("md5")
     .update(query.slice(0, 200) + "|" + candidateIds.sort().join(",") + "|" + contextStr)
     .digest("hex");
@@ -60,8 +59,9 @@ function applySmartFiltering(
   candidates: MemoryCandidate[],
   context: RelevanceContext
 ): MemoryCandidate[] {
-  if (!context.activeTools || context.activeTools.length === 0) return candidates;
-  const activeToolsLower = new Set(context.activeTools.map(t => t.toLowerCase()));
+  const skillNames = context.activeSkills || [];
+  if (skillNames.length === 0) return candidates;
+  const skillsLower = new Set(skillNames.map(s => s.toLowerCase()));
 
   return candidates.filter(c => {
     const text = `${c.title || ""} ${c.fact || ""} ${c.content || ""}`;
@@ -69,9 +69,9 @@ function applySmartFiltering(
 
     if (WARNING_KEYWORDS.test(text)) return true;
 
-    for (const tool of activeToolsLower) {
-      const toolInTitle = titleLower.includes(tool);
-      if (toolInTitle && GENERIC_DOC_KEYWORDS.test(titleLower)) {
+    for (const skill of skillsLower) {
+      const skillInTitle = titleLower.includes(skill);
+      if (skillInTitle && GENERIC_DOC_KEYWORDS.test(titleLower)) {
         return false;
       }
     }
@@ -143,7 +143,7 @@ async function llmSelectRelevant(
   const candidateList = buildCandidateList(candidates);
 
   const contextParts: string[] = [];
-  if (context.activeTools?.length) contextParts.push(`Active tools: ${context.activeTools.slice(0, 10).join(", ")}`);
+  if (context.activeSkills?.length) contextParts.push(`Active skills: ${context.activeSkills.slice(0, 10).join(", ")}`);
   if (context.personaName) contextParts.push(`Agent: ${context.personaName}`);
   if (context.projectName) contextParts.push(`Project: ${context.projectName}`);
 
@@ -159,7 +159,7 @@ Rules:
 - Prefer warnings, known issues, and gotchas over general documentation
 - Prefer recent and frequently-accessed memories over stale ones
 - Prefer memories that directly address the query's intent over tangentially related ones
-- If a tool is already loaded, skip its general docs but KEEP its known issues
+- If a skill is already active, skip its general docs but KEEP its known issues
 
 Return JSON array only:`;
 

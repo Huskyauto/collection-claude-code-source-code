@@ -903,20 +903,23 @@ CRITICAL FILE RULES:
         })),
       ];
 
-      if (allCandidates.length > 7 && userMessage) {
+      const topCandidates = allCandidates
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 20);
+
+      if (topCandidates.length > 7 && userMessage) {
         try {
           const { selectRelevantMemories } = await import("./memory-relevance");
-          const { getAllToolDefinitions } = await import("./tools");
-          const activeToolNames = getAllToolDefinitions().map((t: any) => t.function.name);
-          const selections = await selectRelevantMemories(userMessage, allCandidates, {
-            activeTools: activeToolNames,
+          const activeSkillNames = enabledSkills?.map((s: any) => s.name) || [];
+          const selections = await selectRelevantMemories(userMessage, topCandidates, {
+            activeSkills: activeSkillNames,
             personaName: persona?.name,
           }, 7);
 
           const selectedIds = new Set(selections.map(s => s.id));
           const selectedMap = new Map(selections.map(s => [s.id, s.score]));
 
-          const selectedEntries = allCandidates
+          const selectedEntries = topCandidates
             .filter(c => selectedIds.has(c.id))
             .sort((a, b) => (selectedMap.get(b.id) || 0) - (selectedMap.get(a.id) || 0));
 
@@ -935,6 +938,14 @@ CRITICAL FILE RULES:
             kLines.push(line);
             charBudget -= line.length;
             usedIds.add(k.id);
+          }
+          for (const f of crossPersonaCandidates) {
+            if (usedIds.has(f.id)) continue;
+            const line = `- [${f.category}|P${f.priority || 3}|cross-domain] ${f.title}: ${(f.content || "").slice(0, 250)}`;
+            if (charBudget - line.length < 0) break;
+            kLines.push(line);
+            charBudget -= line.length;
+            usedIds.add(f.id);
           }
         }
       } else {
