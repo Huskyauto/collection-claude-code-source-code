@@ -4993,17 +4993,18 @@ export async function executeToolWithTimeout(name: string, params: Record<string
         });
       }),
     ]);
-    if (trackingId) {
-      try {
-        const { untrackHttpRequest } = await import("./stuck-diagnostics");
-        untrackHttpRequest(trackingId);
-      } catch {}
-    }
     return result;
   } finally {
     clearTimeout(timer);
-    if (timedOut && trackingId) {
-      console.log(`[tools] Timed-out request "${name}" left tracked for diagnostic cleanup (id: ${trackingId})`);
+    if (trackingId) {
+      if (timedOut) {
+        console.log(`[tools] Timed-out request "${name}" left tracked for diagnostic cleanup (id: ${trackingId})`);
+      } else {
+        try {
+          const { untrackHttpRequest } = await import("./stuck-diagnostics");
+          untrackHttpRequest(trackingId);
+        } catch {}
+      }
     }
   }
 }
