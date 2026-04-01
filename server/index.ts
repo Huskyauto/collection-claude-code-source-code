@@ -212,7 +212,15 @@ app.use((req, res, next) => {
     console.log("[startup] Claude Runner init skipped:", err.message?.slice(0, 80));
   }
 
+  try {
+    const { registerMcpRoutes } = await import("./mcp-server");
+    registerMcpRoutes(app);
+  } catch (e: any) {
+    console.warn(`[startup] MCP server registration skipped: ${e.message?.slice(0, 80)}`);
+  }
+
   await registerRoutes(httpServer, app);
+
 
   try {
     const { processMessage } = await import("./chat-engine");

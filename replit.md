@@ -7,7 +7,7 @@ VisionClaw is an agentic AI platform designed as a fully autonomous AI corporati
 - 146 server-side TypeScript files (~66,000 lines)
 - 38 frontend pages + 110 client TypeScript/TSX files
 - 67 database tables
-- 97 built-in AI tools + custom tool support
+- 100 built-in AI tools + custom tool support (includes background task execution)
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
@@ -57,7 +57,9 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - **AI Agent System:** A 14-persona agent team with an LLM-powered CEO Orchestrator, Semantic Tool Router, Self-Improvement Engine, Adaptive Execution & Self-Healing, and Auto Model Router with OAuth-first priority.
 - **Smart Model Auto-Selection:** Task Complexity Classifier, Multimodal-Aware Routing, Auto-Thinking Mode, Persona Cost Tier Integration, Model Capabilities Registry, and `[auto-route]` logging with 60s dedup.
 - **Autonomous Operations:** Heartbeat Engine (13 tasks), Scheduled Tasks, Corporation Report Export (PDF to Google Drive), Human-in-the-Loop (HITL) Confirmation Gate, and Felix Approval Gate.
-- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 92 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
+- **Agentic Infrastructure:** Persistent Agent Desks, Internal Channels, Event Bus, 100 Agentic Tools, Autonomy Rules, Outcome Tracking, and Watchlist Monitoring.
+- **MCP Server:** Exposes all tools via Model Context Protocol (SSE transport at `/api/mcp/sse`). Any MCP-compatible client (Claude Code CLI, VS Code, etc.) can connect and use VisionClaw's full tool suite. Info at `/api/mcp/info`. Resources: system status, personas, tool catalog.
+- **Background Task Execution:** Launch long-running tools asynchronously with `run_background_task`, poll with `check_background_task`, list with `list_background_tasks`. Auto-cleanup after 2 hours. Inspired by Claude Code's background execution pattern.
 - **Process Governor:** A 40-rule governance engine across 7 categories, supported by 25 condition evaluators, an emergency Kill Switch, and a Governance Frameworks Knowledge Base.
 - **Quarterly Intelligence System:** Governance Research Scanner and Model Registry Refresh.
 - **Nightly Autoresearch System:** Inspired by Karpathy's autoresearch — 11 autonomous research programs (5 nightly + 6 AI Buddy business) run via 7 research schedules. Each program spawns 5-15 experiments per session using the keep/discard loop. Results stored in research_experiments with executive summaries. Heartbeat checks `research_schedules` every tick. **Self-injection pipeline**: KEEP'd findings (score ≥6) auto-inject into `agent_knowledge` for the relevant persona with vector embeddings (14-day TTL, 30d for security). High-score findings (≥8) also generate **code proposals** (`code_proposals` table). Model Intelligence findings queue `model_registry_updates`. Startup model validation auto-corrects unknown models. Duplicate-session protection prevents double runs. API: `GET/PATCH /api/research/code-proposals`.

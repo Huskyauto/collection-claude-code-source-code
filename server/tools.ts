@@ -941,6 +941,44 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "run_background_task",
+      description: "Launch a long-running tool in the background without blocking. Returns a task_id you can poll with check_background_task. Use this for slow operations like deep_research, produce_video, orchestrate, browser tasks, or any tool that takes more than 30 seconds. The tool runs asynchronously and you can check its status later.",
+      parameters: {
+        type: "object",
+        properties: {
+          tool_name: { type: "string", description: "Name of the tool to run in the background" },
+          params: { type: "object", description: "Parameters to pass to the tool" },
+        },
+        required: ["tool_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_background_task",
+      description: "Check the status of a background task launched with run_background_task. Returns status (pending/running/completed/failed), elapsed time, progress updates, and the result when complete.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: { type: "string", description: "The task ID returned by run_background_task" },
+          wait: { type: "boolean", description: "If true, block until the task completes (up to 60 seconds)" },
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_background_tasks",
+      description: "List all background tasks for the current tenant. Shows status, tool name, and elapsed time for each task.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "whatsapp",
       description: "Send messages via WhatsApp. Use this to send text messages to phone numbers through the connected WhatsApp account. Can also check connection status.",
       parameters: {
@@ -2920,6 +2958,45 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
         console.error("[create_slides] Error:", err.message);
         return { error: `Slide creation failed: ${err.message}` };
       }
+    }
+    case "run_background_task": {
+      const { launchBackgroundTask } = await import("./background-tasks");
+      const bgToolName = params.tool_name;
+      if (!bgToolName) return { error: "tool_name is required" };
+      const bgParams = params.params || {};
+      const task = launchBackgroundTask(params._tenantId || 1, bgToolName, bgParams);
+      return {
+        task_id: task.id,
+        status: task.status,
+        toolName: bgToolName,
+        message: `Tool "${bgToolName}" launched in background. Use check_background_task with task_id "${task.id}" to poll for results.`,
+      };
+    }
+    case "check_background_task": {
+      const { pollTask, waitForTask } = await import("./background-tasks");
+      if (!params.task_id) return { error: "task_id is required" };
+      if (params.wait) {
+        const task = await waitForTask(params.task_id, 60000);
+        if (!task) return { error: `Task ${params.task_id} not found` };
+        return pollTask(params.task_id);
+      }
+      const poll = pollTask(params.task_id);
+      if (!poll) return { error: `Task ${params.task_id} not found` };
+      return poll;
+    }
+    case "list_background_tasks": {
+      const { getTasksByTenant } = await import("./background-tasks");
+      const tenantTasks = getTasksByTenant(params._tenantId || 1);
+      return {
+        tasks: tenantTasks.map(t => ({
+          id: t.id,
+          toolName: t.toolName,
+          status: t.status,
+          elapsed: ((t.completedAt || Date.now()) - t.createdAt) + "ms",
+          progress: t.progressUpdates,
+        })),
+        total: tenantTasks.length,
+      };
     }
     case "delegate_task":
       return delegateTask(params.targetAgent, params.taskName, params.description || "", params.prompt, params.schedule || "once", params._tenantId, params._callerContext, params._currentDepth);
