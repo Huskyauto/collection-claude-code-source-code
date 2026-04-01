@@ -90,3 +90,9 @@ id = "FETpQNzcqHu7D6hZRm4t2"
 uri = "file://VisionClaw-Platform-Readiness-Report.pdf"
 type = "pdf"
 title = "VisionClaw Platform Readiness Assessment"
+
+[[outputs]]
+id = "8OLZMaqF1oWzllK8apX1P"
+uri = "file://Felix-Demo-Honest-Assessment.pdf"
+type = "pdf"
+title = "Demo Strategy — Honest Assessment + Battle Plan"
