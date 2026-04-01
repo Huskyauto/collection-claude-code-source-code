@@ -59,6 +59,7 @@ import {
   contactsList, contactsCreate,
   sheetsGet, sheetsUpdate, sheetsAppend, sheetsClear, sheetsMetadata,
   docsGet, docsCreate,
+  slidesCreate,
 } from "./google-workspace";
 import {
   createCollection, listCollections, deleteCollection,
@@ -896,18 +897,18 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "google_workspace",
-      description: "Access Google Workspace services: Gmail, Calendar, Contacts, Sheets, and Docs. Requires Google account to be connected via Settings > General > Connect Subscription. Use this for reading/sending emails, managing calendar events, looking up contacts, reading/writing spreadsheets, and reading/creating documents.",
+      description: "Access Google Workspace services: Gmail, Calendar, Contacts, Sheets, Docs, and Slides. Requires Google account to be connected via Settings > General > Connect Subscription. Use this for reading/sending emails, managing calendar events, looking up contacts, reading/writing spreadsheets, reading/creating documents, and creating professional Google Slides presentations.",
       parameters: {
         type: "object",
         properties: {
-          service: { type: "string", enum: ["gmail", "calendar", "contacts", "sheets", "docs"], description: "Which Google service to use" },
-          action: { type: "string", description: "Action to perform. Gmail: search, read, send, label. Calendar: list, create, delete. Contacts: list, create. Sheets: get, update, append, clear, metadata. Docs: get, create." },
+          service: { type: "string", enum: ["gmail", "calendar", "contacts", "sheets", "docs", "slides"], description: "Which Google service to use" },
+          action: { type: "string", description: "Action to perform. Gmail: search, read, send, label. Calendar: list, create, delete. Contacts: list, create. Sheets: get, update, append, clear, metadata. Docs: get, create. Slides: create." },
           query: { type: "string", description: "Gmail: search query (e.g. 'newer_than:7d from:boss@company.com'). Contacts: search name/email." },
           messageId: { type: "string", description: "Gmail message ID for read/label actions" },
           to: { type: "string", description: "Gmail send: recipient email address" },
           cc: { type: "string", description: "Gmail send: CC recipients" },
           bcc: { type: "string", description: "Gmail send: BCC recipients" },
-          subject: { type: "string", description: "Gmail send: email subject. Docs create: document title. Calendar create: event title." },
+          subject: { type: "string", description: "Gmail send: email subject. Docs create: document title. Calendar create: event title. Slides create: presentation title." },
           body: { type: "string", description: "Gmail send: email body (HTML supported). Docs create: initial text content." },
           addLabels: { type: "array", items: { type: "string" }, description: "Gmail label: label IDs to add (e.g. ['STARRED', 'IMPORTANT'])" },
           removeLabels: { type: "array", items: { type: "string" }, description: "Gmail label: label IDs to remove (e.g. ['UNREAD'])" },
@@ -930,6 +931,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           values: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Sheets update/append: 2D array of values" },
           inputOption: { type: "string", enum: ["RAW", "USER_ENTERED"], description: "Sheets: how to interpret input values (default: USER_ENTERED)" },
           maxResults: { type: "number", description: "Max results to return (default varies by service)" },
+          slides: { type: "array", description: "Slides create: array of slide objects. Each slide: { title: string (required), body?: string, bullets?: string[], speakerNotes?: string, layout?: 'TITLE'|'TITLE_AND_BODY'|'SECTION_HEADER'|'BLANK' }. First slide auto-uses TITLE layout. Use bullets for bullet-point slides, body for paragraph text.", items: { type: "object", properties: { title: { type: "string" }, body: { type: "string" }, bullets: { type: "array", items: { type: "string" } }, speakerNotes: { type: "string" }, layout: { type: "string", enum: ["TITLE", "TITLE_AND_BODY", "SECTION_HEADER", "BLANK"] } }, required: ["title"] } },
+          theme: { type: "object", description: "Slides create: theme options. { primaryColor?: '#hex', backgroundColor?: '#hex', fontFamily?: 'Roboto'|'Open Sans'|'Montserrat'|etc }", properties: { primaryColor: { type: "string" }, backgroundColor: { type: "string" }, fontFamily: { type: "string" } } },
         },
         required: ["service", "action"],
       },
@@ -3327,7 +3330,22 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
               }
               default: return { error: `Unknown docs action: ${action}. Use: get, create` };
             }
-          default: return { error: `Unknown service: ${service}. Use: gmail, calendar, contacts, sheets, docs` };
+          case "slides":
+            switch (action) {
+              case "create": {
+                if (!params.subject) return { error: "subject (presentation title) is required" };
+                if (!params.slides || !Array.isArray(params.slides) || params.slides.length === 0) {
+                  return { error: "slides array is required. Each slide needs at minimum a 'title'. Optional: 'body', 'bullets' (string[]), 'speakerNotes', 'layout' (TITLE|TITLE_AND_BODY|SECTION_HEADER|BLANK)" };
+                }
+                return await slidesCreate(tenantId, {
+                  title: params.subject,
+                  slides: params.slides,
+                  theme: params.theme,
+                });
+              }
+              default: return { error: `Unknown slides action: ${action}. Use: create` };
+            }
+          default: return { error: `Unknown service: ${service}. Use: gmail, calendar, contacts, sheets, docs, slides` };
         }
       };
 

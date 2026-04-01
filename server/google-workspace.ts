@@ -301,3 +301,292 @@ export async function docsCreate(tenantId: number, title: string, content?: stri
 
   return { documentId: doc.documentId, title: doc.title };
 }
+
+interface SlideContent {
+  title: string;
+  body?: string;
+  bullets?: string[];
+  speakerNotes?: string;
+  layout?: "TITLE" | "TITLE_AND_BODY" | "TITLE_AND_TWO_COLUMNS" | "SECTION_HEADER" | "BLANK";
+}
+
+interface SlidesCreateOptions {
+  title: string;
+  slides: SlideContent[];
+  theme?: {
+    primaryColor?: string;
+    backgroundColor?: string;
+    fontFamily?: string;
+  };
+}
+
+function hexToRgb(hex: string): { red: number; green: number; blue: number } {
+  const h = hex.replace("#", "");
+  return {
+    red: parseInt(h.substring(0, 2), 16) / 255,
+    green: parseInt(h.substring(2, 4), 16) / 255,
+    blue: parseInt(h.substring(4, 6), 16) / 255,
+  };
+}
+
+export async function slidesCreate(tenantId: number, options: SlidesCreateOptions): Promise<any> {
+  const token = await getGoogleToken(tenantId);
+  const SLIDES_API = "https://slides.googleapis.com/v1/presentations";
+
+  const presentation = await gFetch(token, SLIDES_API, {
+    method: "POST",
+    body: JSON.stringify({ title: options.title }),
+  });
+
+  const presentationId = presentation.presentationId;
+  const defaultSlideId = presentation.slides?.[0]?.objectId;
+
+  const primaryColor = hexToRgb(options.theme?.primaryColor || "#1a56db");
+  const bgColor = hexToRgb(options.theme?.backgroundColor || "#ffffff");
+  const fontFamily = options.theme?.fontFamily || "Roboto";
+
+  const requests: any[] = [];
+
+  if (defaultSlideId) {
+    requests.push({ deleteObject: { objectId: defaultSlideId } });
+  }
+
+  for (let i = 0; i < options.slides.length; i++) {
+    const slide = options.slides[i];
+    const slideId = `slide_${i}`;
+    const titleId = `title_${i}`;
+    const bodyId = `body_${i}`;
+    const notesId = `notes_${i}`;
+
+    const isTitle = i === 0 || slide.layout === "TITLE" || slide.layout === "SECTION_HEADER";
+
+    requests.push({
+      createSlide: {
+        objectId: slideId,
+        insertionIndex: i,
+        slideLayoutReference: { predefinedLayout: isTitle ? "TITLE" : "TITLE_AND_BODY" },
+      },
+    });
+
+    requests.push({
+      updatePageProperties: {
+        objectId: slideId,
+        pageProperties: {
+          pageBackgroundFill: {
+            solidFill: { color: { rgbColor: bgColor } },
+          },
+        },
+        fields: "pageBackgroundFill.solidFill.color",
+      },
+    });
+
+    const titlePt = isTitle ? { x: 311700, y: 1200000 } : { x: 311700, y: 205978 };
+    const titleSize = isTitle
+      ? { width: { magnitude: 8229600, unit: "EMU" }, height: { magnitude: 1200000, unit: "EMU" } }
+      : { width: { magnitude: 8229600, unit: "EMU" }, height: { magnitude: 629075, unit: "EMU" } };
+    const titleFontSize = isTitle ? (i === 0 ? 36 : 28) : 24;
+
+    requests.push({
+      createShape: {
+        objectId: titleId,
+        shapeType: "TEXT_BOX",
+        elementProperties: {
+          pageObjectId: slideId,
+          size: titleSize,
+          transform: {
+            scaleX: 1, scaleY: 1, translateX: titlePt.x, translateY: titlePt.y, unit: "EMU",
+          },
+        },
+      },
+    });
+
+    requests.push({ insertText: { objectId: titleId, text: slide.title, insertionIndex: 0 } });
+
+    requests.push({
+      updateTextStyle: {
+        objectId: titleId,
+        style: {
+          fontFamily,
+          fontSize: { magnitude: titleFontSize, unit: "PT" },
+          foregroundColor: { opaqueColor: { rgbColor: isTitle ? primaryColor : { red: 0.1, green: 0.1, blue: 0.1 } } },
+          bold: true,
+        },
+        textRange: { type: "ALL" },
+        fields: "fontFamily,fontSize,foregroundColor,bold",
+      },
+    });
+
+    if (isTitle && i === 0) {
+      requests.push({
+        updateParagraphStyle: {
+          objectId: titleId,
+          style: { alignment: "CENTER" },
+          textRange: { type: "ALL" },
+          fields: "alignment",
+        },
+      });
+    }
+
+    if (!isTitle && (slide.body || slide.bullets?.length)) {
+      const bodyY = 900000;
+      const bodyH = 3600000;
+
+      requests.push({
+        createShape: {
+          objectId: bodyId,
+          shapeType: "TEXT_BOX",
+          elementProperties: {
+            pageObjectId: slideId,
+            size: { width: { magnitude: 8229600, unit: "EMU" }, height: { magnitude: bodyH, unit: "EMU" } },
+            transform: {
+              scaleX: 1, scaleY: 1, translateX: 311700, translateY: bodyY, unit: "EMU",
+            },
+          },
+        },
+      });
+
+      let bodyText = "";
+      if (slide.bullets?.length) {
+        bodyText = slide.bullets.join("\n");
+      } else if (slide.body) {
+        bodyText = slide.body;
+      }
+
+      requests.push({ insertText: { objectId: bodyId, text: bodyText, insertionIndex: 0 } });
+
+      requests.push({
+        updateTextStyle: {
+          objectId: bodyId,
+          style: {
+            fontFamily,
+            fontSize: { magnitude: 16, unit: "PT" },
+            foregroundColor: { opaqueColor: { rgbColor: { red: 0.2, green: 0.2, blue: 0.2 } } },
+          },
+          textRange: { type: "ALL" },
+          fields: "fontFamily,fontSize,foregroundColor",
+        },
+      });
+
+      if (slide.bullets?.length) {
+        requests.push({
+          createParagraphBullets: {
+            objectId: bodyId,
+            textRange: { type: "ALL" },
+            bulletPreset: "BULLET_DISC_CIRCLE_SQUARE",
+          },
+        });
+
+        requests.push({
+          updateParagraphStyle: {
+            objectId: bodyId,
+            style: {
+              spaceAbove: { magnitude: 6, unit: "PT" },
+              spaceBelow: { magnitude: 6, unit: "PT" },
+              lineSpacing: 150,
+            },
+            textRange: { type: "ALL" },
+            fields: "spaceAbove,spaceBelow,lineSpacing",
+          },
+        });
+      }
+    }
+
+    if (slide.speakerNotes) {
+      requests.push({
+        insertText: {
+          objectId: `${slideId}_notes`,
+          text: slide.speakerNotes,
+          insertionIndex: 0,
+        },
+      });
+    }
+
+    if (i === 0 && slide.body) {
+      const subtitleId = `subtitle_${i}`;
+      requests.push({
+        createShape: {
+          objectId: subtitleId,
+          shapeType: "TEXT_BOX",
+          elementProperties: {
+            pageObjectId: slideId,
+            size: { width: { magnitude: 6858000, unit: "EMU" }, height: { magnitude: 600000, unit: "EMU" } },
+            transform: {
+              scaleX: 1, scaleY: 1, translateX: 1000000, translateY: 2600000, unit: "EMU",
+            },
+          },
+        },
+      });
+      requests.push({ insertText: { objectId: subtitleId, text: slide.body, insertionIndex: 0 } });
+      requests.push({
+        updateTextStyle: {
+          objectId: subtitleId,
+          style: {
+            fontFamily,
+            fontSize: { magnitude: 18, unit: "PT" },
+            foregroundColor: { opaqueColor: { rgbColor: { red: 0.4, green: 0.4, blue: 0.4 } } },
+          },
+          textRange: { type: "ALL" },
+          fields: "fontFamily,fontSize,foregroundColor",
+        },
+      });
+      requests.push({
+        updateParagraphStyle: {
+          objectId: subtitleId,
+          style: { alignment: "CENTER" },
+          textRange: { type: "ALL" },
+          fields: "alignment",
+        },
+      });
+    }
+  }
+
+  const notesRequests = requests.filter(r => r.insertText?.objectId?.endsWith("_notes"));
+  const mainRequests = requests.filter(r => !r.insertText?.objectId?.endsWith("_notes"));
+
+  if (mainRequests.length > 0) {
+    await gFetch(token, `${SLIDES_API}/${presentationId}:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({ requests: mainRequests }),
+    });
+  }
+
+  const finalPres = await gFetch(token, `${SLIDES_API}/${presentationId}`);
+
+  if (notesRequests.length > 0) {
+    const notesBatch: any[] = [];
+    for (const slide of finalPres.slides || []) {
+      const slideId = slide.objectId;
+      const slideIndex = parseInt(slideId.replace("slide_", ""), 10);
+      const noteReq = notesRequests.find(r => r.insertText.objectId === `${slideId}_notes`);
+      if (noteReq && slide.slideProperties?.notesPage?.notesProperties?.speakerNotesObjectId) {
+        notesBatch.push({
+          insertText: {
+            objectId: slide.slideProperties.notesPage.notesProperties.speakerNotesObjectId,
+            text: noteReq.insertText.text,
+            insertionIndex: 0,
+          },
+        });
+      }
+    }
+    if (notesBatch.length > 0) {
+      try {
+        await gFetch(token, `${SLIDES_API}/${presentationId}:batchUpdate`, {
+          method: "POST",
+          body: JSON.stringify({ requests: notesBatch }),
+        });
+      } catch (err: any) {
+        console.warn("[slides] Speaker notes insertion failed (non-critical):", err.message?.slice(0, 200));
+      }
+    }
+  }
+
+  const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
+
+  return {
+    presentationId,
+    url: slidesUrl,
+    title: options.title,
+    slideCount: options.slides.length,
+    instructions: `Presentation created with ${options.slides.length} slides. Open in Google Slides: ${slidesUrl}`,
+  };
+}
