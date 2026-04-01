@@ -1,12 +1,22 @@
 import { getSubscriptionAccessToken } from "./oauth-subscriptions";
+import { getAccessToken as getDriveConnectorToken } from "./google-drive";
 
 const GOOGLE_API = "https://www.googleapis.com";
 const PEOPLE_API = "https://people.googleapis.com/v1";
 
 async function getGoogleToken(tenantId: number): Promise<string> {
   const token = await getSubscriptionAccessToken("google", tenantId);
-  if (!token) throw new Error("Google account not connected. Go to Settings > General and click 'Connect Subscription' for Google.");
-  return token;
+  if (token) return token;
+
+  try {
+    const driveToken = await getDriveConnectorToken();
+    if (driveToken) {
+      console.log("[google_workspace] Using Google Drive connector token as fallback");
+      return driveToken;
+    }
+  } catch {}
+
+  throw new Error("Google account not connected. Go to Settings > General and click 'Connect Subscription' for Google.");
 }
 
 async function gFetch(token: string, url: string, init?: RequestInit): Promise<any> {
@@ -333,10 +343,64 @@ export async function slidesCreate(tenantId: number, options: SlidesCreateOption
   const token = await getGoogleToken(tenantId);
   const SLIDES_API = "https://slides.googleapis.com/v1/presentations";
 
-  const presentation = await gFetch(token, SLIDES_API, {
-    method: "POST",
-    body: JSON.stringify({ title: options.title }),
-  });
+  let presentation: any;
+  try {
+    presentation = await gFetch(token, SLIDES_API, {
+      method: "POST",
+      body: JSON.stringify({ title: options.title }),
+    });
+  } catch (createErr: any) {
+    if (createErr.message?.includes("403") || createErr.message?.includes("insufficient") || createErr.message?.includes("scope") || createErr.message?.includes("PERMISSION_DENIED")) {
+      console.log("[slides] Slides API scope not available, falling back to Drive API presentation creation");
+      const driveResp = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: options.title,
+          mimeType: "application/vnd.google-apps.presentation",
+        }),
+      });
+      if (!driveResp.ok) {
+        const errText = await driveResp.text();
+        throw new Error(`Drive API fallback failed (${driveResp.status}): ${errText.slice(0, 300)}`);
+      }
+      const driveFile = await driveResp.json();
+      const presentationId = driveFile.id;
+
+      await fetch(`https://www.googleapis.com/drive/v3/permissions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role: "writer",
+          type: "anyone",
+        }),
+      }).catch(() => {});
+
+      const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
+      console.log(`[slides] Created presentation via Drive API fallback: ${slidesUrl}`);
+
+      try {
+        presentation = await gFetch(token, `${SLIDES_API}/${presentationId}`);
+      } catch {
+        return {
+          presentationId,
+          url: slidesUrl,
+          title: options.title,
+          slideCount: 0,
+          instructions: `Presentation "${options.title}" created via Drive but Slides API is unavailable for adding content. Open in Google Slides to edit: ${slidesUrl}. NOTE: The Google Drive connector does not include Slides API scopes. Ask your admin to connect a full Google account in Settings > General for full slide-building capabilities.`,
+          warning: "Slides API scope not available - presentation created as empty shell via Drive API",
+        };
+      }
+    } else {
+      throw createErr;
+    }
+  }
 
   const presentationId = presentation.presentationId;
   const defaultSlideId = presentation.slides?.[0]?.objectId;

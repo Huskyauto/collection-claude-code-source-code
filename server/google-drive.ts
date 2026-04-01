@@ -129,7 +129,7 @@ export async function forceTokenRefresh(): Promise<boolean> {
   return false;
 }
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   if (_cachedToken && Date.now() < _tokenExpiry - 30000) {
     return _cachedToken;
   }
