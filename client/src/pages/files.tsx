@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, authFetch } from "@/lib/queryClient";
+import { uploadFile } from "@/lib/upload";
 import {
   Upload, File, FileText, Image, Trash2, Download, Search,
   FolderOpen, HardDrive, Grid, List, X, SortAsc, SortDesc,
@@ -113,16 +114,7 @@ export default function FilesPage() {
 
     for (const file of Array.from(fileList)) {
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await authFetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Upload failed");
-        }
+        await uploadFile(file);
         successCount++;
       } catch (err: any) {
         failCount++;

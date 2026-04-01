@@ -4829,6 +4829,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) { res.status(500).json({ error: "Failed to add note" }); }
   });
 
+  app.post("/api/projects/:id/files-base64", authMiddleware, express.json({ limit: "50mb" }), async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "Invalid project ID" });
+      const tenantId = getTenantFromRequest(req);
+      if (!tenantId) return res.status(401).json({ error: "Authentication required" });
+      const projCheck = await db.execute(sql`SELECT id, name FROM projects WHERE id = ${projectId} AND tenant_id = ${tenantId}`);
+      const projRows = (projCheck as any).rows || projCheck;
+      if (!Array.isArray(projRows) || projRows.length === 0) return res.status(404).json({ error: "Project not found" });
+      const projectName = projRows[0].name || `Project ${projectId}`;
+      const { files: fileList } = req.body;
+      if (!fileList || !Array.isArray(fileList) || fileList.length === 0) return res.status(400).json({ error: "No files provided" });
+      const results: any[] = [];
+      for (const f of fileList) {
+        const fileBuffer = Buffer.from(f.data, "base64");
+        const ext = SAFE_EXTENSIONS[f.mimeType] || path.extname(f.fileName) || ".bin";
+        const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
+        const diskPath = path.join(UPLOADS_DIR, uniqueName);
+        await fsPromises.writeFile(diskPath, fileBuffer);
+        let fileUrl: string | null = null;
+        try {
+          const { uploadAndShare } = await import("./google-drive");
+          const driveResult = await uploadAndShare({ filePath: diskPath, fileName: f.fileName, mimeType: f.mimeType, folderLabel: `Projects/${projectName}`, description: `Project file: ${f.fileName}` });
+          if (driveResult.shareableLink) fileUrl = driveResult.shareableLink;
+        } catch (driveErr: any) {
+          console.log(`[projects] Drive upload skipped for ${f.fileName}: ${driveErr.message}`);
+        }
+        const downloadPath = `/api/projects/${projectId}/files/download/${uniqueName}`;
+        const result = await db.execute(sql`
+          INSERT INTO project_files (project_id, file_name, file_path, file_url, file_type, file_size)
+          VALUES (${projectId}, ${f.fileName}, ${"uploads/" + uniqueName}, ${fileUrl || downloadPath}, ${f.mimeType || "application/octet-stream"}, ${fileBuffer.length})
+          RETURNING *
+        `);
+        const rows = (result as any).rows || result;
+        results.push(Array.isArray(rows) ? rows[0] : rows);
+      }
+      await db.execute(sql`UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ${projectId}`);
+      res.json({ uploaded: results.length, files: results });
+    } catch (e: any) {
+      console.error("[projects] File upload error:", e.message || e);
+      res.status(500).json({ error: e.message || "Failed to upload files" });
+    }
+  });
+
   app.post("/api/projects/:id/files", upload.array("files", 20), async (req, res) => {
     try {
       const projectId = parseInt(req.params.id);

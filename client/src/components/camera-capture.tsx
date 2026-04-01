@@ -3,6 +3,7 @@ import { Camera, X, SwitchCamera, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { authFetch } from "@/lib/queryClient";
+import { uploadFile } from "@/lib/upload";
 import { useToast } from "@/hooks/use-toast";
 
 interface CameraCaptureProps {
@@ -96,13 +97,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       });
 
       const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await authFetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-
-      const data = await res.json();
+      const data = await uploadFile(file);
       onCapture({
         url: data.url,
         name: data.filename,

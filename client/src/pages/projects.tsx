@@ -170,13 +170,20 @@ export default function ProjectsPage() {
   const handleFileUpload = async (projectId: number, files: FileList) => {
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i]);
+      const fileList: Array<{ data: string; fileName: string; mimeType: string }> = [];
+      for (const file of Array.from(files)) {
+        const b64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+        fileList.push({ data: b64, fileName: file.name, mimeType: file.type || "application/octet-stream" });
       }
-      const res = await authFetch(`/api/projects/${projectId}/files`, {
+      const res = await authFetch(`/api/projects/${projectId}/files-base64`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: fileList }),
       });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();

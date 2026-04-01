@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { queryClient, apiRequest, authFetch } from "@/lib/queryClient";
+import { uploadFile } from "@/lib/upload";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Conversation, Message, Persona } from "@shared/schema";
@@ -1123,32 +1124,14 @@ export default function ChatPage() {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        let res: Response;
         try {
-          const arrayBuf = await file.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuf);
-          let binary = "";
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          const b64 = btoa(binary);
-          res = await authFetch("/api/upload-base64", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: b64, fileName: file.name, mimeType: file.type }),
-          });
-        } catch {
-          const formData = new FormData();
-          formData.append("file", file);
-          res = await authFetch("/api/upload", { method: "POST", body: formData });
+          const data = await uploadFile(file);
+          const isImage = file.type.startsWith("image/");
+          const preview = isImage ? URL.createObjectURL(file) : undefined;
+          setPendingAttachments((prev) => [...prev, { url: data.url, name: data.filename, type: file.type, preview }]);
+        } catch (err: any) {
+          toast({ description: `Failed to upload ${file.name}: ${err.message}`, variant: "destructive" });
         }
-        if (!res.ok) {
-          const errText = await res.text().catch(() => "");
-          toast({ description: `Failed to upload ${file.name}: ${errText || res.statusText}`, variant: "destructive" });
-          continue;
-        }
-        const data = await res.json();
-        const isImage = file.type.startsWith("image/");
-        const preview = isImage ? URL.createObjectURL(file) : undefined;
-        setPendingAttachments((prev) => [...prev, { url: data.url, name: data.filename, type: file.type, preview }]);
       }
     } catch (uploadErr: any) {
       console.error("[upload] Error:", uploadErr);
