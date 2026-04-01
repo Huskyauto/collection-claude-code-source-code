@@ -18,85 +18,98 @@ import {
 
 const PERSONA_LIST = [
   { name: "VisionClaw", role: "Personal AI Assistant", icon: Bot, description: "Your always-on personal assistant. Handles any task, remembers everything, and knows when to call in specialists." },
-  { name: "Felix", role: "CEO & Strategist", icon: Crown, description: "Makes strategic decisions, approves major actions, and orchestrates complex multi-department operations." },
-  { name: "Forge", role: "Staff Engineer", icon: Wrench, description: "Writes code, deploys integrations, debugs systems, and builds technical solutions on demand." },
-  { name: "Teagan", role: "Content Marketing Lead", icon: PenTool, description: "Plans campaigns, creates email sequences, and drives marketing strategy across all channels." },
-  { name: "Chief of Staff", role: "Operations Director", icon: Crown, description: "Optimizes workflows, balances agent workloads, and ensures the entire team runs smoothly." },
-  { name: "Scribe", role: "Content Creator", icon: PenTool, description: "Writes blog posts, newsletters, documentation, landing pages, and any long-form content." },
-  { name: "Proof", role: "Content Reviewer & QA", icon: Shield, description: "Reviews all content for quality, accuracy, brand voice, and compliance before publishing." },
-  { name: "Radar", role: "Intelligence Analyst", icon: Search, description: "Monitors competitors, scans for opportunities, and delivers real-time intelligence briefings." },
-  { name: "Neptune", role: "Deep Research Specialist", icon: Globe, description: "Conducts thorough multi-source research with full reports when Radar spots something worth investigating." },
-  { name: "Apollo", role: "Revenue Manager", icon: BarChart3, description: "Tracks revenue, manages invoicing, processes payments, and optimizes your financial pipeline." },
-  { name: "Atlas", role: "Metrics & Analytics", icon: Activity, description: "Builds dashboards, tracks KPIs, analyzes trends, and provides data-driven recommendations." },
-  { name: "Blueprint", role: "Multi-Agent Operator", icon: Workflow, description: "Designs and executes complex agent workflows where multiple personas collaborate on big projects." },
-  { name: "Cassandra", role: "Chief Financial Officer", icon: Scale, description: "Manages budgets, forecasts spending, tracks AI costs, and ensures financial governance." },
-  { name: "Luna", role: "Legal & Compliance", icon: Gavel, description: "Reviews contracts, ensures regulatory compliance, and manages governance rules." },
+  { name: "Felix", role: "CEO & Orchestrator", icon: Crown, description: "Decomposes complex requests into multi-step execution plans, delegates to specialist agents, and synthesizes results." },
+  { name: "Forge", role: "CTO & Staff Engineer", icon: Wrench, description: "Writes code, deploys integrations, debugs systems, reviews architecture, and builds technical solutions on demand." },
+  { name: "Teagan", role: "CMO & Content Marketing", icon: PenTool, description: "Plans campaigns, creates email sequences, generates AI images, and drives marketing strategy across channels." },
+  { name: "Blueprint", role: "VP Engineering", icon: Workflow, description: "Designs system architecture, plans engineering workflows, and manages multi-agent technical projects." },
+  { name: "Chief of Staff", role: "Operations Director", icon: Crown, description: "Optimizes workflows, balances agent workloads, and ensures the entire corporate team runs smoothly." },
+  { name: "Scribe", role: "Content Director", icon: PenTool, description: "Writes blog posts, newsletters, documentation, reports, presentations, and any long-form content." },
+  { name: "Proof", role: "QA Director", icon: Shield, description: "Automatically reviews every deliverable for quality, accuracy, and completeness. Scores outputs on a 10-point scale." },
+  { name: "Radar", role: "Intelligence Analyst", icon: Search, description: "Monitors competitors, scans for market opportunities, and delivers real-time intelligence briefings." },
+  { name: "Neptune", role: "Wellness Specialist", icon: Globe, description: "Health and wellness guidance, emotional eating interventions, companion messaging, and deep research." },
+  { name: "Apollo", role: "Strategy & Revenue", icon: BarChart3, description: "Business strategy, revenue optimization, pricing analysis, and financial pipeline management." },
+  { name: "Atlas", role: "Finance & Analytics", icon: Activity, description: "Financial analysis, KPI dashboards, trend analysis, and data-driven business recommendations." },
+  { name: "Cassandra", role: "Risk & Forecasting", icon: Scale, description: "Risk assessment, financial modeling, predictive analytics, and budget governance." },
+  { name: "Luna", role: "Legal & Compliance", icon: Gavel, description: "Legal research, contract review, regulatory compliance, and governance framework management." },
 ];
 
 const CAPABILITY_SECTIONS = [
   {
-    title: "AI-Powered Social Media",
-    subtitle: "Create, schedule, and publish — all handled by your AI team",
-    icon: Share2,
-    color: "text-pink-500",
-    bg: "bg-pink-500/10",
-    features: [
-      { icon: Image, label: "AI Image Generation", detail: "Generate professional social media graphics using AI. Platform-optimized for X, LinkedIn, Instagram, and Facebook." },
-      { icon: PenTool, label: "Smart Content Drafting", detail: "Brand-voice-aware post creation with platform-specific formatting, hashtags, and CTAs." },
-      { icon: Target, label: "Complete Post Composer", detail: "One command creates both the text and matching image — a ready-to-publish package." },
-      { icon: BarChart3, label: "A/B Testing & Analytics", detail: "Run marketing experiments, track engagement, and get AI-powered optimization recommendations." },
-    ],
-  },
-  {
     title: "Autonomous Operations",
-    subtitle: "Your AI team works 24/7 without you lifting a finger",
+    subtitle: "Your AI team works 24/7 — researching, learning, and improving on its own",
     icon: Zap,
     color: "text-amber-500",
     bg: "bg-amber-500/10",
     features: [
-      { icon: Clock, label: "Heartbeat Engine", detail: "Scheduled tasks run automatically — daily reports, market scans, health checks, and more." },
-      { icon: Crown, label: "CEO Orchestrator", detail: "Complex requests get broken into execution plans. The AI CEO delegates to specialists and synthesizes results." },
-      { icon: ArrowRightLeft, label: "Agent-to-Agent Delegation", detail: "Agents hand off work to each other. Radar spots intel → Neptune researches → Scribe writes the report." },
-      { icon: ShieldCheck, label: "Human-in-the-Loop Safety", detail: "High-risk actions (spending, publishing, deleting) require your approval. Full control when it matters." },
+      { icon: Clock, label: "Heartbeat Engine", detail: "13 scheduled tasks run autonomously — self-reflection, memory consolidation, cloud backups, model scouting, and more. 100% uptime." },
+      { icon: Crown, label: "CEO Orchestrator", detail: "Complex requests get decomposed into DAG execution plans. Felix delegates to specialists and synthesizes results across 5 delegation levels." },
+      { icon: ArrowRightLeft, label: "Live Delegation Feed", detail: "Watch agents work in real-time with animated activity bubbles, cost tracking, voice narration, and auto-QA quality scores." },
+      { icon: ShieldCheck, label: "Human-in-the-Loop Safety", detail: "High-risk actions require your approval. 40 governance rules, trust scores, and earned autonomy keep your AI team operating safely." },
     ],
   },
   {
-    title: "Enterprise AI Tools",
-    subtitle: "Everything a modern business needs, powered by AI",
+    title: "Nightly Autoresearch",
+    subtitle: "Your AI team researches while you sleep — and injects what it learns",
+    icon: Search,
+    color: "text-cyan-500",
+    bg: "bg-cyan-500/10",
+    features: [
+      { icon: Globe, label: "11 Research Programs", detail: "Nightly programs covering AI models, security, competitive analysis, architecture, and your specific business domain." },
+      { icon: Lightbulb, label: "Smart Keep/Discard Loop", detail: "Each session runs 5-15 experiments. Findings scoring 6+ auto-inject into the knowledge base with vector embeddings." },
+      { icon: Brain, label: "Self-Improving Knowledge", detail: "352 experiments in the last 4 days, 92 findings kept, 114 knowledge entries created. Your AI gets smarter every night." },
+      { icon: Target, label: "Cross-Persona Intelligence", detail: "Research findings route to the right specialist. Legal research goes to Luna, competitive intel goes to Radar — automatically." },
+    ],
+  },
+  {
+    title: "97 Enterprise AI Tools",
+    subtitle: "Everything a modern business needs, powered by 36+ AI models",
     icon: Layers,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     features: [
-      { icon: FileText, label: "PDF Generation & Analysis", detail: "Create multi-page PDFs, fill forms, analyze documents — all uploaded to Google Drive automatically." },
-      { icon: Mail, label: "Email Management", detail: "Full email inbox with AI-powered triage, drafting, and automated follow-ups." },
-      { icon: Code, label: "Code Execution", detail: "Run Python, JavaScript, and shell commands. Build integrations, analyze data, and automate workflows." },
-      { icon: Globe, label: "Web Research & Browsing", detail: "Deep web research with the virtual browser. Scrape data, monitor sites, and gather competitive intelligence." },
+      { icon: FileText, label: "Documents & Slides", detail: "PDFs, PowerPoints, Mermaid diagrams, charts, dashboards — generated and uploaded to Google Drive automatically." },
+      { icon: Code, label: "Code & Execution", detail: "Write code, execute it in a sandbox, review architecture, generate code proposals, and manage technical projects." },
+      { icon: Globe, label: "Virtual Browser", detail: "Navigate websites, take screenshots, fill forms, extract data. Full web research and competitive monitoring." },
+      { icon: Mail, label: "Multi-Channel Comms", detail: "Email (AgentMail), WhatsApp, Discord, Telegram — your AI team communicates across every channel." },
     ],
   },
   {
     title: "Memory & Intelligence",
-    subtitle: "An AI that actually remembers and learns from every interaction",
+    subtitle: "An AI that remembers, learns from experience, and self-improves",
     icon: Brain,
     color: "text-purple-500",
     bg: "bg-purple-500/10",
     features: [
-      { icon: Database, label: "Persistent Memory", detail: "Three-tier memory system: short-term, working, and long-term. Your AI never forgets important details." },
-      { icon: BookOpen, label: "Knowledge Base", detail: "Upload documents, create knowledge collections, and give your agents specialized expertise." },
-      { icon: Lightbulb, label: "Self-Improvement Engine", detail: "Agents learn from failures, save lessons, and automatically improve their approach over time." },
-      { icon: Eye, label: "Governance & Rules", detail: "31 built-in governance rules ensure agents operate within defined boundaries. Full audit trail." },
+      { icon: Database, label: "Three-Tier Memory", detail: "Episodic, semantic, and procedural memory with pgvector search. Your AI never forgets important details." },
+      { icon: Sparkles, label: "Dream Consolidation", detail: "Every 6 hours, the system 'sleeps' — merging duplicates, archiving stale data, promoting important findings, and creating summaries." },
+      { icon: Lightbulb, label: "Instinct Learning", detail: "Agents extract reusable patterns from successful tasks. After 3+ uses, patterns become permanent knowledge. They get better through experience." },
+      { icon: Eye, label: "LLM-Judged Relevance", detail: "GPT-4.1 Mini picks the most relevant knowledge for each query in real-time. Not just similar — actually relevant to what you need." },
     ],
   },
   {
-    title: "Voice & Communication",
-    subtitle: "Talk to your AI team naturally — they talk back",
-    icon: Mic,
+    title: "AI-Powered Content & Media",
+    subtitle: "Create professional content across every format",
+    icon: Share2,
+    color: "text-pink-500",
+    bg: "bg-pink-500/10",
+    features: [
+      { icon: Image, label: "AI Image Generation", detail: "Generate professional graphics for social media, presentations, and marketing. Platform-optimized sizing." },
+      { icon: Mic, label: "Voice & Audio", detail: "Text-to-speech with OpenAI and ElevenLabs. Speech-to-text with speaker diarization. Real-time voice narration." },
+      { icon: Monitor, label: "Video Production", detail: "End-to-end video creation with TTS narration, slide generation, and MP4 compilation. Auto-uploaded to Google Drive." },
+      { icon: Palette, label: "36+ AI Models", detail: "Smart routing across OpenAI, Anthropic, Google, xAI, and more. OAuth-first for cost optimization. The right model for every task." },
+    ],
+  },
+  {
+    title: "Security & Governance",
+    subtitle: "Enterprise-grade safety with earned autonomy and full audit trails",
+    icon: Shield,
     color: "text-emerald-500",
     bg: "bg-emerald-500/10",
     features: [
-      { icon: HeadphonesIcon, label: "Voice Conversations", detail: "Real-time voice streaming with natural speech-to-text and text-to-speech. Hands-free AI collaboration." },
-      { icon: Smartphone, label: "WhatsApp Integration", detail: "Chat with your AI team via WhatsApp. Get briefings, assign tasks, and receive alerts on the go." },
-      { icon: Monitor, label: "Embeddable Chat Widget", detail: "Deploy a customizable chat widget on your website. Let visitors talk to your AI team directly." },
-      { icon: Palette, label: "Multi-Model Intelligence", detail: "Choose from 40+ AI models across 6 providers. Fast, balanced, powerful, or reasoning — pick the right brain for each task." },
+      { icon: ShieldCheck, label: "40 Governance Rules", detail: "Based on NIST, OWASP, and Singapore IMDA standards. 7 categories covering data, comms, finance, code, and behavior." },
+      { icon: Users, label: "Trust Score System", detail: "9 trust categories per agent. Earned autonomy progression — agents prove they can be trusted before getting independence." },
+      { icon: Key, label: "Multi-Tenant Isolation", detail: "Complete data isolation between tenants. Admin PIN auth, timing-safe crypto, rate limiting, and circuit breakers." },
+      { icon: CheckCircle2, label: "Auto-QA Pipeline", detail: "Every deliverable is automatically reviewed by Proof for quality. Color-coded scores on completeness, accuracy, and clarity." },
     ],
   },
 ];
@@ -186,22 +199,22 @@ type ActivityEvent = {
 };
 
 const ACTIVITY_EVENTS: Omit<ActivityEvent, "id">[] = [
-  { agent: "Apollo", icon: BarChart3, action: "Revenue report generated", detail: "Q1 revenue up 23% — $847K ARR projected", type: "revenue", value: "+$18.4K" },
-  { agent: "Forge", icon: Wrench, action: "Deployed API integration", detail: "Stripe webhook handler v2.1 shipped to production", type: "task" },
-  { agent: "Felix", icon: Crown, action: "Strategic decision made", detail: "Approved expansion into EU market based on Radar's intel", type: "task" },
-  { agent: "Radar", icon: Search, action: "Competitive intelligence", detail: "Detected 3 competitor pricing changes — briefing sent to Felix", type: "analysis" },
-  { agent: "Neptune", icon: Globe, action: "Social media image created", detail: "Generated LinkedIn post graphic for product launch announcement", type: "social", value: "AI Image" },
-  { agent: "Scribe", icon: PenTool, action: "Content published", detail: "Blog post: '5 Ways AI Agents Drive Revenue' — 2,400 words", type: "task" },
-  { agent: "Proof", icon: Shield, action: "Content approved", detail: "Reviewed and approved Scribe's blog post — zero revisions needed", type: "delegation" },
-  { agent: "Neptune", icon: Globe, action: "Deep research complete", detail: "48-page market analysis on AI agent platforms delivered", type: "analysis" },
-  { agent: "Atlas", icon: Activity, action: "Metrics dashboard updated", detail: "Customer churn down 12%, NPS score: 72 (+8 from last month)", type: "revenue", value: "-12% churn" },
-  { agent: "Chief of Staff", icon: Crown, action: "Operations optimized", detail: "Reassigned 3 tasks to balance agent workload — 15% faster throughput", type: "delegation" },
-  { agent: "Teagan", icon: PenTool, action: "Social post composed", detail: "Complete LinkedIn post with AI-generated image — ready to publish", type: "social", value: "Post Ready" },
-  { agent: "VisionClaw", icon: Bot, action: "Memory consolidated", detail: "Archived 12 stale entries, created 3 new relationship summaries", type: "memory" },
-  { agent: "Apollo", icon: BarChart3, action: "Invoice processed", detail: "Enterprise client invoice $12,500 — payment confirmed via Stripe", type: "revenue", value: "+$12.5K" },
-  { agent: "Cassandra", icon: Scale, action: "Budget review complete", detail: "AI spending under control: $340/month across all providers, 41% below cap", type: "revenue", value: "-$240 saved" },
-  { agent: "Luna", icon: Gavel, action: "Compliance check passed", detail: "All 31 governance rules validated — zero violations this quarter", type: "task" },
-  { agent: "Atlas", icon: Activity, action: "Cost analysis complete", detail: "Model routing saved $2,340 this month — 41% reduction in API costs", type: "revenue", value: "-$2.3K cost" },
+  { agent: "Felix", icon: Crown, action: "Orchestration complete", detail: "Decomposed complex request into 5-step DAG — delegated to Radar, Scribe, and Proof", type: "delegation" },
+  { agent: "Radar", icon: Search, action: "Nightly research complete", detail: "15 experiments run, 5 findings kept — competitive analysis knowledge auto-injected", type: "analysis", value: "+5 findings" },
+  { agent: "Proof", icon: Shield, action: "Auto-QA review scored 9.2", detail: "Reviewed Scribe's deliverable — completeness: 10, accuracy: 9, clarity: 9, professionalism: 9", type: "delegation", value: "9.2/10" },
+  { agent: "VisionClaw", icon: Bot, action: "Dream consolidation complete", detail: "Merged 8 duplicate memories, archived 12 stale entries, promoted 3 findings to permanent knowledge", type: "memory" },
+  { agent: "Forge", icon: Wrench, action: "Code proposal generated", detail: "Research finding auto-generated code proposal for new agent architecture pattern", type: "task" },
+  { agent: "Scribe", icon: PenTool, action: "Content published", detail: "Blog post: '5 Ways AI Agents Drive Revenue' — 2,400 words, auto-uploaded to Drive", type: "task" },
+  { agent: "Luna", icon: Gavel, action: "Compliance scan complete", detail: "All 40 governance rules validated — zero violations. NIST/OWASP frameworks current", type: "task" },
+  { agent: "Neptune", icon: Globe, action: "Deep research delivered", detail: "48-page wellness intervention analysis with crisis response scripts — 10 findings kept", type: "analysis", value: "+10 findings" },
+  { agent: "Apollo", icon: BarChart3, action: "Revenue analysis complete", detail: "Pricing strategy research yielded 4 optimization recommendations — auto-injected to knowledge", type: "analysis", value: "+4 insights" },
+  { agent: "Atlas", icon: Activity, action: "Model routing optimized", detail: "Smart routing saved $2,340 this month — OAuth-first routing cut API costs 41%", type: "analysis", value: "-$2.3K cost" },
+  { agent: "Chief of Staff", icon: Crown, action: "Heartbeat 100% healthy", detail: "93/93 autonomous tasks completed successfully — self-reflection, backups, model scout all green", type: "delegation" },
+  { agent: "Teagan", icon: PenTool, action: "Campaign created", detail: "Complete LinkedIn post with AI-generated image, hashtags, and CTA — ready to publish", type: "social", value: "Post Ready" },
+  { agent: "Cassandra", icon: Scale, action: "Risk assessment complete", detail: "Financial model updated — AI spending under control: $340/month across all providers", type: "analysis", value: "Under budget" },
+  { agent: "Blueprint", icon: Workflow, action: "Architecture research", detail: "Nightly agent architecture scan found 3 new patterns — instinct learning updated", type: "analysis", value: "+3 patterns" },
+  { agent: "VisionClaw", icon: Bot, action: "Instinct graduated", detail: "Multi-tool pattern reached 70%+ confidence after 3 observations — promoted to permanent knowledge", type: "memory" },
+  { agent: "Radar", icon: Search, action: "Security intelligence", detail: "Nightly security scan complete — 6 findings auto-injected into Luna's knowledge base", type: "analysis", value: "+6 alerts" },
 ];
 
 const TYPE_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
@@ -265,8 +278,8 @@ function LiveActivityDemo() {
           </Badge>
           <h2 className="text-3xl font-bold mb-3" data-testid="text-demo-title">Watch Your AI Corporation Work</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            This is what VisionClaw looks like in action — agents completing tasks, generating content with images, 
-            analyzing markets, and delegating work to each other, all without human intervention.
+            This is what VisionClaw looks like in action — agents completing tasks, delegating to specialists, 
+            running research, and managing operations, all without human intervention.
           </p>
         </div>
 
@@ -498,7 +511,7 @@ function UseCases() {
   ];
 
   return (
-    <section className="py-20 px-6 bg-muted/30 border-t border-border" data-testid="section-use-cases">
+    <section id="section-use-cases" className="py-20 px-6 bg-muted/30 border-t border-border" data-testid="section-use-cases">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <Badge variant="secondary" className="mb-4">Use Cases</Badge>
@@ -593,17 +606,17 @@ export default function LandingPage() {
         <div className="relative max-w-4xl mx-auto text-center space-y-6">
           <Badge variant="secondary" className="gap-1.5" data-testid="badge-hero-status">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Platform Online — 14 Agents Ready
+            Platform Online — 14 Agents, 97 Tools, 36+ Models
           </Badge>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight" data-testid="text-hero-title">
-            Your AI-Powered
+            Your Autonomous
             <br />
-            <span className="text-primary">Corporate Team</span>
+            <span className="text-primary">AI Corporation</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Deploy 14 specialized AI agents that handle marketing, research, finance, content, engineering, 
-            and operations — autonomously, 24/7. Complete with AI image generation, social media publishing, 
-            and enterprise-grade tools.
+            Deploy 14 specialized AI agents that research, learn, and improve autonomously 24/7.
+            97 enterprise tools, 36+ AI models with smart routing, nightly autoresearch,
+            and self-improving knowledge — governed by 40 safety rules.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-3">
             <Button
@@ -625,10 +638,10 @@ export default function LandingPage() {
             </Button>
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> 5 free conversations</span>
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> All 14 agents included</span>
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> AI image generation</span>
-            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Voice & tools</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> 97 built-in AI tools</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> 14 specialist agents</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Nightly autoresearch</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Self-improving memory</span>
           </div>
         </div>
       </section>
@@ -641,8 +654,8 @@ export default function LandingPage() {
             <Badge variant="secondary" className="mb-4">Platform Capabilities</Badge>
             <h2 className="text-3xl font-bold mb-3">Everything Your Business Needs</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Not just a chatbot — a complete AI-powered business operations platform with 50+ tools, 
-              social media automation, and enterprise-grade infrastructure.
+              Not just a chatbot — a self-improving AI corporation with 97 tools, 
+              nightly autoresearch, autonomous governance, and enterprise-grade infrastructure.
             </p>
           </div>
 
@@ -757,7 +770,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-20 px-6 bg-muted/30 border-t border-border" data-testid="section-pricing">
+      <section id="section-pricing" className="py-20 px-6 bg-muted/30 border-t border-border" data-testid="section-pricing">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge variant="secondary" className="mb-4">Pricing</Badge>
@@ -845,8 +858,8 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <h2 className="text-3xl sm:text-4xl font-bold">Ready to deploy your AI corporation?</h2>
           <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-            Start with 5 free conversations. Experience all 14 agents, voice, tools, AI image generation, 
-            and autonomous operations. No credit card required.
+            Start with 5 free conversations. Experience all 14 agents, 97 tools, voice, nightly autoresearch,
+            self-improving memory, and autonomous operations. No credit card required.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button
