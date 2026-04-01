@@ -317,10 +317,12 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
               result.errors++;
               break;
             }
-            await db.execute(sql`BEGIN`);
-            try {
+            await db.transaction(async (tx) => {
               for (const id of action.ids) {
-                await archiveMemoryByTenant(id, tenantId);
+                await tx.execute(sql`
+                  UPDATE memory_entries SET status = 'archived'
+                  WHERE id = ${id} AND tenant_id = ${tenantId} AND status = 'active'
+                `);
               }
               const mergeData: InsertMemoryEntry = {
                 fact: action.fact,
@@ -336,13 +338,9 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
                 await storage.updateMemoryEmbedding(merged.id, emb);
                 try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch { /* pgvector optional */ }
               }
-              await db.execute(sql`COMMIT`);
               result.merged++;
               console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${merged.id}: ${action.reason || ""}`);
-            } catch (mergeErr) {
-              await db.execute(sql`ROLLBACK`);
-              throw mergeErr;
-            }
+            });
             break;
           }
           case "archive": {

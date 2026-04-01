@@ -315,8 +315,8 @@ async function tick() {
         return false;
       }
       if (t.type === "dream_consolidation" && (Date.now() - lastSystemActivity) < IDLE_THRESHOLD_MS) {
-        const nextRun = getNextCronRun(t.cronExpression);
-        storage.markHeartbeatTaskRun(t.id, nextRun).catch(() => {});
+        const deferral = new Date(Date.now() + 15 * 60 * 1000);
+        storage.markHeartbeatTaskRun(t.id, deferral).catch(() => {});
         return false;
       }
       return true;
