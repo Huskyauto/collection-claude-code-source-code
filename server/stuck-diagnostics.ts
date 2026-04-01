@@ -21,7 +21,7 @@ export interface DiagnosticReport {
   timestamp: number;
   patterns: StuckPattern[];
   activeTasks: { taskId: number; taskName: string; personaName: string | null; runningMs: number }[];
-  stalledDelegations: { taskId: number; lastEventAge: string; agentName: string }[];
+  stalledDelegations: { delegationId: string; conversationId: number; lastEventAge: string; agentName: string }[];
   hungProcesses: { type: string; idleSeconds: number; tenantId: number }[];
   toolLoopWarnings: { conversationId: number; toolName: string; repeatCount: number }[];
   trackedHttpRequests: number;
@@ -40,6 +40,31 @@ const TOOL_CALL_TTL_MS = 10 * 60 * 1000;
 
 const detectedPatterns: StuckPattern[] = [];
 const MAX_PATTERNS = 50;
+
+interface ActiveDelegation {
+  taskName: string;
+  personaName: string | null;
+  conversationId: number;
+  tenantId: number;
+  startedAt: number;
+  depth: number;
+}
+
+const activeDelegations = new Map<string, ActiveDelegation>();
+
+export function trackDelegation(conversationId: number, taskName: string, personaName: string | null, tenantId: number, depth: number): string {
+  const id = `deleg_${conversationId}_${Date.now()}`;
+  activeDelegations.set(id, { taskName, personaName, conversationId, tenantId, startedAt: Date.now(), depth });
+  return id;
+}
+
+export function untrackDelegation(id: string): void {
+  activeDelegations.delete(id);
+}
+
+export function getActiveDelegationCount(): number {
+  return activeDelegations.size;
+}
 
 interface TrackedHttpRequest {
   id: string;
@@ -109,36 +134,25 @@ export function recordToolCallForStuckDetection(
 export async function detectStalledDelegations(): Promise<StuckPattern[]> {
   const patterns: StuckPattern[] = [];
   try {
-    const { activeTaskTracker } = await import("./heartbeat");
     const now = Date.now();
+    if (activeDelegations.size === 0) return patterns;
 
-    const delegationEntries: Array<{ taskId: number; info: { taskName: string; personaId: number | null; personaName: string | null; startedAt: number; taskType?: string; conversationId?: number } }> = [];
-    for (const [taskId, info] of activeTaskTracker) {
-      const taskType = info.taskType || "";
-      const isDelegation = taskType === "delegation" || taskType === "sub_delegation" || info.taskName?.includes("delegation");
-      if (isDelegation) {
-        delegationEntries.push({ taskId, info });
-      }
-    }
-
-    if (delegationEntries.length === 0) return patterns;
-
-    let getLastDelegationEventTime: ((convId: number) => number | null) | null = null;
+    let getLastEventTime: ((convId: number) => number | null) | null = null;
     try {
       const { getRecentEvents } = await import("./delegation-events");
-      getLastDelegationEventTime = (convId: number) => {
+      getLastEventTime = (convId: number) => {
         const events = getRecentEvents(convId);
         if (events.length === 0) return null;
         return Math.max(...events.map(e => e.timestamp));
       };
     } catch {}
 
-    for (const { taskId, info } of delegationEntries) {
-      const elapsed = now - info.startedAt;
-
+    for (const [delegId, deleg] of activeDelegations) {
+      const elapsed = now - deleg.startedAt;
       let eventAge = elapsed;
-      if (info.conversationId && getLastDelegationEventTime) {
-        const lastTs = getLastDelegationEventTime(info.conversationId);
+
+      if (getLastEventTime) {
+        const lastTs = getLastEventTime(deleg.conversationId);
         if (lastTs) {
           eventAge = now - lastTs;
         }
@@ -148,30 +162,30 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
         const pattern: StuckPattern = {
           type: "stalled_delegation",
           detectedAt: now,
-          description: `Delegation "${info.taskName}" (persona: ${info.personaName || "unknown"}) — no events for ${Math.round(eventAge / 60000)}min (total age: ${Math.round(elapsed / 60000)}min)`,
+          description: `Delegation "${deleg.taskName}" (persona: ${deleg.personaName || "unknown"}, conv: ${deleg.conversationId}) — no events for ${Math.round(eventAge / 60000)}min (total age: ${Math.round(elapsed / 60000)}min)`,
           durationMs: elapsed,
-          probableCause: "Delegation task stalled — no new events emitted for 3+ minutes despite task still being active",
+          probableCause: "Delegation task stalled — no new delegation events emitted for 3+ minutes despite task still being active",
           remediation: eventAge > STALLED_DELEGATION_MS * 2
-            ? "Cancelling stalled delegation task from active tracker"
-            : "Warning emitted; will auto-cancel if stall persists next cycle",
-          metadata: { taskId, taskName: info.taskName, personaName: info.personaName, taskType: info.taskType, elapsedMs: elapsed, eventAgeMs: eventAge },
+            ? "Removing stalled delegation from tracking and logging diagnostic"
+            : "Warning emitted; will remove tracking if stall persists next cycle",
+          metadata: { delegationId: delegId, taskName: deleg.taskName, personaName: deleg.personaName, conversationId: deleg.conversationId, elapsedMs: elapsed, eventAgeMs: eventAge },
         };
         patterns.push(pattern);
         addPattern(pattern);
 
         if (eventAge > STALLED_DELEGATION_MS * 2) {
-          activeTaskTracker.delete(taskId);
-          console.log(`[stuck-diagnostics] Auto-cancelled stalled delegation task ${taskId} "${info.taskName}" after ${Math.round(eventAge / 60000)}min of inactivity`);
+          activeDelegations.delete(delegId);
+          console.log(`[stuck-diagnostics] Removed stalled delegation tracking "${deleg.taskName}" (conv: ${deleg.conversationId}) after ${Math.round(eventAge / 60000)}min of event inactivity`);
 
           await storage.createHeartbeatLog({
-            taskId,
-            taskName: info.taskName,
+            taskId: 0,
+            taskName: `stalled_delegation:${deleg.taskName}`,
             status: "error",
-            input: null,
-            output: `Stuck diagnostics: auto-cancelled stalled delegation after ${Math.round(eventAge / 60000)} minutes of event inactivity`,
+            input: JSON.stringify({ conversationId: deleg.conversationId, personaName: deleg.personaName }),
+            output: `Stalled delegation removed from tracking after ${Math.round(eventAge / 60000)} minutes of event inactivity. The underlying process may still be running.`,
             model: null,
-            personaId: info.personaId,
-            personaName: info.personaName,
+            personaId: null,
+            personaName: deleg.personaName,
             delegatedTasks: null,
             durationMs: elapsed,
           }).catch(() => {});
@@ -191,19 +205,20 @@ export async function detectHungProcesses(): Promise<StuckPattern[]> {
   try {
     const { getActiveSessions } = await import("./browser-tool");
     const sessions = getActiveSessions();
-    const hungSessionTenants: number[] = [];
+    const allIdle = sessions.length > 0 && sessions.every(s => s.idleSeconds > 300);
 
     for (const session of sessions) {
       const idleMs = now - session.lastActivity;
       if (idleMs > HUNG_BROWSER_SESSION_MS) {
-        hungSessionTenants.push(session.tenantId);
         const pattern: StuckPattern = {
           type: "hung_process",
           detectedAt: now,
           description: `Browser session (tenant ${session.tenantId}, profile "${session.profile}") idle for ${Math.round(idleMs / 60000)}min`,
           durationMs: idleMs,
           probableCause: "Browser session was opened but never closed — possible zombie process or abandoned navigation",
-          remediation: "Flagged for cleanup; will be disconnected by session garbage collector on next cycle",
+          remediation: allIdle
+            ? "All browser sessions are idle — watchdog will disconnect all sessions"
+            : "Individual session flagged as idle; other sessions still active — skipping disconnect to avoid disruption",
           metadata: {
             processType: "browser_session",
             tenantId: session.tenantId,
@@ -293,7 +308,8 @@ export async function runFullDiagnostics(): Promise<DiagnosticReport> {
   } catch {}
 
   const stalledDelegations: DiagnosticReport["stalledDelegations"] = stalledPatterns.map((p) => ({
-    taskId: p.metadata.taskId || 0,
+    delegationId: p.metadata.delegationId || "",
+    conversationId: p.metadata.conversationId || 0,
     lastEventAge: `${Math.round((p.metadata.eventAgeMs || 0) / 60000)}min`,
     agentName: p.metadata.personaName || "unknown",
   }));
@@ -381,6 +397,12 @@ export function cleanupStaleToolCallHistory(): void {
   for (const [id, req] of activeHttpRequests) {
     if (Date.now() - req.startedAt > TOOL_CALL_TTL_MS) {
       activeHttpRequests.delete(id);
+    }
+  }
+
+  for (const [id, deleg] of activeDelegations) {
+    if (Date.now() - deleg.startedAt > TOOL_CALL_TTL_MS) {
+      activeDelegations.delete(id);
     }
   }
 }

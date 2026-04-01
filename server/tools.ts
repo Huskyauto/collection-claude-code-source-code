@@ -4963,12 +4963,23 @@ export async function executeToolWithTimeout(name: string, params: Record<string
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const NETWORK_TOOLS = new Set([
+    "web_search", "web_fetch", "browse_url", "browser", "firecrawl_scrape", "firecrawl_crawl",
+    "deep_research", "produce_video", "generate_audio", "generate_social_image",
+    "create_slideshow_video", "analyze_pdf", "send_email", "check_inbox",
+    "finance_news", "finance_stock_price", "finance_stock_search", "finance_market_overview",
+    "gmail_send", "gmail_search", "gmail_read", "calendar_list_events", "calendar_create_event",
+    "sheets_read", "sheets_update", "sheets_append", "docs_create",
+    "whatsapp_send", "orchestrate", "plan_and_execute", "debate", "tree_of_thought",
+  ]);
   let trackingId: string | undefined;
-  try {
-    const { trackHttpRequest } = await import("./stuck-diagnostics");
-    const tenantId = params._tenantId || 1;
-    trackingId = trackHttpRequest(name, tenantId, name, controller);
-  } catch {}
+  if (NETWORK_TOOLS.has(name)) {
+    try {
+      const { trackHttpRequest } = await import("./stuck-diagnostics");
+      const tenantId = params._tenantId || 1;
+      trackingId = trackHttpRequest(name, tenantId, name, controller);
+    } catch {}
+  }
 
   try {
     const result = await Promise.race([

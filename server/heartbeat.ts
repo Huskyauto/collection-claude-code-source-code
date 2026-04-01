@@ -106,7 +106,7 @@ function hasRecentActivity(): boolean {
   return lastMessageTimestamp > lastReflectionTimestamp;
 }
 
-export const activeTaskTracker = new Map<number, { taskName: string; personaId: number | null; personaName: string | null; startedAt: number; taskType?: string; conversationId?: number }>();
+export const activeTaskTracker = new Map<number, { taskName: string; personaId: number | null; personaName: string | null; startedAt: number }>();
 
 function switchToActiveInterval() {
   if (currentIntervalMs === HEARTBEAT_INTERVAL_ACTIVE_MS) return;
@@ -474,7 +474,6 @@ async function executeTask(task: HeartbeatTask) {
     personaId: task.personaId,
     personaName: persona?.name || null,
     startedAt: start,
-    taskType: task.type,
   });
 
   try {
@@ -1612,6 +1611,12 @@ ${delegationGuidance}
         startDelegationSummarizer(childConv.id, tenantId, target.name, taskName, depth);
       } catch {}
 
+      let delegTrackingId: string | undefined;
+      try {
+        const { trackDelegation } = await import("./stuck-diagnostics");
+        delegTrackingId = trackDelegation(childConv.id, taskName, target.name, tenantId, depth);
+      } catch {}
+
       let result: any;
       try {
         result = await _processMessageFn(
@@ -1624,6 +1629,12 @@ ${delegationGuidance}
           const { stopDelegationSummarizer } = await import("./agent-summary");
           stopDelegationSummarizer(childConv.id);
         } catch {}
+        if (delegTrackingId) {
+          try {
+            const { untrackDelegation } = await import("./stuck-diagnostics");
+            untrackDelegation(delegTrackingId);
+          } catch {}
+        }
       }
 
       const resultText = result?.response || JSON.stringify(result);
