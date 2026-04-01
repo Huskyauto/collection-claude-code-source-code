@@ -36,10 +36,15 @@ export interface RelevanceContext {
 }
 
 function getCacheKey(query: string, candidateIds: number[], context: RelevanceContext): string {
-  const contextStr = (context.activeSkills || []).sort().join(",") + "|" + (context.personaName || "");
-  const hash = crypto.createHash("md5")
-    .update(query.slice(0, 200) + "|" + candidateIds.sort().join(",") + "|" + contextStr)
-    .digest("hex");
+  const parts = [
+    query.slice(0, 200),
+    candidateIds.sort().join(","),
+    (context.activeSkills || []).sort().join(","),
+    (context.activeToolNames || []).sort().join(","),
+    context.personaName || "",
+    context.projectName || "",
+  ];
+  const hash = crypto.createHash("md5").update(parts.join("|")).digest("hex");
   return hash;
 }
 
