@@ -186,7 +186,7 @@ export async function startHeartbeat() {
         createdBy: "system",
         runOnce: false,
         tenantId: 1,
-      } as any);
+      });
       console.log("[heartbeat] Seeded dream_consolidation task (every 6 hours, idle-only)");
     }
   } catch (err) {
@@ -314,7 +314,7 @@ async function tick() {
         storage.markHeartbeatTaskRun(t.id, nextRun).catch(() => {});
         return false;
       }
-      if (t.type === "dream_consolidation" && hasRecentActivity()) {
+      if (t.type === "dream_consolidation" && (Date.now() - lastSystemActivity) < IDLE_THRESHOLD_MS) {
         const nextRun = getNextCronRun(t.cronExpression);
         storage.markHeartbeatTaskRun(t.id, nextRun).catch(() => {});
         return false;
@@ -632,7 +632,7 @@ async function executeTaskInner(task: HeartbeatTask, start: number, persona: Per
     const dreamStart = Date.now();
     try {
       const { runDreamConsolidation } = await import("./dream-consolidation");
-      const dreamTenantId = (task as any).tenantId || 1;
+      const dreamTenantId = task.tenantId ?? 1;
       const dreamResult = await runDreamConsolidation(dreamTenantId, 5);
       const durationMs = Date.now() - dreamStart;
 

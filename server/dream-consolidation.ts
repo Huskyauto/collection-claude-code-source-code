@@ -2,8 +2,9 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { generateEmbedding, storeEmbeddingVec, cosineSimilarity } from "./embeddings";
-import { executeWithFailover, classifyError } from "./model-failover";
+import { executeWithFailover } from "./model-failover";
 import { getAvailableModels, getModelForTierAsync } from "./providers";
+import type { InsertMemoryEntry, MemoryEntry } from "@shared/schema";
 
 export interface DreamConsolidationResult {
   reviewed: number;
@@ -23,6 +24,14 @@ interface DreamAction {
   fact?: string;
   category?: string;
   reason?: string;
+}
+
+interface DbRow {
+  id: number;
+  title?: string;
+  updated_at?: string;
+  role?: string;
+  content?: string;
 }
 
 const DREAM_PROMPT = `You are the DreamTask Memory Consolidation Engine. Your job is to review and reorganize memory entries like a brain consolidating memories during sleep.
@@ -47,48 +56,55 @@ RULES:
 - Promote memories that contain reusable preferences, patterns, or decisions.
 - Create summaries only when 3+ memories form a coherent topic cluster.
 - Return at most 10 actions per run to avoid over-consolidation.
+- Only use memory IDs from the provided list. Do not invent or guess IDs.
 - If memories are already clean and well-organized, return { "actions": [] }.
 
 Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.`;
 
+function extractRows(result: unknown): DbRow[] {
+  const raw = result as { rows?: DbRow[] };
+  return Array.isArray(raw.rows) ? raw.rows : Array.isArray(result) ? (result as DbRow[]) : [];
+}
+
 async function getRecentSessionSummaries(tenantId: number, sessionCount: number): Promise<string> {
   try {
-    const convRows = await db.execute(sql`
+    const convResult = await db.execute(sql`
       SELECT id, title, updated_at FROM conversations 
       WHERE tenant_id = ${tenantId} AND deleted_at IS NULL
       ORDER BY updated_at DESC
       LIMIT ${sessionCount}
     `);
-    const convs = (convRows as any).rows || convRows;
-    if (!convs || convs.length === 0) return "No recent sessions found.";
+    const convs = extractRows(convResult);
+    if (convs.length === 0) return "No recent sessions found.";
 
     const summaries: string[] = [];
     for (const conv of convs) {
-      const msgRows = await db.execute(sql`
+      const msgResult = await db.execute(sql`
         SELECT role, content FROM messages 
         WHERE conversation_id = ${conv.id}
         ORDER BY created_at DESC
         LIMIT 6
       `);
-      const msgs = (msgRows as any).rows || msgRows;
-      if (!msgs || msgs.length === 0) continue;
+      const msgs = extractRows(msgResult);
+      if (msgs.length === 0) continue;
 
       const topicHints = msgs
-        .filter((m: any) => m.role === "user" && m.content)
-        .map((m: any) => m.content.slice(0, 150))
+        .filter((m) => m.role === "user" && m.content)
+        .map((m) => (m.content || "").slice(0, 150))
         .slice(0, 2);
 
       summaries.push(`Session "${conv.title || "Untitled"}" (${conv.updated_at}): Topics — ${topicHints.join("; ") || "no user messages"}`);
     }
     return summaries.join("\n") || "No session content available.";
-  } catch (err: any) {
-    console.warn("[dream] Failed to get session summaries:", err.message);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[dream] Failed to get session summaries:", msg);
     return "Could not retrieve recent sessions.";
   }
 }
 
 function findDuplicateCandidates(
-  memories: Array<{ id: number; fact: string; embedding: any }>
+  memories: Array<{ id: number; fact: string; embedding: number[] | null | unknown }>
 ): Array<[number, number, number]> {
   const pairs: Array<[number, number, number]> = [];
   for (let i = 0; i < memories.length; i++) {
@@ -99,7 +115,7 @@ function findDuplicateCandidates(
         const embA = typeof a.embedding === "string" ? JSON.parse(a.embedding) : a.embedding;
         const embB = typeof b.embedding === "string" ? JSON.parse(b.embedding) : b.embedding;
         if (Array.isArray(embA) && Array.isArray(embB) && embA.length === embB.length) {
-          const sim = cosineSimilarity(embA, embB);
+          const sim = cosineSimilarity(embA as number[], embB as number[]);
           if (sim > 0.85) {
             pairs.push([a.id, b.id, Math.round(sim * 1000) / 1000]);
           }
@@ -108,6 +124,29 @@ function findDuplicateCandidates(
     }
   }
   return pairs.sort((a, b) => b[2] - a[2]).slice(0, 20);
+}
+
+async function archiveMemoryByTenant(memoryId: number, tenantId: number): Promise<boolean> {
+  const result = await db.execute(sql`
+    UPDATE memory_entries SET status = 'archived'
+    WHERE id = ${memoryId} AND tenant_id = ${tenantId} AND status = 'active'
+    RETURNING id
+  `);
+  const rows = extractRows(result);
+  return rows.length > 0;
+}
+
+async function promoteMemoryByTenant(memoryId: number, tenantId: number, category?: string): Promise<boolean> {
+  const setClauses = category
+    ? sql`source = 'promoted', category = ${category}`
+    : sql`source = 'promoted'`;
+  const result = await db.execute(sql`
+    UPDATE memory_entries SET ${setClauses}
+    WHERE id = ${memoryId} AND tenant_id = ${tenantId} AND status = 'active'
+    RETURNING id
+  `);
+  const rows = extractRows(result);
+  return rows.length > 0;
 }
 
 export async function runDreamConsolidation(tenantId: number = 1, sessionCount: number = 5): Promise<DreamConsolidationResult> {
@@ -121,8 +160,10 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
     console.log(`[dream] Starting consolidation for tenant ${tenantId}...`);
 
     const memResult = await storage.getMemoryEntries(undefined, 200, 0, tenantId);
-    const activeMemories = memResult.data.filter(m => m.status === "active");
+    const activeMemories = memResult.data.filter((m: MemoryEntry) => m.status === "active");
     result.reviewed = activeMemories.length;
+
+    const validIds = new Set(activeMemories.map((m: MemoryEntry) => m.id));
 
     if (activeMemories.length < 3) {
       result.summary = `Too few active memories (${activeMemories.length}) to consolidate.`;
@@ -133,12 +174,12 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
 
     const sessionSummaries = await getRecentSessionSummaries(tenantId, sessionCount);
 
-    const embeddedMemories = activeMemories.map(m => ({
+    const embeddedMemories = activeMemories.map((m: MemoryEntry) => ({
       id: m.id, fact: m.fact, embedding: m.embedding,
     }));
     const duplicatePairs = findDuplicateCandidates(embeddedMemories);
 
-    const memoryList = activeMemories.slice(0, 50).map(m =>
+    const memoryList = activeMemories.slice(0, 50).map((m: MemoryEntry) =>
       `[ID:${m.id}] [${m.category}] ${m.fact} (source: ${m.source}, accessed: ${m.accessCount}x, created: ${m.createdAt})`
     ).join("\n");
 
@@ -162,7 +203,7 @@ Analyze these memories and return consolidation actions as JSON.`;
     const { result: resp } = await executeWithFailover(
       model,
       availableModels,
-      async (client: any, actualModelId: string) => {
+      async (client: { chat: { completions: { create: (params: Record<string, unknown>) => Promise<{ choices: Array<{ message: { content: string } }> }> } } }, actualModelId: string) => {
         return client.chat.completions.create({
           model: actualModelId,
           messages: [
@@ -217,21 +258,28 @@ Analyze these memories and return consolidation actions as JSON.`;
         switch (action.type) {
           case "merge": {
             if (!Array.isArray(action.ids) || action.ids.length < 2 || !action.fact) break;
-            for (const id of action.ids) {
-              await storage.updateMemoryEntry(id, { status: "archived" });
+            const invalidMergeIds = action.ids.filter(id => !validIds.has(id));
+            if (invalidMergeIds.length > 0) {
+              console.warn(`[dream] Merge rejected: IDs [${invalidMergeIds.join(",")}] not in valid set for tenant ${tenantId}`);
+              result.errors++;
+              break;
             }
-            const merged = await storage.createMemoryEntry({
+            for (const id of action.ids) {
+              await archiveMemoryByTenant(id, tenantId);
+            }
+            const mergeData: InsertMemoryEntry = {
               fact: action.fact,
               category: action.category || "general",
               source: "dream_consolidation",
               status: "active",
               personaId: null,
               tenantId,
-            } as any);
+            };
+            const merged = await storage.createMemoryEntry(mergeData);
             const emb = await generateEmbedding(merged.fact);
             if (emb) {
               await storage.updateMemoryEmbedding(merged.id, emb);
-              try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch {}
+              try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch { /* pgvector optional */ }
             }
             result.merged++;
             console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${merged.id}: ${action.reason || ""}`);
@@ -239,45 +287,69 @@ Analyze these memories and return consolidation actions as JSON.`;
           }
           case "archive": {
             if (typeof action.id !== "number") break;
-            await storage.updateMemoryEntry(action.id, { status: "archived" });
-            result.archived++;
-            console.log(`[dream] Archived ID ${action.id}: ${action.reason || ""}`);
+            if (!validIds.has(action.id)) {
+              console.warn(`[dream] Archive rejected: ID ${action.id} not in valid set for tenant ${tenantId}`);
+              result.errors++;
+              break;
+            }
+            const archived = await archiveMemoryByTenant(action.id, tenantId);
+            if (archived) {
+              result.archived++;
+              console.log(`[dream] Archived ID ${action.id}: ${action.reason || ""}`);
+            } else {
+              console.warn(`[dream] Archive failed: ID ${action.id} not found or already archived`);
+            }
             break;
           }
           case "promote": {
             if (typeof action.id !== "number") break;
-            const updates: Record<string, any> = { source: "promoted" };
-            if (action.category) updates.category = action.category;
-            await storage.updateMemoryEntry(action.id, updates);
-            result.promoted++;
-            console.log(`[dream] Promoted ID ${action.id}: ${action.reason || ""}`);
+            if (!validIds.has(action.id)) {
+              console.warn(`[dream] Promote rejected: ID ${action.id} not in valid set for tenant ${tenantId}`);
+              result.errors++;
+              break;
+            }
+            const promoted = await promoteMemoryByTenant(action.id, tenantId, action.category);
+            if (promoted) {
+              result.promoted++;
+              console.log(`[dream] Promoted ID ${action.id}: ${action.reason || ""}`);
+            } else {
+              console.warn(`[dream] Promote failed: ID ${action.id} not found or not active`);
+            }
             break;
           }
           case "create_summary": {
             if (!action.fact) break;
-            const summary = await storage.createMemoryEntry({
+            if (Array.isArray(action.ids) && action.ids.length > 0) {
+              const invalidSummaryIds = action.ids.filter(id => !validIds.has(id));
+              if (invalidSummaryIds.length > 0) {
+                console.warn(`[dream] Summary references invalid IDs [${invalidSummaryIds.join(",")}] for tenant ${tenantId}, creating anyway`);
+              }
+            }
+            const summaryData: InsertMemoryEntry = {
               fact: action.fact,
               category: action.category || "meta",
               source: "dream_consolidation",
               status: "active",
               personaId: null,
               tenantId,
-            } as any);
-            const summaryEmb = await generateEmbedding(summary.fact);
+            };
+            const summaryEntry = await storage.createMemoryEntry(summaryData);
+            const summaryEmb = await generateEmbedding(summaryEntry.fact);
             if (summaryEmb) {
-              await storage.updateMemoryEmbedding(summary.id, summaryEmb);
-              try { await storeEmbeddingVec("memory_entries", summary.id, summaryEmb); } catch {}
+              await storage.updateMemoryEmbedding(summaryEntry.id, summaryEmb);
+              try { await storeEmbeddingVec("memory_entries", summaryEntry.id, summaryEmb); } catch { /* pgvector optional */ }
             }
             result.created++;
-            console.log(`[dream] Created summary ID ${summary.id}: ${action.reason || ""}`);
+            console.log(`[dream] Created summary ID ${summaryEntry.id}: ${action.reason || ""}`);
             break;
           }
           default:
-            console.warn(`[dream] Unknown action type: ${(action as any).type}`);
+            console.warn(`[dream] Unknown action type: ${String((action as DreamAction).type)}`);
         }
-      } catch (actionErr: any) {
+      } catch (actionErr: unknown) {
         result.errors++;
-        console.error(`[dream] Action failed (${action.type}):`, actionErr.message);
+        const msg = actionErr instanceof Error ? actionErr.message : String(actionErr);
+        console.error(`[dream] Action failed (${action.type}):`, msg);
       }
     }
 
@@ -291,10 +363,11 @@ Analyze these memories and return consolidation actions as JSON.`;
       ? `Reviewed ${result.reviewed} memories: ${parts.join(", ")}.`
       : `Reviewed ${result.reviewed} memories: no changes needed.`;
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     result.errors++;
-    result.summary = `Dream consolidation failed: ${err.message}`;
-    console.error(`[dream] Fatal error:`, err.message);
+    const msg = err instanceof Error ? err.message : String(err);
+    result.summary = `Dream consolidation failed: ${msg}`;
+    console.error(`[dream] Fatal error:`, msg);
   }
 
   result.durationMs = Date.now() - start;
