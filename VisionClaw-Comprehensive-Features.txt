@@ -1,368 +1,104 @@
-======================================================================
+VISIONCLAW AGENT PLATFORM — COMPREHENSIVE FEATURES
+AI Buddy LLC (Illinois) | April 2026
+=====================================================
 
-VISIONCLAW AGENT PLATFORM
--------------------------
-AI Buddy LLC — Illinois
-Comprehensive Platform Features (March 2026)
+PLATFORM STATS
+- 130+ server-side TypeScript files (~89,000 lines)
+- 38+ frontend pages | 66 database tables
+- 96+ built-in AI tools + custom tool support
+- 23 active skills | 14 AI personas
+- 36+ models across 8+ providers
+- 40 governance rules | 11 research programs
+- 7 research schedules | 13 heartbeat tasks
 
-Platform Stats:
-• 473 project files (~452,000 lines of TypeScript/React)
-• 66 PostgreSQL database tables (Drizzle ORM + pgvector)
-• 96 AI tools (built-in + custom tool creation)
-• 14 AI personas operating as a complete corporate team
-• 36+ AI models across 8+ providers
-• 23 active skills injected into agent system prompts
-• 40 governance rules across 7 categories
-• 11 research programs (5 nightly + 6 business)
-• 7 research schedules
-• 13 heartbeat tasks
-• 38+ frontend pages
+AUTHENTICATION & SECURITY
+- Multi-method: Replit Auth, Email+Password, Admin PIN (HMAC-SHA256)
+- DB-backed sessions with timing-safe cryptography
+- Password policy enforcement, email verification
+- Helmet CSP, provider key proxy, IronClaw SafetyLayer
+- Per-tool rate limiting (sliding window per tenant)
 
+MULTI-TENANCY
+- Strict tenant isolation across all data
+- Per-tenant memory backup, file storage, billing
+- Admin (tenant 1) with PIN-gated admin endpoints
+- BYOK tier system for API key management
 
-AUTHENTICATION & MULTI-TENANCY
-------------------------------
-• Replit OAuth sign-in (primary)
-• Email + password with verification flow
-• Admin PIN (HMAC-SHA256 with salt)
-• DB-backed sessions (17+ active)
-• Strict multi-tenant data isolation
-• Per-tenant memory backup
-• Per-tenant file storage (Replit Object Storage)
-• Timing-safe cryptography
-• Password policy enforcement
-• Soft account deletion
+CHAT ENGINE & AI ROUTING
+- Real-time AI responses via SSE
+- Smart Model Auto-Selection with Task Complexity Classifier
+- Multimodal-Aware Routing, Auto-Thinking Mode
+- Subscription-First Routing (BYOS): OAuth tokens as PRIMARY inference
+- Claude Runner Bridge: $0 per-token Anthropic routing via Max plan
+- Cost-aware auto-routing: free > cheap > paid
+- All 36 models tagged with costClass
 
+14 AI PERSONAS
+1. VisionClaw (CEO) — Platform orchestrator
+2. Felix — Multi-step task decomposition & orchestration
+3. Forge — Code generation & technical execution
+4. Teagan — Teaching & education
+5. Blueprint — Architecture & design
+6. Chief of Staff — Operations & stability
+7. Scribe — Documentation & writing
+8. Proof — Quality assurance & adversarial verification
+9. Radar — Research & intelligence
+10. Neptune — Data analysis & visualization
+11. Apollo — Creative content & media
+12. Atlas — Project management
+13. Cassandra — Finance & market intelligence
+14. Luna — Personal assistant & scheduling
 
-14 AI PERSONAS — THE AI CORPORATION
------------------------------------
-1. VisionClaw — Platform Core Engine
-2. Felix — CEO Orchestrator & Primary Presenter
-3. Forge — Code Generation & Engineering
-4. Teagan — Testing & QA Specialist
-5. Blueprint — Architecture & Design
-6. Chief of Staff — Operations & Stability
-7. Scribe — Documentation & Communication
-8. Proof — Output Quality Reviewer (Auto-QA)
-9. Radar — Research & Web Intelligence
-10. Neptune — Data Analysis & Visualization
-11. Apollo — Creative & Content Generation
-12. Atlas — Strategic Planning & Advisory
-13. Cassandra — Finance & Market Intelligence
-14. Luna — Customer Relations & Support
-
-Each persona has:
-• Specialized system prompts with platform briefing
-• Dedicated tools and skills
-• Configurable reasoning modes (auto-thinking)
-• Cost tier preferences (free → cheap → paid)
-• Cross-persona knowledge via vector search
-• Tools documentation (auto-synced via sync_personas)
-
-
-96 AI TOOLS
------------
-Communication: send_email, send_whatsapp, send_discord, send_telegram
-Research: web_search, deep_research, trend_research, competitive_analysis
-Documents: generate_pdf, create_slides, export_persona
-Code: code_execute, code_review, generate_code
-Virtual Browser: browse_url, screenshot, fill_form, click_element
-Web Scraping: firecrawl_scrape, firecrawl_crawl, firecrawl_map, jina_read
-Agentic: delegate_task, orchestrate, strategic_interview
-Google Workspace: gdrive_upload, gdrive_list, gdrive_search
-Charts & Dashboards: generate_chart, generate_dashboard
-Media: generate_social_image, produce_video, generate_audio
-Finance: market_news, stock_data, stock_search, market_overview
-Diagrams: render_diagram (Mermaid → PNG)
-Voice: vibevoice_transcribe (VibeVoice ASR, 60-min, 50+ languages)
-System: sync_personas, health_check, manage_skills
-+ Custom tool creation with auto-persona-sync
-
-
-SMART MODEL AUTO-ROUTING
-------------------------
-OAuth-First / Subscription-First (BYOS):
-• Google Gemini OAuth (PKCE + generative-language scope)
-• OpenAI ChatGPT Plus (code-paste + STS exchange)
-• Claude Runner bridge ($0 per-token via Max plan)
-
-Model Tiers:
-• Fast: Gemini 3 Flash → Gemini 2.5 Flash → GPT-4.1 Mini
-• Balanced: Gemini 3 Flash → GPT-4.1 → Sonnet 4
-• Powerful: Gemini 3.1 Pro → GPT-4.1 → Opus 4.6 → Sonnet 4.6
-• Reasoning: Gemini 3.1 Pro → o4-mini → Opus 4.6
-
-Features:
-• Task Complexity Classifier
-• Multimodal-Aware Routing
-• Auto-Thinking Mode
-• Persona Cost Tier Integration
-• Model Capabilities Registry
-• [auto-route] logging with 60s dedup
-• markSubscriptionFailed with tiered TTLs
-• All 36 models tagged: free/cheap/paid
-
-
-AUTONOMOUS OPERATIONS
----------------------
-Heartbeat Engine:
-• 13 recurring tasks running on configurable intervals
-• Auto-backup to Google Drive
-• Corporation report export (PDF)
-• GitHub auto-push with secret scanning
-• Research schedule execution
-• Health monitoring (6 checks)
-
-Chief of Staff Stability Watchdog:
-• Auto-remediation of stuck tasks
-• Flaky task detection
-• Memory pressure monitoring
-• Stale data cleanup
-• Pool health monitoring
-
-Felix Auto-Orchestration:
-• Multi-step task decomposition into DAG
-• Specialist persona assignment
-• Parallel and sequential execution
-• Child conversation delegation
-
-Human-in-the-Loop (HITL):
-• Confirmation gate for sensitive operations
-• Felix approval gate for high-impact decisions
-
-
-NIGHTLY AUTORESEARCH SYSTEM
----------------------------
-Inspired by Karpathy's Autoresearch:
-• 11 autonomous research programs
-• 5 nightly platform programs (2 AM daily)
-• 6 AI Buddy business programs (Sunday midnight CT)
-• Keep/discard loop with scoring (≥6 = keep)
-• Executive summaries per session
-
-Auto-Deposit Intelligence Loop:
-• Findings auto-route to correct project folder
-• Auto-inject into agent_knowledge with vector embeddings
-• High-score findings (≥8) generate code proposals
-• Programs 2-7 → AI Buddy Health project
-• Programs 8-12 → VisionClaw Agent Platform project
-
-Adaptive Backpressure:
-• Level 1 (1-2 timeouts): 2x slower
-• Level 2 (3-5 timeouts): 3x slower + reschedule
-• Level 3 (6+): pause ALL research 5 min
-• Max 2 concurrent sessions enforced
-
-
-GOVERNANCE & SECURITY
----------------------
-40-Rule Process Governor:
-• 7 categories: data, finance, comms, system, research, legal, operations
-• 25 condition evaluators
-• Emergency kill switch
-• NIST, OWASP, Singapore IMDA compliance
-
-Agency Expansion Framework (6 Tiers):
-• 9 evaluator types
-• Trust Score Engine (9 categories)
-• Proactive Initiative Engine (PAB budgets)
-• 12 Express Lanes
-• 8 Environmental Awareness scan types
-• 4 Collective Intelligence protocols
-
-Security:
-• Helmet CSP headers
-• Provider Key Proxy (no client exposure)
-• DB-persisted password reset tokens
-• IronClaw-inspired SafetyLayer
-• Per-tool sliding-window rate limiter
-• Execution Supervisor: circuit breaker, output validation, hallucination detection
-
+96+ AI TOOLS
+Communication | Research & Web | Memory & Knowledge | Documents & Files
+Voice & Audio | Code & Execution | Agentic Operations | Project Management
+Governance | System | Payments | Visualization
 
 INTELLIGENCE & MEMORY
----------------------
-Memory Architecture:
-• Hierarchical Memory Graph
-• Three-Tier Semantic Memory
-• BM25/Vector/Hybrid Document Search
-• Zero-Loss Compaction with safety gate
-• pgvector for native PostgreSQL vector similarity
-• Embedding cache (30s TTL, max 50 entries)
+- Hierarchical Memory Graph, Three-Tier Semantic Memory
+- BM25/Vector/Hybrid Document Search
+- Zero-Loss Compaction, pgvector similarity
+- DreamTask Memory Consolidation (6h cycle)
+- LLM-Judged Memory Relevance Scoring (Claude Code inspired)
+  GPT-4.1 Mini selects best 5-7 from 15-20 candidates
+  Smart filtering: skips generic docs, keeps warnings/gotchas
+  2s timeout with vector fallback, 30s context-aware cache
+- Instinct Learning & Proactive Context Loading
 
-Instinct Learning System:
-• Auto-extracts reusable patterns from successful tasks
-• Confidence scoring and graduation (3+ observations, >70%)
-• Graduated instincts injected into system prompts
-• Agents get progressively better at recurring tasks
+AGENTIC INFRASTRUCTURE
+- Persistent Agent Desks, Internal Channels, Event Bus
+- Multi-Layer Delegation (up to 5 levels)
+- Felix Auto-Orchestration (DAG decomposition)
+- Execution Supervisor with circuit breaker
+- Auto-QA Pipeline (Proof reviews outputs)
+- Per-Task Cost Tracking with live badges
+- Adversarial Verification Agent
 
-Cross-Persona Knowledge:
-• Vector search pulls findings from ANY persona
-• 2000-char knowledge budget per prompt
-• Persona-specific entries ranked first
+ENHANCED STUCK DETECTION (Claude Code Inspired)
+- Circular loop detection with deferred message injection
+- Stalled delegation tracking (60s periodic check)
+- Hung HTTP detection with per-tool timeouts + 5-min dedup
+- Admin endpoint: GET /api/admin/diagnostics/stuck
 
-Project Brain:
-• Auto-maintained .md knowledge file per project
-• Injected into project conversations
-• Auto-transcript system with asset capture
-
+PROCESS GOVERNOR (40 Rules, 7 Categories)
+AGENCY EXPANSION FRAMEWORK (6 Tiers)
+AUTONOMOUS OPERATIONS (Heartbeat, Watchdog, Self-Tuning)
+NIGHTLY AUTORESEARCH (11 Programs, Adaptive Backpressure)
+SKILLIFY — Session-to-Skill Extraction
+AGENT LIVE STATUS SUMMARIES
 
 PRESENTATION & VISUALIZATION
-----------------------------
-• Mermaid Diagram Rendering (flowcharts, architecture maps, etc.)
-• Live Delegation Event Feed (real-time SSE)
-• Voice Narration for agent activity (browser TTS, free)
-• Chart Generation (bar, line, pie, area via Recharts)
-• Interactive Dashboards (HTML/CSS/JS in live canvas)
-• AI Image Generation (auto-upload to Drive)
-• Video Production (TTS narration + MP4)
-• Audio Generation (OpenAI TTS primary)
-• PowerPoint Slide Generation (2slides API)
-• VibeVoice ASR (60-min speech-to-text, 50+ languages)
+- Mermaid diagrams, Charts (Recharts), Dashboards
+- AI images, Video production, PowerPoint slides
+- VibeVoice ASR, Live delegation feed with voice narration
 
-
-DELEGATION & MULTI-AGENT
-------------------------
-Multi-Layer Delegation:
-• Configurable depth up to 5 levels
-• Tool restrictions scale by depth
-• Depth 2+ blocks spawn/subagents
-• Depth 3+ blocks orchestrate
-• Depth 5 blocks all delegation
-• Trust/expansion context at depth ≤1
-
-Live Activity Feed:
-• Real-time SSE streaming
-• Tenant-isolated event routing
-• 5-minute TTL auto-cleanup
-• Color-coded agent icons
-• Depth indicators and timestamps
-• Voice narration in plain English
-
-Auto-QA Pipeline (De-Sloppify):
-• Proof (persona 8) auto-reviews delegation output
-• Scores: completeness, accuracy, clarity, professionalism
-• Non-blocking fire-and-forget execution
-• Color-coded verdict badges in UI
-
-Per-Task Cost Tracking:
-• Real-time USD, token counts, duration
-• Model breakdown per delegation step
-• Cost badges in live delegation feed
-
-
-COMMUNICATION & INTEGRATIONS
-----------------------------
-Channels:
-• AgentMail (visionclaw@agentmail.to)
-• WhatsApp Web (Baileys library)
-• Discord Bot
-• Telegram Bot
-• Email with tenant inboxes
-
-Payments:
-• Stripe Connect (subscriptions, BYOK tiers)
-• Coinbase CDP SDK + Commerce API
-• Crypto payment support
-• Usage metering
-
-Storage & Files:
-• Replit Object Storage (per-tenant)
-• Google Drive integration (upload, share, folders)
-• PDF toolkit
-• File Manager UI
-
-External Services:
-• Firecrawl (web scraping, crawling, site mapping)
-• Jina AI (Reader)
-• ip-api.com (geolocation)
-• Open-Meteo (weather)
-• mermaid.ink (diagram rendering)
-
-
-SELF-IMPROVEMENT ENGINES
-------------------------
-Autonomous Self-Tuning:
-• Runs every 24 hours
-• 7-day performance metrics collection
-• Parameter adjustment within safe bounds
-• Bootstrap mode for new tenants
-• Dynamic express lane caps based on trust
-
-Instinct Learning:
-• Pattern extraction from multi-tool successes
-• Graduation after 3+ observations at >70% confidence
-• Permanent knowledge injection
-
-Persona Sync (sync_personas — Tool #96):
-• Auto-syncs all 14 persona tools_doc and agents_doc
-• Triggers on skill toggle and custom tool creation
-• Mutex prevents concurrent sync races
-• Admin-only execution scope
-• Per-persona error handling
-
-Code Proposals:
-• High-score research findings (≥8) auto-generate proposals
-• Stored in code_proposals table
-• API: GET/PATCH /api/research/code-proposals
-
+EXTERNAL INTEGRATIONS
+AI: OpenAI, Anthropic, Gemini, xAI, Perplexity, OpenRouter
+Payments: Stripe, Coinbase | Services: ElevenLabs, Firecrawl
+Communications: AgentMail, WhatsApp, Discord, Telegram
+Storage: PostgreSQL + pgvector, Replit Object Storage
 
 TECH STACK
-----------
-Frontend:
-• React 18, Vite, TypeScript
-• shadcn/ui, TailwindCSS
-• Wouter (routing), TanStack Query v5
-• Framer Motion (animations)
-• Recharts (charts)
-
-Backend:
-• Express.js, TypeScript
-• Drizzle ORM, Zod validation
-• Helmet (security headers)
-• Server-Sent Events (SSE)
-
-Database:
-• PostgreSQL with pgvector
-• 66 tables
-• Drizzle ORM with Zod schemas
-
-AI Providers:
-• OpenAI (OAuth + direct + Replit integration)
-• Anthropic (Claude Runner bridge + direct + integration)
-• Google Gemini (OAuth + integration)
-• xAI (Grok)
-• OpenRouter (DeepSeek, MiniMax, Qwen, Llama, etc.)
-• ElevenLabs (TTS/STT)
-
-Infrastructure:
-• Replit hosting
-• Replit Object Storage
-• GitHub (version control)
-• Google Drive (file storage)
-
-
-FRONTEND PAGES (38+)
---------------------
-• Command Center Dashboard
-• Chat Interface with delegation live feed
-• Agent Management & Configuration
-• Persona Settings & Skills
-• Research Programs & Sessions
-• Heartbeat Monitor
-• Governance Rules
-• Trust Scores
-• Usage Dashboard
-• File Manager
-• Project Manager with brain system
-• API Keys & Provider Settings
-• Billing & Subscriptions
-• Admin Panel
-• User Settings
-• Onboarding (3-step)
-• Legal pages (Terms, Privacy, Cookie Policy)
-• Error boundary pages
-
-
-======================================================================
-Generated: 2026-03-31T15:37:25.334Z
-VisionClaw Agent Platform — AI Buddy LLC, Illinois
-======================================================================
+Backend: Express.js, TypeScript, Drizzle ORM, Zod, Helmet
+Frontend: React 18, Vite, shadcn/ui, TailwindCSS, TanStack Query v5
+Database: PostgreSQL 66 tables, pgvector, Drizzle ORM
