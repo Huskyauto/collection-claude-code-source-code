@@ -1014,8 +1014,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/upload", authMiddleware, (req: Request, res: Response) => {
+    console.log("[upload] POST /api/upload received");
     upload.single("file")(req, res, async (err: any) => {
       if (err) {
+        console.error("[upload] Multer error:", err.code, err.message);
         if (err.code === "LIMIT_FILE_SIZE") {
           return res.status(413).json({ error: "File too large (max 50MB)" });
         }

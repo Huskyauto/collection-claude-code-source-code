@@ -1135,8 +1135,9 @@ export default function ChatPage() {
         const preview = isImage ? URL.createObjectURL(file) : undefined;
         setPendingAttachments((prev) => [...prev, { url: data.url, name: data.filename, type: file.type, preview }]);
       }
-    } catch {
-      toast({ description: "Upload failed", variant: "destructive" });
+    } catch (uploadErr: any) {
+      console.error("[upload] Error:", uploadErr);
+      toast({ description: `Upload failed: ${uploadErr?.message || "Unknown error"}`, variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
