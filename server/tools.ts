@@ -2575,9 +2575,9 @@ async function delegateTask(targetAgent: string, taskName: string, description: 
         delegationDepth
       );
       if (result.success) {
-        if (result.response && targetAgent.toLowerCase() !== "proof" && delegationDepth <= 1) {
+        if (result.result && targetAgent.toLowerCase() !== "proof" && delegationDepth <= 1) {
           try {
-            const responseText = typeof result.response === "string" ? result.response : JSON.stringify(result.response);
+            const responseText = typeof result.result === "string" ? result.result : JSON.stringify(result.result);
             if (responseText.length > 200) {
               const { runAutoQAAsync } = await import("./auto-qa");
               runAutoQAAsync(targetAgent, taskName, responseText, tenantId || 1);

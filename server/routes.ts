@@ -5242,11 +5242,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!tenantId) return res.status(401).json({ error: "Authentication required" });
     const partial = insertKnowledgeSchema.partial().safeParse(req.body);
     if (!partial.success) return res.status(400).json({ error: partial.error.message });
-    const entry = await storage.updateKnowledge(parseInt(req.params.id), partial.data);
-    if (!entry) return res.status(404).json({ error: "Not found" });
-    if (entry.tenantId !== tenantId && tenantId !== ADMIN_TENANT_ID) {
-      return res.status(403).json({ error: "Access denied" });
+    const knId = parseInt(req.params.id);
+    if (tenantId !== ADMIN_TENANT_ID) {
+      const allKn = await storage.getKnowledge(undefined, 1000, 0, tenantId);
+      const owns = allKn.data.some(k => k.id === knId);
+      if (!owns) return res.status(403).json({ error: "Access denied" });
     }
+    const entry = await storage.updateKnowledge(knId, partial.data);
+    if (!entry) return res.status(404).json({ error: "Not found" });
     res.json(entry);
   });
 
@@ -5404,8 +5407,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/heartbeat/tasks/:id/approve", async (req, res) => {
-    const tenantId = getTenantFromRequest(req);
-    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    if (!requireAdmin(req, res)) return;
     const taskId = parseInt(req.params.id);
     const task = await storage.getHeartbeatTask(taskId);
     if (!task) return res.status(404).json({ error: "Task not found" });
@@ -5420,8 +5422,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/heartbeat/tasks/:id/reject", async (req, res) => {
-    const tenantId = getTenantFromRequest(req);
-    if (!tenantId) return res.status(401).json({ error: "Unauthorized" });
+    if (!requireAdmin(req, res)) return;
     const taskId = parseInt(req.params.id);
     const task = await storage.getHeartbeatTask(taskId);
     if (!task) return res.status(404).json({ error: "Task not found" });
@@ -6098,7 +6099,8 @@ Keep it concise — this is a morning briefing, not a novel. Use bullet points. 
     }
   });
 
-  app.post("/api/backup/full", async (_req, res) => {
+  app.post("/api/backup/full", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const results: Record<string, any> = {};
     try {
       const { runBackupToGoogleDrive, runMemoryBackupToGoogleDrive } = await import("./backup");
@@ -6130,7 +6132,8 @@ Keep it concise — this is a morning briefing, not a novel. Use bullet points. 
     }
   });
 
-  app.get("/api/backup/status", async (_req, res) => {
+  app.get("/api/backup/status", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
       const allTasks = await storage.getHeartbeatTasks();
       const backupTasks = allTasks.filter((t: any) => t.type === "cloud_backup" || t.type === "memory_backup");
@@ -6169,6 +6172,7 @@ Keep it concise — this is a morning briefing, not a novel. Use bullet points. 
   });
 
   app.post("/api/import", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
       const data = req.body;
       if (!data || !data.version) {

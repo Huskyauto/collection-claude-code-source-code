@@ -491,6 +491,7 @@ export async function postDiagnosticReport(patterns: StuckPattern[]): Promise<vo
   if (dedupedPatterns.length === 0) return;
 
   const lines = dedupedPatterns.map((p) => {
+    const { tenantId, ...safeMetadata } = p.metadata as any;
     return `**${p.type}** — ${p.description}\n  Cause: ${p.probableCause}\n  Action: ${p.remediation}`;
   });
 

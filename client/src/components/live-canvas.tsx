@@ -48,7 +48,7 @@ export default function LiveCanvas({ html, title = "Agent Dashboard" }: LiveCanv
       <CardContent className="p-0">
         <iframe
           ref={iframeRef}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           className={`w-full border-0 ${expanded ? "h-[calc(100vh-8rem)]" : "h-80"}`}
           title={title}
           data-testid="canvas-iframe"

@@ -108,7 +108,7 @@ function extractChartsFromTools(tools: ToolCallInfo[]): ChartData[] {
 }
 
 const getAuthUrl = (url: string) => {
-  const token = localStorage.getItem("auth_token");
+  const token = localStorage.getItem("vc_token");
   return token && url.startsWith("/uploads/") ? url + "?token=" + token : url;
 };
 

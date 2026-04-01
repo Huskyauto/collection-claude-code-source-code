@@ -86,12 +86,13 @@ import { desc, sql } from "drizzle-orm";
 
 const MAX_WINDOW = 40;
 
-let _capabilitiesCache: { text: string; ts: number } | null = null;
+const _capabilitiesCache = new Map<number, { text: string; ts: number }>();
 const CAPABILITIES_TTL = 5 * 60 * 1000;
 
 async function buildPlatformCapabilities(tenantId: number): Promise<string> {
-  if (_capabilitiesCache && Date.now() - _capabilitiesCache.ts < CAPABILITIES_TTL) {
-    return _capabilitiesCache.text;
+  const cached = _capabilitiesCache.get(tenantId);
+  if (cached && Date.now() - cached.ts < CAPABILITIES_TTL) {
+    return cached.text;
   }
   try {
     const sections: string[] = ["## PLATFORM CAPABILITIES BRIEFING\nThis is what is ALREADY configured and available on this VisionClaw instance. Do NOT ask the user to set up anything listed here. Reference these capabilities when planning projects."];
@@ -216,7 +217,7 @@ async function buildPlatformCapabilities(tenantId: number): Promise<string> {
 - trend_research is available for multi-source trend analysis. Searches Reddit, Hacker News, Polymarket prediction markets, and X/Twitter in parallel. Reddit, HN, and Polymarket are free; X search uses xAI API (uses XAI_API_KEY). Returns scored/deduped items with engagement data and cross-platform convergence detection. Use for market research, competitive analysis, trend monitoring, and discovering what communities are actually discussing about any topic.\n- When recommending integrations, CHECK this briefing first before suggesting setup`);
 
     const text = sections.join("\n\n");
-    _capabilitiesCache = { text, ts: Date.now() };
+    _capabilitiesCache.set(tenantId, { text, ts: Date.now() });
     return text;
   } catch (err) {
     return "";
