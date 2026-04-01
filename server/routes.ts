@@ -4529,13 +4529,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(400).json({ error: "Invalid tenant ID" });
       }
 
-      const screenshotsBase = path.join(process.cwd(), "data", "browser-screenshots");
-      const filepath = path.resolve(screenshotsBase, tenantDir, filename);
-      if (!filepath.startsWith(screenshotsBase)) {
-        return res.status(403).json({ error: "Path traversal blocked" });
+      const searchBases = [
+        path.join(process.cwd(), "data", "browser-screenshots"),
+        "/tmp/browser-screenshots",
+      ];
+      let filepath: string | null = null;
+      for (const base of searchBases) {
+        const candidate = path.resolve(base, tenantDir, filename);
+        if (candidate.startsWith(base) && fs.existsSync(candidate)) {
+          filepath = candidate;
+          break;
+        }
       }
 
-      if (!fs.existsSync(filepath)) {
+      if (!filepath) {
         return res.status(404).json({ error: "Screenshot not found" });
       }
 

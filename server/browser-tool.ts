@@ -6,6 +6,10 @@ import { EventEmitter } from "events";
 import puppeteer, { type Browser, type BrowserContext, type Page } from "puppeteer-core";
 import { uploadAndShare } from "./google-drive";
 
+const BROWSER_SCREENSHOTS_BASE = process.env.NODE_ENV === "production"
+  ? "/tmp/browser-screenshots"
+  : path.join(process.cwd(), "data", "browser-screenshots");
+
 export const browserEvents = new EventEmitter();
 browserEvents.setMaxListeners(50);
 
@@ -679,7 +683,7 @@ export function startScreenshotPruning(): void {
 
 export function pruneOldScreenshots(): void {
   const config = loadBrowserConfig();
-  const baseDir = path.join(process.cwd(), "data", "browser-screenshots");
+  const baseDir = BROWSER_SCREENSHOTS_BASE;
   if (!fs.existsSync(baseDir)) return;
 
   const maxAge = config.screenshotMaxAgeDays * 24 * 60 * 60 * 1000;
@@ -1026,7 +1030,7 @@ export async function takeScreenshot(index?: number, fullPage?: boolean, selecto
   }
 
   const tenantDir = tenantId ? `${tenantId}` : "global";
-  const screenshotDir = path.join(process.cwd(), "data", "browser-screenshots", tenantDir);
+  const screenshotDir = path.join(BROWSER_SCREENSHOTS_BASE, tenantDir);
   if (!fs.existsSync(screenshotDir)) fs.mkdirSync(screenshotDir, { recursive: true });
   const filename = `screenshot-${Date.now()}.png`;
   const filepath = path.join(screenshotDir, filename);
@@ -1232,7 +1236,7 @@ export async function executeBrowserAction(params: BrowserAction): Promise<any> 
 
         const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
         const tenantDir = tenantId ? `${tenantId}` : "global";
-        const pdfDir = path.join(process.cwd(), "data", "browser-screenshots", tenantDir);
+        const pdfDir = path.join(BROWSER_SCREENSHOTS_BASE, tenantDir);
         if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
         const filename = `page-${Date.now()}.pdf`;
         const filepath = path.join(pdfDir, filename);
@@ -1271,7 +1275,7 @@ export async function executeBrowserAction(params: BrowserAction): Promise<any> 
 
         const screenshotBuffer = await page.screenshot({ type: "png", fullPage: false }) as Buffer;
         const tenantDir = `${tenantId}`;
-        const screenshotDir = path.join(process.cwd(), "data", "browser-screenshots", tenantDir);
+        const screenshotDir = path.join(BROWSER_SCREENSHOTS_BASE, tenantDir);
         if (!fs.existsSync(screenshotDir)) fs.mkdirSync(screenshotDir, { recursive: true });
         const filename = `screenshot-${Date.now()}.png`;
         const filepath = path.join(screenshotDir, filename);
@@ -1880,7 +1884,7 @@ export async function injectSomAndScreenshot(
   tenantSomMaps.set(somMapKey(tenantId), somResult);
 
   const tenantDir = `${tenantId}`;
-  const screenshotDir = path.join(process.cwd(), "data", "browser-screenshots", tenantDir);
+  const screenshotDir = path.join(BROWSER_SCREENSHOTS_BASE, tenantDir);
   if (!fs.existsSync(screenshotDir)) fs.mkdirSync(screenshotDir, { recursive: true });
   const filename = `som-${Date.now()}.png`;
   const filepath = path.join(screenshotDir, filename);
