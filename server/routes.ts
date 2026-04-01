@@ -67,10 +67,13 @@ import { encryptApiKey, decryptApiKey } from "./crypto";
 import { initiateOAuth, exchangeCodeForTokens, getSubscriptionStatus, disconnectSubscription, storePendingFlow, getPendingFlow, getOAuthProviderInfo, getAppBaseUrl, initiateLocalRedirectOAuth, exchangeCodeWithLocalRedirect } from "./oauth-subscriptions";
 
 const PUBLIC_DIR = path.resolve(process.cwd(), "public");
-const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
+const UPLOADS_DIR = process.env.NODE_ENV === "production"
+  ? path.resolve("/tmp", "uploads")
+  : path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
+console.log(`[uploads] Directory: ${UPLOADS_DIR} (exists: ${fs.existsSync(UPLOADS_DIR)})`);
 
 (async function restoreUploadsFromDb() {
   try {
