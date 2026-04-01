@@ -44,7 +44,7 @@ Respond with ONLY the status summary, nothing else.`,
     const summary = resp.choices[0]?.message?.content?.trim();
     if (!summary || summary.length > 60 || summary.length < 5) return null;
     const wordCount = summary.split(/\s+/).length;
-    if (wordCount < 2 || wordCount > 7) return null;
+    if (wordCount < 3 || wordCount > 5) return null;
     return summary;
   } catch {
     return null;
@@ -69,11 +69,14 @@ export function startDelegationSummarizer(
     if (recentActivity.length > 10) recentActivity = recentActivity.slice(-10);
   });
 
+  let isGenerating = false;
   const entry: SummarizerEntry = { timer: null as unknown as ReturnType<typeof setInterval>, unsub, cancelled: false };
 
   entry.timer = setInterval(async () => {
-    if (entry.cancelled) return;
+    if (entry.cancelled || isGenerating) return;
 
+    isGenerating = true;
+    try {
     if (recentActivity.length === 0) {
       recentActivity.push(`Working on: ${taskName}`);
     }
@@ -91,6 +94,9 @@ export function startDelegationSummarizer(
         message: summary,
         metadata: { isSummary: true },
       });
+    }
+    } finally {
+      isGenerating = false;
     }
   }, intervalMs);
 
