@@ -1644,6 +1644,7 @@ ${delegationGuidance}
 
       let skillSuggestion: string | undefined;
       try {
+        const { parseToolsFromMessage } = await import("./skillify");
         const childMessages = await storage.getMessages(childConv.id);
         const toolNames = new Set<string>();
         const agentNames = new Set<string>();
@@ -1651,15 +1652,13 @@ ${delegationGuidance}
 
         for (const m of childMessages) {
           if (m.role !== "assistant") continue;
-          const toolPattern = /\bTool:\s*(\w+)/g;
-          let toolMatch;
-          while ((toolMatch = toolPattern.exec(m.content)) !== null) {
-            toolNames.add(toolMatch[1]);
-          }
-          const delegatePattern = /targetAgent["']?\s*[:=]\s*["'](\w+)["']/g;
-          let delegateMatch;
-          while ((delegateMatch = delegatePattern.exec(m.content)) !== null) {
-            agentNames.add(delegateMatch[1]);
+          const parsedTools = parseToolsFromMessage(m.content);
+          for (const t of parsedTools) {
+            toolNames.add(t.name);
+            if (t.name === "delegate_task" && t.input) {
+              const delegateTarget = String((t.input as Record<string, unknown>).targetAgent || "");
+              if (delegateTarget) agentNames.add(delegateTarget);
+            }
           }
         }
 

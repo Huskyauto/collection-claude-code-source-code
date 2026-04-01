@@ -6,6 +6,7 @@ import { storage } from "./storage";
 
 interface ToolCall {
   name: string;
+  input?: Record<string, unknown>;
 }
 
 interface DelegationStep {
@@ -14,7 +15,7 @@ interface DelegationStep {
 }
 
 interface ConversationAnalysis {
-  toolCalls: ToolCall[];
+  toolSequence: ToolCall[];
   delegations: DelegationStep[];
   userCorrections: string[];
   totalMessages: number;
@@ -32,38 +33,34 @@ interface SkillDefinition {
   promptContent: string;
 }
 
-const NOISE_WORDS = new Set(["the", "and", "for", "tool", "this", "that", "with", "from", "call", "calls"]);
+function parseToolMetadata(content: string): ToolCall[] {
+  const match = content.match(/^<!-- tools:([\s\S]*?) -->/);
+  if (!match) return [];
 
-function extractToolCalls(content: string): ToolCall[] {
-  const seen = new Set<string>();
-  const tools: ToolCall[] = [];
-
-  const patterns = [
-    /\bTool:\s*(\w+)/g,
-    /\btool_call.*?["'](\w+)["']/gi,
-    /calling\s+tool\s+["']?(\w+)["']?/gi,
-  ];
-
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(content)) !== null) {
-      const name = match[1];
-      if (!seen.has(name) && name.length > 2 && !NOISE_WORDS.has(name.toLowerCase())) {
-        seen.add(name);
-        tools.push({ name });
-      }
-    }
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t: { name?: string }) => t.name && typeof t.name === "string")
+      .map((t: { name: string; input?: Record<string, unknown> }) => ({
+        name: t.name,
+        input: t.input,
+      }));
+  } catch {
+    return [];
   }
-
-  return tools;
 }
 
-function extractDelegations(content: string): DelegationStep[] {
+function extractDelegationsFromTools(tools: ToolCall[]): DelegationStep[] {
   const delegations: DelegationStep[] = [];
-  const delegatePattern = /delegate.*?(?:to|→)\s*(\w+).*?(?:task|:)\s*["']?([^"'\n]+)/gi;
-  let match;
-  while ((match = delegatePattern.exec(content)) !== null) {
-    delegations.push({ targetAgent: match[1], taskName: match[2].trim() });
+  for (const t of tools) {
+    if (t.name === "delegate_task" && t.input) {
+      const targetAgent = String(t.input.targetAgent || "");
+      const taskName = String(t.input.taskName || t.input.description || "");
+      if (targetAgent) {
+        delegations.push({ targetAgent, taskName });
+      }
+    }
   }
   return delegations;
 }
@@ -93,16 +90,14 @@ async function analyzeConversation(conversationId: number, tenantId: number): Pr
     .where(eq(messages.conversationId, conversationId))
     .orderBy(messages.createdAt);
 
-  const allToolCalls: ToolCall[] = [];
+  const orderedTools: ToolCall[] = [];
   const allDelegations: DelegationStep[] = [];
 
   for (const m of msgs) {
     if (m.role === "assistant") {
-      allToolCalls.push(...extractToolCalls(m.content));
-
-      if (m.content.includes("delegate_task")) {
-        allDelegations.push(...extractDelegations(m.content));
-      }
+      const tools = parseToolMetadata(m.content);
+      orderedTools.push(...tools);
+      allDelegations.push(...extractDelegationsFromTools(tools));
     }
   }
 
@@ -122,7 +117,7 @@ async function analyzeConversation(conversationId: number, tenantId: number): Pr
   }
 
   return {
-    toolCalls: allToolCalls,
+    toolSequence: orderedTools,
     delegations: allDelegations,
     userCorrections,
     totalMessages: msgs.length,
@@ -172,14 +167,17 @@ export async function skillifyConversation(
       return { error: "Conversation is too short to extract a meaningful skill. Need at least 4 messages." };
     }
 
-    const uniqueTools = [...new Set(analysis.toolCalls.map(t => t.name))];
+    const uniqueTools = [...new Set(analysis.toolSequence.map(t => t.name))];
+    const orderedToolNames = analysis.toolSequence.map(t => t.name);
     const uniquePersonas = [...new Set(analysis.delegations.map(d => d.targetAgent))];
 
     const summaryForLLM = `Conversation: "${analysis.conversationTitle}"
 Lead Agent: ${analysis.personaName}
 Total messages: ${analysis.totalMessages}
-Tools used (${uniqueTools.length}): ${uniqueTools.join(", ") || "none detected"}
+Tool execution sequence (${orderedToolNames.length} calls): ${orderedToolNames.join(" → ") || "none detected"}
+Unique tools (${uniqueTools.length}): ${uniqueTools.join(", ") || "none"}
 Delegations (${analysis.delegations.length}): ${analysis.delegations.map(d => `${d.targetAgent}: ${d.taskName}`).join("; ") || "none"}
+Agents involved: ${[analysis.personaName, ...uniquePersonas].join(", ")}
 User corrections (${analysis.userCorrections.length}): ${analysis.userCorrections.join(" | ") || "none"}
 ${suggestedName ? `Suggested skill name: "${suggestedName}"` : ""}
 
@@ -190,9 +188,10 @@ Recent conversation excerpt (last messages):`;
       .orderBy(desc(messages.createdAt))
       .limit(20);
 
-    const excerpt = recentMsgs.reverse().map(m =>
-      `[${m.role}]: ${m.content.slice(0, 300)}`
-    ).join("\n");
+    const excerpt = recentMsgs.reverse().map(m => {
+      const clean = m.content.replace(/^<!-- tools:[\s\S]*? -->\n?/, "").trim();
+      return `[${m.role}]: ${clean.slice(0, 300)}`;
+    }).join("\n");
 
     const { client, actualModelId } = await getClientForModel("gpt-4.1-mini");
 
@@ -248,7 +247,7 @@ Recent conversation excerpt (last messages):`;
       console.error("[skillify] Persona sync after skill creation failed:", e.message)
     );
 
-    console.log(`[skillify] Created skill "${skillName}" (ID ${created.id}) from conversation ${conversationId}`);
+    console.log(`[skillify] Created skill "${skillName}" (ID ${created.id}) from conversation ${conversationId} — ${orderedToolNames.length} tool calls, ${uniquePersonas.length} delegations`);
 
     return {
       skill: {
@@ -262,4 +261,8 @@ Recent conversation excerpt (last messages):`;
     console.error(`[skillify] Failed:`, message);
     return { error: `Skill extraction failed: ${message}` };
   }
+}
+
+export function parseToolsFromMessage(content: string): ToolCall[] {
+  return parseToolMetadata(content);
 }
