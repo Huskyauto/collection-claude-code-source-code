@@ -34,7 +34,7 @@ interface SkillDefinition {
 }
 
 function parseToolMetadata(content: string): ToolCall[] {
-  const match = content.match(/^<!-- tools:([\s\S]*?) -->/);
+  const match = content.match(/^\s*<!-- tools:([\s\S]*?) -->/);
   if (!match) return [];
 
   try {
