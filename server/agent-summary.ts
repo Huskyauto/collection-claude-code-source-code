@@ -1,7 +1,6 @@
-import OpenAI from "openai";
 import { emitDelegationEvent, subscribeToDelegation } from "./delegation-events";
+import { getClientForModel } from "./providers";
 
-const replit = new OpenAI();
 
 interface SummarizerEntry {
   timer: ReturnType<typeof setInterval>;
@@ -10,10 +9,13 @@ interface SummarizerEntry {
 
 const activeSummarizers = new Map<number, SummarizerEntry>();
 
+const SUMMARY_MODEL = "gpt-4.1-mini";
+
 async function generateStatusSummary(agentName: string, taskName: string, recentContext: string): Promise<string | null> {
   try {
-    const resp = await replit.chat.completions.create({
-      model: "gpt-4.1-nano",
+    const { client, actualModelId } = await getClientForModel(SUMMARY_MODEL);
+    const resp = await client.chat.completions.create({
+      model: actualModelId,
       messages: [
         {
           role: "system",
