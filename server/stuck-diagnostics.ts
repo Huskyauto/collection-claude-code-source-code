@@ -40,6 +40,8 @@ const TOOL_CALL_TTL_MS = 10 * 60 * 1000;
 
 const detectedPatterns: StuckPattern[] = [];
 const MAX_PATTERNS = 50;
+const recentReportKeys = new Map<string, number>();
+const REPORT_DEDUP_MS = 5 * 60 * 1000;
 
 interface ActiveDelegation {
   taskName: string;
@@ -474,7 +476,21 @@ export async function inspectDiagnostics(): Promise<DiagnosticReport> {
 export async function postDiagnosticReport(patterns: StuckPattern[]): Promise<void> {
   if (patterns.length === 0) return;
 
-  const lines = patterns.map((p) => {
+  const now = Date.now();
+  for (const [key, ts] of recentReportKeys) {
+    if (now - ts > REPORT_DEDUP_MS) recentReportKeys.delete(key);
+  }
+
+  const dedupedPatterns = patterns.filter((p) => {
+    const key = `${p.type}:${p.metadata.conversationId || ""}:${p.metadata.toolName || ""}:${p.metadata.delegationId || ""}`;
+    if (recentReportKeys.has(key)) return false;
+    recentReportKeys.set(key, now);
+    return true;
+  });
+
+  if (dedupedPatterns.length === 0) return;
+
+  const lines = dedupedPatterns.map((p) => {
     return `**${p.type}** — ${p.description}\n  Cause: ${p.probableCause}\n  Action: ${p.remediation}`;
   });
 
@@ -484,12 +500,12 @@ export async function postDiagnosticReport(patterns: StuckPattern[]): Promise<vo
       tenantId: 1,
       channelName: "operations",
       fromPersonaId: CHIEF_OF_STAFF_PERSONA_ID,
-      content: `🔍 **Stuck Detection Report** (${patterns.length} pattern${patterns.length > 1 ? "s" : ""} found)\n\n${lines.join("\n\n")}\n\n_Detected at ${new Date().toLocaleTimeString()}_`,
+      content: `🔍 **Stuck Detection Report** (${dedupedPatterns.length} pattern${dedupedPatterns.length > 1 ? "s" : ""} found)\n\n${lines.join("\n\n")}\n\n_Detected at ${new Date().toLocaleTimeString()}_`,
       messageType: "system",
     });
   } catch {}
 
-  for (const p of patterns) {
+  for (const p of dedupedPatterns) {
     try {
       await storage.createHeartbeatLog({
         taskId: 0,
