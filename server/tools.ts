@@ -1891,6 +1891,22 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "skillify",
+      description: "Extract a reusable skill from the current conversation. Analyzes the session's tool calls, delegation chains, user corrections, and outcomes to create a structured skill definition that can be replayed in future conversations. Use when the user says 'save this as a skill', 'make this repeatable', 'remember how to do this', or after completing a complex multi-step workflow.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Optional name for the skill. If omitted, the system auto-suggests a name based on the conversation content." },
+          conversation_id: { type: "number", description: "The conversation ID to extract the skill from. Defaults to the current conversation." },
+          persona_id: { type: "number", description: "Optional: assign the skill to a specific persona. Omit for a global skill available to all agents." },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 import { TEST_MODEL_IDS } from "./providers";
@@ -4884,6 +4900,18 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       if (params.format === "json") return exported;
       return { markdown: exportToMarkdown(exported), format: "visionclaw-agent-v1" };
     }
+    case "skillify": {
+      const { skillifyConversation } = await import("./skillify");
+      const convId = params.conversation_id || params._conversationId;
+      if (!convId) return { error: "No conversation context available. Provide a conversation_id or use this tool within a conversation." };
+      const result = await skillifyConversation(convId, params.name, params.persona_id ?? null);
+      if (result.error) return { error: result.error };
+      return {
+        success: true,
+        skill: result.skill,
+        message: `Skill "${result.skill!.name}" created and enabled. All agents now have access to this skill. It will be injected into future conversations to guide similar workflows.`,
+      };
+    }
     default: {
       if (name.startsWith("custom_")) {
         const { executeCustomTool } = await import("./tool-learning");
@@ -4922,7 +4950,7 @@ export async function getAllToolDefinitions(): Promise<ToolDefinition[]> {
 
 export const PROVIDERS_SUPPORTING_TOOLS = new Set(["replit", "openai", "anthropic", "google", "xai", "openrouter"]);
 
-const SLOW_TOOLS = new Set(["web_fetch", "web_search", "firecrawl_search", "firecrawl_scrape", "firecrawl_crawl", "firecrawl_map", "browser", "analyze_pdf", "exec", "execute_code", "deep_research", "plan_and_execute", "draft_social_post", "orchestrate", "generate_social_image", "compose_social_post", "publish_social_post", "debate", "tree_of_thought", "estimate_cost", "generate_audio", "create_slideshow_video", "produce_video", "strategic_interview"]);
+const SLOW_TOOLS = new Set(["web_fetch", "web_search", "firecrawl_search", "firecrawl_scrape", "firecrawl_crawl", "firecrawl_map", "browser", "analyze_pdf", "exec", "execute_code", "deep_research", "plan_and_execute", "draft_social_post", "orchestrate", "generate_social_image", "compose_social_post", "publish_social_post", "debate", "tree_of_thought", "estimate_cost", "generate_audio", "create_slideshow_video", "produce_video", "strategic_interview", "skillify"]);
 const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
 const SLOW_TOOL_TIMEOUT_MS = 120_000;
 const VERY_SLOW_TOOLS = new Set(["produce_video", "deep_research", "orchestrate", "firecrawl_crawl"]);

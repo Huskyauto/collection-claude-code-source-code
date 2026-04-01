@@ -1595,7 +1595,7 @@ CRITICAL: For presentations, the final step MUST use create_slides. NEVER use pr
       let parsedArgs: Record<string, any> = {};
       try { parsedArgs = JSON.parse(tc.function?.arguments || "{}"); } catch {}
 
-      if (toolName === "sessions_spawn" || toolName === "subagents" || toolName === "lobster" || toolName === "project") {
+      if (toolName === "sessions_spawn" || toolName === "subagents" || toolName === "lobster" || toolName === "project" || toolName === "skillify") {
         parsedArgs._conversationId = conversationId;
       }
       if (toolName === "sessions_spawn") {
