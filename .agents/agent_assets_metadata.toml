@@ -78,3 +78,9 @@ id = "kOXmj-AGZWKUgZSx20cGO"
 uri = "file://VisionClaw-Comprehensive-Features.txt"
 type = "text"
 title = "VisionClaw Comprehensive Features (Text)"
+
+[[outputs]]
+id = "rPKZARbppkWV7lws_u5Iq"
+uri = "file://Felix-New-Capabilities.txt"
+type = "text"
+title = "Felix New Capabilities - Demo Guide"
