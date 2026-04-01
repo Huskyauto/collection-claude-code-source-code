@@ -138,11 +138,14 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
     const now = Date.now();
     if (activeDelegations.size === 0) return patterns;
 
-    let getLastEventTimeAfter: ((convId: number, afterTs: number) => number | null) | null = null;
+    const SYNTHETIC_EVENT_TYPES = new Set(["warning", "failed"]);
+    let getLastRealEventTimeAfter: ((convId: number, afterTs: number) => number | null) | null = null;
     try {
       const { getRecentEvents } = await import("./delegation-events");
-      getLastEventTimeAfter = (convId: number, afterTs: number) => {
-        const events = getRecentEvents(convId).filter(e => e.timestamp >= afterTs);
+      getLastRealEventTimeAfter = (convId: number, afterTs: number) => {
+        const events = getRecentEvents(convId).filter(
+          e => e.timestamp >= afterTs && !SYNTHETIC_EVENT_TYPES.has(e.type)
+        );
         if (events.length === 0) return null;
         return Math.max(...events.map(e => e.timestamp));
       };
@@ -152,8 +155,8 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
       const elapsed = now - deleg.startedAt;
       let eventAge = elapsed;
 
-      if (getLastEventTimeAfter) {
-        const lastTs = getLastEventTimeAfter(deleg.conversationId, deleg.startedAt);
+      if (getLastRealEventTimeAfter) {
+        const lastTs = getLastRealEventTimeAfter(deleg.conversationId, deleg.startedAt);
         if (lastTs) {
           eventAge = now - lastTs;
         }
@@ -395,14 +398,32 @@ export async function inspectDiagnostics(): Promise<DiagnosticReport> {
     }
   } catch {}
 
+  const SYNTHETIC_TYPES = new Set(["warning", "failed"]);
+  let inspectLastRealEvent: ((convId: number, afterTs: number) => number | null) | null = null;
+  try {
+    const { getRecentEvents } = await import("./delegation-events");
+    inspectLastRealEvent = (convId: number, afterTs: number) => {
+      const events = getRecentEvents(convId).filter(
+        e => e.timestamp >= afterTs && !SYNTHETIC_TYPES.has(e.type)
+      );
+      if (events.length === 0) return null;
+      return Math.max(...events.map(e => e.timestamp));
+    };
+  } catch {}
+
   const stalledDelegations: DiagnosticReport["stalledDelegations"] = [];
   for (const [delegId, deleg] of activeDelegations) {
     const elapsed = now - deleg.startedAt;
-    if (elapsed > STALLED_DELEGATION_MS) {
+    let eventAge = elapsed;
+    if (inspectLastRealEvent) {
+      const lastTs = inspectLastRealEvent(deleg.conversationId, deleg.startedAt);
+      if (lastTs) eventAge = now - lastTs;
+    }
+    if (eventAge > STALLED_DELEGATION_MS) {
       stalledDelegations.push({
         delegationId: delegId,
         conversationId: deleg.conversationId,
-        lastEventAge: `${Math.round(elapsed / 60000)}min`,
+        lastEventAge: `${Math.round(eventAge / 60000)}min`,
         agentName: deleg.personaName || "unknown",
       });
     }
