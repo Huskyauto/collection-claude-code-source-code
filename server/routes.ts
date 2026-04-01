@@ -475,8 +475,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const tenantId = getTenantFromRequest(req);
       if (tenantId !== ADMIN_TENANT_ID) return res.status(403).json({ error: "Admin access required" });
-      const { runFullDiagnostics, getRecentPatterns } = await import("./stuck-diagnostics");
-      const report = await runFullDiagnostics();
+      const { inspectDiagnostics, getRecentPatterns } = await import("./stuck-diagnostics");
+      const report = await inspectDiagnostics();
       const recentPatterns = getRecentPatterns(Date.now() - 30 * 60 * 1000);
       res.json({ ...report, recentPatterns });
     } catch (err: any) {

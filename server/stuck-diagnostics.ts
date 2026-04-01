@@ -378,6 +378,78 @@ export function getRecentPatterns(since?: number): StuckPattern[] {
   return [...detectedPatterns];
 }
 
+export async function inspectDiagnostics(): Promise<DiagnosticReport> {
+  const now = Date.now();
+  const patterns = [...detectedPatterns];
+
+  const activeTasks: DiagnosticReport["activeTasks"] = [];
+  try {
+    const { activeTaskTracker } = await import("./heartbeat");
+    for (const [taskId, info] of activeTaskTracker) {
+      activeTasks.push({
+        taskId,
+        taskName: info.taskName,
+        personaName: info.personaName || null,
+        runningMs: now - info.startedAt,
+      });
+    }
+  } catch {}
+
+  const stalledDelegations: DiagnosticReport["stalledDelegations"] = [];
+  for (const [delegId, deleg] of activeDelegations) {
+    const elapsed = now - deleg.startedAt;
+    if (elapsed > STALLED_DELEGATION_MS) {
+      stalledDelegations.push({
+        delegationId: delegId,
+        conversationId: deleg.conversationId,
+        lastEventAge: `${Math.round(elapsed / 60000)}min`,
+        agentName: deleg.personaName || "unknown",
+      });
+    }
+  }
+
+  const hungProcesses: DiagnosticReport["hungProcesses"] = [];
+  try {
+    const { getActiveSessions } = await import("./browser-tool");
+    for (const session of getActiveSessions()) {
+      const idleMs = now - session.lastActivity;
+      if (idleMs > HUNG_BROWSER_SESSION_MS) {
+        hungProcesses.push({ type: "browser_session", idleSeconds: Math.round(idleMs / 1000), tenantId: session.tenantId });
+      }
+    }
+  } catch {}
+  for (const [, req] of activeHttpRequests) {
+    const elapsed = now - req.startedAt;
+    if (elapsed > req.timeoutMs * 1.5) {
+      hungProcesses.push({ type: "http_request", idleSeconds: Math.round(elapsed / 1000), tenantId: req.tenantId || 0 });
+    }
+  }
+
+  const toolLoopWarnings: DiagnosticReport["toolLoopWarnings"] = [];
+  for (const [convId, entries] of turnToolCalls) {
+    const toolCounts = new Map<string, number>();
+    const recent = entries.filter((e) => now - e.timestamp < 120_000);
+    for (const e of recent) {
+      toolCounts.set(e.toolName, (toolCounts.get(e.toolName) || 0) + 1);
+    }
+    for (const [toolName, count] of toolCounts) {
+      if (count >= 2) {
+        toolLoopWarnings.push({ conversationId: convId, toolName, repeatCount: count });
+      }
+    }
+  }
+
+  return {
+    timestamp: now,
+    patterns,
+    activeTasks,
+    stalledDelegations,
+    hungProcesses,
+    toolLoopWarnings,
+    trackedHttpRequests: activeHttpRequests.size,
+  };
+}
+
 export async function postDiagnosticReport(patterns: StuckPattern[]): Promise<void> {
   if (patterns.length === 0) return;
 
