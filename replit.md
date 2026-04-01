@@ -3,18 +3,19 @@
 ## Overview
 VisionClaw is an agentic AI platform designed as a fully autonomous AI corporation, built by AI Buddy LLC (Illinois). It features 14 specialized AI personas operating as a complete corporate team. The platform runs under rules-driven autonomous governance based on NIST, OWASP, and Singapore IMDA standards, implementing the Claude Opus 4.6 Agentic Spec. Agents handle tasks autonomously and escalate only mission-critical issues to human owners. Built for multi-tenancy, cost-effectiveness, and robust security.
 
-**Platform Stats (March 2026):**
-- 130+ server-side TypeScript files (~89,000 lines)
-- 38+ frontend pages
-- 66 database tables
-- 96 built-in AI tools + custom tool support (includes sync_personas)
+**Platform Stats (April 2026):**
+- 146 server-side TypeScript files (~66,000 lines)
+- 38 frontend pages + 110 client TypeScript/TSX files
+- 67 database tables
+- 97 built-in AI tools + custom tool support
 - 23 active skills
 - 14 AI personas
 - 36+ models across 8+ providers
 - 40 governance rules
 - 11 research programs
 - 7 research schedules
-- 13 heartbeat tasks
+- 13 heartbeat tasks (5 active, 8 approved/disabled)
+- 6 Claude Code-inspired features (Tasks #2-#7, all complete)
 
 ## User Preferences
 - **NEVER modify `shared/schema.ts`** without explicit owner approval. Use direct SQL (`psql $DATABASE_URL`) for new tables.
@@ -139,6 +140,26 @@ VisionClaw employs a modern web architecture with a single-port frontend and API
 - `server/instinct-learning.ts` — Pattern extraction from successful multi-tool tasks, instinct graduation to knowledge
 - `server/auto-qa.ts` — Automatic quality review of delegated outputs via Proof persona
 - `client/src/components/delegation-live.tsx` — Agent activity overlay with voice narration, cost badges, QA verdicts
+
+## Recent Major Updates (March-April 2026)
+
+### Claude Code-Inspired Features (Tasks #2-#7, All Complete)
+1. **DreamTask Memory Consolidation Engine** — Background "sleep" engine that reviews session memories, merges duplicates, archives stale entries, promotes important findings, creates cross-topic summaries. Runs every 6h when system is idle.
+2. **Adversarial Verification Agent (Auto-QA / De-Sloppify)** — Proof (persona 8) automatically reviews delegation outputs. Scores on completeness, accuracy, clarity, professionalism (1-10). Color-coded verdict badges in live feed.
+3. **Agent Live Status Summaries** — Real-time SSE delegation event feed with animated activity bubbles, depth indicators, voice narration, and cost badges.
+4. **Skillify — Session-to-Skill Extraction** — Automatically extracts reusable execution patterns from successful multi-tool tasks. Instincts graduate to permanent knowledge after 3+ observations above 70% confidence.
+5. **Enhanced Stuck Detection and Diagnostics** — Detects stuck agents via multi-signal analysis (long running, repetitive loops, tool failures). Auto-diagnostic with tenant-safe metadata stripping.
+6. **LLM-Judged Memory Relevance Scoring** — GPT-4.1 Mini selects best 5-7 knowledge entries from candidates via fast side-query (2s timeout, 30s context-aware cache). Smart filtering for active tools. Vector fallback on timeout.
+
+### Security Fixes (8 Critical)
+1. Admin guard on `/api/backup/full`, `/api/backup/status`, `/api/import`
+2. LiveCanvas XSS fix (removed `allow-same-origin` from iframe sandbox)
+3. Knowledge PATCH IDOR fix (ownership check before update)
+4. Heartbeat approve/reject requires admin
+5. `_capabilitiesCache` made per-tenant (Map keyed by tenantId)
+6. Auto-QA bug fixed (`result.response` → `result.result`)
+7. Auth token key fixed (`auth_token` → `vc_token`)
+8. Stuck diagnostics tenant metadata stripped
 
 ## Post-Demo Backlog (Circle Back After April 14)
 - **BillionMail** (https://github.com/Billionmail/BillionMail) — Open-source self-hosted mail server + email marketing platform. AGPLv3. Unlimited sending, open/click analytics, subscriber management, built-in webmail (RoundCube). Requires separate Linux VPS with Docker + domain DNS (SPF/DKIM/DMARC). Could replace AgentMail for tenant email campaigns, newsletters, drip sequences. Agents could drive campaigns via API. No per-email fees.
