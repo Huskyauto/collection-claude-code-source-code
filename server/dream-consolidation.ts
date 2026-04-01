@@ -3,7 +3,7 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { generateEmbedding, storeEmbeddingVec, cosineSimilarity } from "./embeddings";
 import { executeWithFailover } from "./model-failover";
-import { getAvailableModels, getModelForTierAsync } from "./providers";
+import { getAvailableModels, getModelForTierAsync, type ModelInfo } from "./providers";
 import type { InsertMemoryEntry, MemoryEntry } from "@shared/schema";
 
 export interface DreamConsolidationResult {
@@ -137,14 +137,17 @@ async function archiveMemoryByTenant(memoryId: number, tenantId: number): Promis
 }
 
 async function promoteMemoryByTenant(memoryId: number, tenantId: number, category?: string): Promise<boolean> {
-  const setClauses = category
-    ? sql`source = 'promoted', category = ${category}`
-    : sql`source = 'promoted'`;
-  const result = await db.execute(sql`
-    UPDATE memory_entries SET ${setClauses}
-    WHERE id = ${memoryId} AND tenant_id = ${tenantId} AND status = 'active'
-    RETURNING id
-  `);
+  const result = category
+    ? await db.execute(sql`
+        UPDATE memory_entries SET source = 'promoted', category = ${category}, expires_at = NULL
+        WHERE id = ${memoryId} AND tenant_id = ${tenantId} AND status = 'active'
+        RETURNING id
+      `)
+    : await db.execute(sql`
+        UPDATE memory_entries SET source = 'promoted', expires_at = NULL
+        WHERE id = ${memoryId} AND tenant_id = ${tenantId} AND status = 'active'
+        RETURNING id
+      `);
   const rows = extractRows(result);
   return rows.length > 0;
 }
@@ -160,7 +163,6 @@ async function loadAllActiveMemories(tenantId: number): Promise<MemoryEntry[]> {
     allActive.push(...active);
     offset += PAGE_SIZE;
     hasMore = page.hasMore;
-    if (offset > 2000) break;
   }
   return allActive;
 }
@@ -181,7 +183,7 @@ async function consolidateChunk(
   totalMemories: number,
   tenantId: number,
   model: string,
-  availableModels: string[],
+  availableModels: ModelInfo[],
 ): Promise<DreamAction[]> {
   const memoryList = chunk.map((m: MemoryEntry) =>
     `[ID:${m.id}] [${m.category}] ${m.fact} (source: ${m.source}, accessed: ${m.accessCount}x, created: ${m.createdAt})`
