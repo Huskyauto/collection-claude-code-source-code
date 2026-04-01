@@ -149,6 +149,98 @@ async function promoteMemoryByTenant(memoryId: number, tenantId: number, categor
   return rows.length > 0;
 }
 
+async function loadAllActiveMemories(tenantId: number): Promise<MemoryEntry[]> {
+  const PAGE_SIZE = 200;
+  const allActive: MemoryEntry[] = [];
+  let offset = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const page = await storage.getMemoryEntries(undefined, PAGE_SIZE, offset, tenantId);
+    const active = page.data.filter((m: MemoryEntry) => m.status === "active");
+    allActive.push(...active);
+    offset += PAGE_SIZE;
+    hasMore = page.hasMore;
+    if (offset > 2000) break;
+  }
+  return allActive;
+}
+
+const CHUNK_SIZE = 50;
+const MAX_ACTIONS_PER_CHUNK = 10;
+
+interface LlmClient {
+  chat: { completions: { create: (params: Record<string, unknown>) => Promise<{ choices: Array<{ message: { content: string } }> }> } };
+}
+
+async function consolidateChunk(
+  chunk: MemoryEntry[],
+  validIds: Set<number>,
+  duplicatePairsForChunk: Array<[number, number, number]>,
+  sessionSummaries: string,
+  totalActive: number,
+  totalMemories: number,
+  tenantId: number,
+  model: string,
+  availableModels: string[],
+): Promise<DreamAction[]> {
+  const memoryList = chunk.map((m: MemoryEntry) =>
+    `[ID:${m.id}] [${m.category}] ${m.fact} (source: ${m.source}, accessed: ${m.accessCount}x, created: ${m.createdAt})`
+  ).join("\n");
+
+  const duplicateHint = duplicatePairsForChunk.length > 0
+    ? `\n\nHIGH-SIMILARITY PAIRS (embedding cosine > 0.85):\n${duplicatePairsForChunk.map(([a, b, s]) => `  IDs ${a} & ${b}: similarity ${s}`).join("\n")}`
+    : "";
+
+  const userPrompt = `TENANT ${tenantId} — reviewing batch of ${chunk.length} out of ${totalActive} active memories (${totalMemories} total).
+
+RECENT SESSIONS:
+${sessionSummaries}
+
+ACTIVE MEMORIES IN THIS BATCH:
+${memoryList}${duplicateHint}
+
+Analyze these memories and return consolidation actions as JSON.`;
+
+  const { result: resp } = await executeWithFailover(
+    model,
+    availableModels,
+    async (client: LlmClient, actualModelId: string) => {
+      return client.chat.completions.create({
+        model: actualModelId,
+        messages: [
+          { role: "system", content: DREAM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 4096,
+        temperature: 0.3,
+      });
+    },
+    tenantId,
+  );
+
+  const output = resp.choices[0]?.message?.content || "";
+  if (!output) return [];
+
+  let jsonStr = output;
+  const fenceMatch = output.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) jsonStr = fenceMatch[1].trim();
+
+  let parsed: { actions: DreamAction[] };
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    const actionMatch = jsonStr.match(/\{[\s\S]*"actions"[\s\S]*\}/);
+    if (actionMatch) {
+      parsed = JSON.parse(actionMatch[0]);
+    } else {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed.actions)) return [];
+  return parsed.actions.slice(0, MAX_ACTIONS_PER_CHUNK);
+}
+
 export async function runDreamConsolidation(tenantId: number = 1, sessionCount: number = 5): Promise<DreamConsolidationResult> {
   const start = Date.now();
   const result: DreamConsolidationResult = {
@@ -159,8 +251,7 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
   try {
     console.log(`[dream] Starting consolidation for tenant ${tenantId}...`);
 
-    const memResult = await storage.getMemoryEntries(undefined, 200, 0, tenantId);
-    const activeMemories = memResult.data.filter((m: MemoryEntry) => m.status === "active");
+    const activeMemories = await loadAllActiveMemories(tenantId);
     result.reviewed = activeMemories.length;
 
     const validIds = new Set(activeMemories.map((m: MemoryEntry) => m.id));
@@ -179,81 +270,36 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
     }));
     const duplicatePairs = findDuplicateCandidates(embeddedMemories);
 
-    const memoryList = activeMemories.slice(0, 50).map((m: MemoryEntry) =>
-      `[ID:${m.id}] [${m.category}] ${m.fact} (source: ${m.source}, accessed: ${m.accessCount}x, created: ${m.createdAt})`
-    ).join("\n");
-
-    const duplicateHint = duplicatePairs.length > 0
-      ? `\n\nHIGH-SIMILARITY PAIRS (embedding cosine > 0.85):\n${duplicatePairs.map(([a, b, s]) => `  IDs ${a} & ${b}: similarity ${s}`).join("\n")}`
-      : "";
-
-    const userPrompt = `TENANT ${tenantId} — ${activeMemories.length} active memories, ${memResult.total} total.
-
-RECENT SESSIONS:
-${sessionSummaries}
-
-ACTIVE MEMORIES:
-${memoryList}${duplicateHint}
-
-Analyze these memories and return consolidation actions as JSON.`;
-
     const model = await getModelForTierAsync("fast", tenantId);
     const availableModels = await getAvailableModels();
 
-    const { result: resp } = await executeWithFailover(
-      model,
-      availableModels,
-      async (client: { chat: { completions: { create: (params: Record<string, unknown>) => Promise<{ choices: Array<{ message: { content: string } }> }> } } }, actualModelId: string) => {
-        return client.chat.completions.create({
-          model: actualModelId,
-          messages: [
-            { role: "system", content: DREAM_PROMPT },
-            { role: "user", content: userPrompt },
-          ],
-          max_completion_tokens: 4096,
-          temperature: 0.3,
-        });
-      },
-      tenantId,
-    );
-
-    const output = resp.choices[0]?.message?.content || "";
-    if (!output) {
-      result.summary = "LLM returned empty response.";
-      result.durationMs = Date.now() - start;
-      return result;
+    const chunks: MemoryEntry[][] = [];
+    for (let i = 0; i < activeMemories.length; i += CHUNK_SIZE) {
+      chunks.push(activeMemories.slice(i, i + CHUNK_SIZE));
     }
+    console.log(`[dream] Processing ${activeMemories.length} memories in ${chunks.length} chunk(s)...`);
 
-    let jsonStr = output;
-    const fenceMatch = output.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenceMatch) jsonStr = fenceMatch[1].trim();
-
-    let parsed: { actions: DreamAction[] };
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      console.warn("[dream] Failed to parse LLM output as JSON, trying to extract actions...");
-      const actionMatch = jsonStr.match(/\{[\s\S]*"actions"[\s\S]*\}/);
-      if (actionMatch) {
-        parsed = JSON.parse(actionMatch[0]);
-      } else {
-        result.summary = "Could not parse consolidation response.";
+    const allActions: DreamAction[] = [];
+    for (const chunk of chunks) {
+      const chunkIds = new Set(chunk.map(m => m.id));
+      const relevantPairs = duplicatePairs.filter(([a, b]) => chunkIds.has(a) || chunkIds.has(b));
+      try {
+        const chunkActions = await consolidateChunk(
+          chunk, validIds, relevantPairs, sessionSummaries,
+          activeMemories.length, activeMemories.length,
+          tenantId, model, availableModels,
+        );
+        allActions.push(...chunkActions);
+      } catch (chunkErr: unknown) {
+        const msg = chunkErr instanceof Error ? chunkErr.message : String(chunkErr);
+        console.error(`[dream] Chunk failed:`, msg);
         result.errors++;
-        result.durationMs = Date.now() - start;
-        return result;
       }
     }
 
-    if (!Array.isArray(parsed.actions)) {
-      result.summary = "No actions array in response.";
-      result.durationMs = Date.now() - start;
-      return result;
-    }
+    console.log(`[dream] Processing ${allActions.length} total consolidation actions...`);
 
-    const actions = parsed.actions.slice(0, 10);
-    console.log(`[dream] Processing ${actions.length} consolidation actions...`);
-
-    for (const action of actions) {
+    for (const action of allActions) {
       try {
         switch (action.type) {
           case "merge": {
