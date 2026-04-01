@@ -1785,10 +1785,12 @@ CRITICAL: For presentations, the final step MUST use create_slides. NEVER use pr
       executedTools.push({ name: toolName, input: parsedArgs, output: result });
 
       try {
-        const { recordToolCallForStuckDetection } = await import("./stuck-diagnostics");
-        const stuckPattern = recordToolCallForStuckDetection(conversationId, toolName, parsedArgs);
+        const { recordToolCallForStuckDetection, postDiagnosticReport } = await import("./stuck-diagnostics");
+        const stuckPattern = recordToolCallForStuckDetection(conversationId, toolName, parsedArgs, round);
         if (stuckPattern) {
           console.log(`[stuck-diagnostics] Circular tool loop detected: ${toolName} x${stuckPattern.metadata.repeatCount} in conversation ${conversationId}`);
+          apiMessages.push({ role: "user", content: `SYSTEM: STUCK DETECTION — You have called "${toolName}" ${stuckPattern.metadata.repeatCount} times this turn with nearly identical parameters. This is a circular loop. You MUST try a completely different tool or approach. Do NOT call "${toolName}" again with similar arguments.` });
+          postDiagnosticReport([stuckPattern]).catch(() => {});
         }
       } catch {}
 

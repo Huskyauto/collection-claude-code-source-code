@@ -4,6 +4,7 @@ const CIRCULAR_LOOP_THRESHOLD = 3;
 const PARAM_SIMILARITY_THRESHOLD = 0.8;
 const STALLED_DELEGATION_MS = 3 * 60 * 1000;
 const HUNG_BROWSER_SESSION_MS = 5 * 60 * 1000;
+const HUNG_HTTP_REQUEST_MS = 2 * 60 * 1000;
 const CHIEF_OF_STAFF_PERSONA_ID = 6;
 
 export interface StuckPattern {
@@ -20,41 +21,70 @@ export interface DiagnosticReport {
   timestamp: number;
   patterns: StuckPattern[];
   activeTasks: { taskId: number; taskName: string; personaName: string | null; runningMs: number }[];
-  stalledDelegations: { conversationId: number; lastEventAge: string; agentName: string }[];
+  stalledDelegations: { taskId: number; lastEventAge: string; agentName: string }[];
   hungProcesses: { type: string; idleSeconds: number; tenantId: number }[];
   toolLoopWarnings: { conversationId: number; toolName: string; repeatCount: number }[];
+  trackedHttpRequests: number;
 }
 
 interface ToolCallEntry {
   toolName: string;
   argsKey: string;
+  round: number;
   timestamp: number;
 }
 
-const conversationToolCalls = new Map<number, ToolCallEntry[]>();
-const TOOL_CALL_HISTORY_SIZE = 20;
+const turnToolCalls = new Map<number, ToolCallEntry[]>();
+const TOOL_CALL_HISTORY_SIZE = 30;
 const TOOL_CALL_TTL_MS = 10 * 60 * 1000;
 
 const detectedPatterns: StuckPattern[] = [];
 const MAX_PATTERNS = 50;
 
+interface TrackedHttpRequest {
+  id: string;
+  url: string;
+  startedAt: number;
+  tenantId?: number;
+  toolName?: string;
+  abortController?: AbortController;
+}
+
+const activeHttpRequests = new Map<string, TrackedHttpRequest>();
+let httpReqCounter = 0;
+
+export function trackHttpRequest(url: string, tenantId?: number, toolName?: string, abortController?: AbortController): string {
+  const id = `http_${++httpReqCounter}_${Date.now()}`;
+  activeHttpRequests.set(id, { id, url, startedAt: Date.now(), tenantId, toolName, abortController });
+  return id;
+}
+
+export function untrackHttpRequest(id: string): void {
+  activeHttpRequests.delete(id);
+}
+
+export function getTrackedHttpRequests(): TrackedHttpRequest[] {
+  return Array.from(activeHttpRequests.values());
+}
+
 export function recordToolCallForStuckDetection(
   conversationId: number,
   toolName: string,
-  args: Record<string, any>
+  args: Record<string, any>,
+  round: number
 ): StuckPattern | null {
-  const entries = conversationToolCalls.get(conversationId) || [];
+  const entries = turnToolCalls.get(conversationId) || [];
   const argsKey = normalizeArgs(args);
-  entries.push({ toolName, argsKey, timestamp: Date.now() });
+  entries.push({ toolName, argsKey, round, timestamp: Date.now() });
   if (entries.length > TOOL_CALL_HISTORY_SIZE) entries.shift();
-  conversationToolCalls.set(conversationId, entries);
+  turnToolCalls.set(conversationId, entries);
 
-  const recentSame = entries.filter(
-    (e) => e.toolName === toolName && Date.now() - e.timestamp < 60_000
+  const sameToolSameTurn = entries.filter(
+    (e) => e.toolName === toolName && e.round === round
   );
 
-  if (recentSame.length >= CIRCULAR_LOOP_THRESHOLD) {
-    const similarCount = recentSame.filter(
+  if (sameToolSameTurn.length >= CIRCULAR_LOOP_THRESHOLD) {
+    const similarCount = sameToolSameTurn.filter(
       (e) => computeSimilarity(e.argsKey, argsKey) >= PARAM_SIMILARITY_THRESHOLD
     ).length;
 
@@ -62,11 +92,11 @@ export function recordToolCallForStuckDetection(
       const pattern: StuckPattern = {
         type: "circular_tool_loop",
         detectedAt: Date.now(),
-        description: `Tool "${toolName}" called ${similarCount} times with >80% similar params in conversation ${conversationId}`,
-        durationMs: Date.now() - recentSame[0].timestamp,
-        probableCause: `Agent stuck in loop calling "${toolName}" repeatedly with near-identical arguments`,
-        remediation: "Injected system message to break loop and try different approach",
-        metadata: { conversationId, toolName, repeatCount: similarCount },
+        description: `Tool "${toolName}" called ${similarCount} times in turn (round ${round}) with >80% similar params in conversation ${conversationId}`,
+        durationMs: Date.now() - sameToolSameTurn[0].timestamp,
+        probableCause: `Agent stuck in loop calling "${toolName}" repeatedly with near-identical arguments in a single turn`,
+        remediation: "Injected system message forcing agent to try a different approach; pattern logged to operations channel",
+        metadata: { conversationId, toolName, repeatCount: similarCount, round },
       };
       addPattern(pattern);
       return pattern;
@@ -82,22 +112,69 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
     const { activeTaskTracker } = await import("./heartbeat");
     const now = Date.now();
 
+    let delegationEventMap: Map<number, number> | null = null;
+    try {
+      const { getRecentEvents } = await import("./delegation-events");
+      delegationEventMap = new Map();
+      for (const [taskId, info] of activeTaskTracker) {
+        const taskType = (info as any).taskType || info.taskName || "";
+        if (taskType.includes("delegation") || taskType.includes("sub_delegation") || info.taskName?.includes("delegation")) {
+          const convId = (info as any).conversationId;
+          if (convId) {
+            const events = getRecentEvents(convId);
+            if (events.length > 0) {
+              delegationEventMap.set(taskId, Math.max(...events.map((e: any) => e.timestamp)));
+            }
+          }
+        }
+      }
+    } catch {}
+
     for (const [taskId, info] of activeTaskTracker) {
       const taskType = (info as any).taskType || info.taskName || "";
       if (taskType.includes("delegation") || taskType.includes("sub_delegation") || info.taskName?.includes("delegation")) {
         const elapsed = now - info.startedAt;
-        if (elapsed > STALLED_DELEGATION_MS) {
+
+        let eventAge = elapsed;
+        if (delegationEventMap) {
+          const lastEventTs = delegationEventMap.get(taskId);
+          if (lastEventTs) {
+            eventAge = now - lastEventTs;
+          }
+        }
+
+        if (eventAge > STALLED_DELEGATION_MS) {
           const pattern: StuckPattern = {
             type: "stalled_delegation",
             detectedAt: now,
-            description: `Delegation "${info.taskName}" (persona: ${info.personaName || "unknown"}) running for ${Math.round(elapsed / 60000)}min with no completion`,
+            description: `Delegation "${info.taskName}" (persona: ${info.personaName || "unknown"}) — no events for ${Math.round(eventAge / 60000)}min (total age: ${Math.round(elapsed / 60000)}min)`,
             durationMs: elapsed,
-            probableCause: "Delegation task stalled — agent may be waiting indefinitely or encountered silent failure",
-            remediation: "Flagged for watchdog cleanup; task will be killed if it exceeds stuck threshold",
-            metadata: { taskId, taskName: info.taskName, personaName: info.personaName, elapsedMs: elapsed },
+            probableCause: "Delegation task stalled — no new events emitted for 3+ minutes despite task still being active",
+            remediation: eventAge > STALLED_DELEGATION_MS * 2
+              ? "Cancelling stalled delegation task from active tracker"
+              : "Warning emitted; will auto-cancel if stall persists next cycle",
+            metadata: { taskId, taskName: info.taskName, personaName: info.personaName, elapsedMs: elapsed, eventAgeMs: eventAge },
           };
           patterns.push(pattern);
           addPattern(pattern);
+
+          if (eventAge > STALLED_DELEGATION_MS * 2) {
+            activeTaskTracker.delete(taskId);
+            console.log(`[stuck-diagnostics] Auto-cancelled stalled delegation task ${taskId} "${info.taskName}" after ${Math.round(eventAge / 60000)}min of inactivity`);
+
+            await storage.createHeartbeatLog({
+              taskId,
+              taskName: info.taskName,
+              status: "error",
+              input: null,
+              output: `Stuck diagnostics: auto-cancelled stalled delegation after ${Math.round(eventAge / 60000)} minutes of event inactivity`,
+              model: null,
+              personaId: info.personaId,
+              personaName: info.personaName,
+              delegatedTasks: null,
+              durationMs: elapsed,
+            }).catch(() => {});
+          }
         }
       }
     }
@@ -109,22 +186,26 @@ export async function detectStalledDelegations(): Promise<StuckPattern[]> {
 
 export async function detectHungProcesses(): Promise<StuckPattern[]> {
   const patterns: StuckPattern[] = [];
+  const now = Date.now();
+
   try {
     const { getActiveSessions } = await import("./browser-tool");
     const sessions = getActiveSessions();
-    const now = Date.now();
+    const hungSessionTenants: number[] = [];
 
     for (const session of sessions) {
-      const idleMs = (now - session.lastActivity);
+      const idleMs = now - session.lastActivity;
       if (idleMs > HUNG_BROWSER_SESSION_MS) {
+        hungSessionTenants.push(session.tenantId);
         const pattern: StuckPattern = {
           type: "hung_process",
           detectedAt: now,
           description: `Browser session (tenant ${session.tenantId}, profile "${session.profile}") idle for ${Math.round(idleMs / 60000)}min`,
           durationMs: idleMs,
           probableCause: "Browser session was opened but never closed — possible zombie process or abandoned navigation",
-          remediation: "Flagged for cleanup by session garbage collector",
+          remediation: "Flagged for cleanup; will be disconnected by session garbage collector on next cycle",
           metadata: {
+            processType: "browser_session",
             tenantId: session.tenantId,
             profile: session.profile,
             createdAt: session.createdAt,
@@ -138,8 +219,53 @@ export async function detectHungProcesses(): Promise<StuckPattern[]> {
       }
     }
   } catch (err: any) {
-    console.error("[stuck-diagnostics] Hung process check failed:", err.message);
+    console.error("[stuck-diagnostics] Hung browser check failed:", err.message);
   }
+
+  try {
+    const hungRequests: TrackedHttpRequest[] = [];
+    for (const [id, req] of activeHttpRequests) {
+      const elapsed = now - req.startedAt;
+      if (elapsed > HUNG_HTTP_REQUEST_MS) {
+        hungRequests.push(req);
+      }
+    }
+
+    for (const req of hungRequests) {
+      let remediationAction = "Aborting hung HTTP request";
+      if (req.abortController) {
+        try {
+          req.abortController.abort();
+          remediationAction = "HTTP request aborted via AbortController";
+        } catch {
+          remediationAction = "Abort attempted but failed";
+        }
+      }
+      activeHttpRequests.delete(req.id);
+
+      const elapsed = now - req.startedAt;
+      const pattern: StuckPattern = {
+        type: "hung_process",
+        detectedAt: now,
+        description: `HTTP request to "${req.url?.slice(0, 80)}" (tool: ${req.toolName || "unknown"}) running for ${Math.round(elapsed / 60000)}min`,
+        durationMs: elapsed,
+        probableCause: "HTTP request exceeded timeout without response — target may be unresponsive or connection stalled",
+        remediation: remediationAction,
+        metadata: {
+          processType: "http_request",
+          url: req.url?.slice(0, 200),
+          toolName: req.toolName,
+          tenantId: req.tenantId || 0,
+          requestId: req.id,
+        },
+      };
+      patterns.push(pattern);
+      addPattern(pattern);
+    }
+  } catch (err: any) {
+    console.error("[stuck-diagnostics] Hung HTTP check failed:", err.message);
+  }
+
   return patterns;
 }
 
@@ -167,21 +293,21 @@ export async function runFullDiagnostics(): Promise<DiagnosticReport> {
   } catch {}
 
   const stalledDelegations: DiagnosticReport["stalledDelegations"] = stalledPatterns.map((p) => ({
-    conversationId: p.metadata.taskId || 0,
-    lastEventAge: `${Math.round((p.metadata.elapsedMs || 0) / 60000)}min`,
+    taskId: p.metadata.taskId || 0,
+    lastEventAge: `${Math.round((p.metadata.eventAgeMs || 0) / 60000)}min`,
     agentName: p.metadata.personaName || "unknown",
   }));
 
   const hungProcesses: DiagnosticReport["hungProcesses"] = hungPatterns.map((p) => ({
-    type: "browser_session",
-    idleSeconds: p.metadata.idleSeconds || 0,
+    type: p.metadata.processType || "unknown",
+    idleSeconds: p.metadata.idleSeconds || Math.round(p.durationMs / 1000),
     tenantId: p.metadata.tenantId || 0,
   }));
 
   const toolLoopWarnings: DiagnosticReport["toolLoopWarnings"] = [];
-  for (const [convId, entries] of conversationToolCalls) {
+  for (const [convId, entries] of turnToolCalls) {
     const toolCounts = new Map<string, number>();
-    const recent = entries.filter((e) => now - e.timestamp < 60_000);
+    const recent = entries.filter((e) => now - e.timestamp < 120_000);
     for (const e of recent) {
       toolCounts.set(e.toolName, (toolCounts.get(e.toolName) || 0) + 1);
     }
@@ -199,6 +325,7 @@ export async function runFullDiagnostics(): Promise<DiagnosticReport> {
     stalledDelegations,
     hungProcesses,
     toolLoopWarnings,
+    trackedHttpRequests: activeHttpRequests.size,
   };
 }
 
@@ -245,10 +372,16 @@ export async function postDiagnosticReport(patterns: StuckPattern[]): Promise<vo
 
 export function cleanupStaleToolCallHistory(): void {
   const cutoff = Date.now() - TOOL_CALL_TTL_MS;
-  for (const [convId, entries] of conversationToolCalls) {
+  for (const [convId, entries] of turnToolCalls) {
     const filtered = entries.filter((e) => e.timestamp > cutoff);
-    if (filtered.length === 0) conversationToolCalls.delete(convId);
-    else conversationToolCalls.set(convId, filtered);
+    if (filtered.length === 0) turnToolCalls.delete(convId);
+    else turnToolCalls.set(convId, filtered);
+  }
+
+  for (const [id, req] of activeHttpRequests) {
+    if (Date.now() - req.startedAt > TOOL_CALL_TTL_MS) {
+      activeHttpRequests.delete(id);
+    }
   }
 }
 
@@ -287,4 +420,3 @@ function addPattern(pattern: StuckPattern): void {
     detectedPatterns.splice(0, detectedPatterns.length - MAX_PATTERNS);
   }
 }
-

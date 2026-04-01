@@ -270,6 +270,19 @@ async function runStuckDiagnostics(actions: string[]): Promise<void> {
     for (const p of stalledPatterns) {
       actions.push(`Stalled delegation: ${p.description}`);
     }
+
+    const browserHung = hungPatterns.filter(p => p.metadata.processType === "browser_session");
+    if (browserHung.length > 0) {
+      try {
+        const { getActiveSessions, disconnectBrowser } = await import("./browser-tool");
+        const allSessions = getActiveSessions();
+        if (allSessions.length > 0 && allSessions.every(s => s.idleSeconds > 300)) {
+          await disconnectBrowser();
+          actions.push(`Disconnected ${allSessions.length} hung browser session(s) (all idle >5min)`);
+        }
+      } catch {}
+    }
+
     for (const p of hungPatterns) {
       actions.push(`Hung process: ${p.description}`);
     }
