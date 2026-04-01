@@ -530,6 +530,17 @@ export function cleanupStaleToolCallHistory(): void {
 
 setInterval(cleanupStaleToolCallHistory, 60_000);
 
+async function periodicStalledDelegationCheck() {
+  if (activeDelegations.size === 0) return;
+  try {
+    const patterns = await detectStalledDelegations();
+    if (patterns.length > 0) {
+      await postDiagnosticReport(patterns);
+    }
+  } catch {}
+}
+setInterval(periodicStalledDelegationCheck, 60_000);
+
 async function periodicHungRequestCheck() {
   const now = Date.now();
   for (const [id, req] of activeHttpRequests) {
