@@ -978,15 +978,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       console.error("[upload] DB retrieval failed:", (dbErr as Error).message);
     }
 
-    const filePath = path.join(UPLOADS_DIR, filename);
-    if (tenantId === ADMIN_TENANT_ID && fs.existsSync(filePath)) {
-      try {
-        const buffer = await fsPromises.readFile(filePath);
-        if (buffer.length > 0) {
-          return serveBuffer(buffer, filename);
+    const searchPaths = [
+      path.join(UPLOADS_DIR, filename),
+      path.join("/tmp/uploads", filename),
+      path.join(process.cwd(), "uploads", filename),
+    ];
+    for (const fp of searchPaths) {
+      if (fs.existsSync(fp)) {
+        try {
+          const buffer = await fsPromises.readFile(fp);
+          if (buffer.length > 0) {
+            return serveBuffer(buffer, filename);
+          }
+        } catch (readErr) {
+          console.error("[upload] File read failed:", (readErr as Error).message);
         }
-      } catch (readErr) {
-        console.error("[upload] File read failed:", (readErr as Error).message);
       }
     }
 

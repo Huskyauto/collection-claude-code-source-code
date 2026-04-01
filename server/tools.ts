@@ -465,7 +465,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "create_slides",
-      description: "Create a professional PowerPoint slide deck presentation using AI. Returns a polished .pptx file uploaded to Google Drive. Use this for presentations, pitch decks, keynotes, meetup talks, and slide-based content. Much better quality than PDF-based presentations.",
+      description: "Create a professional Google Slides presentation. Builds real, editable Google Slides (NOT PowerPoint). Use this for presentations, pitch decks, keynotes, meetup talks, and slide-based content. Provide a detailed topic and the tool will generate a multi-slide presentation with proper formatting, speaker notes, and a shareable Google Drive link.",
       parameters: {
         type: "object",
         properties: {
@@ -2631,10 +2631,10 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
       if (!absPath.startsWith("/home/runner/workspace")) return { error: "Access denied: path outside workspace" };
       if (!fs.existsSync(absPath)) {
         const basename = path.basename(safeParts);
-        const searchDirs = ["attached_assets", "uploads", "client/public"];
+        const searchDirs = ["attached_assets", "uploads", "client/public", "/tmp/uploads"];
         let found = false;
         for (const dir of searchDirs) {
-          const candidate = path.resolve("/home/runner/workspace", dir, basename);
+          const candidate = dir.startsWith("/") ? path.join(dir, basename) : path.resolve("/home/runner/workspace", dir, basename);
           if (fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
             absPath = candidate;
             found = true;
@@ -2905,89 +2905,17 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
     case "create_slides": {
       const topic = params.topic;
       if (!topic) return { error: "No topic provided. Describe what the presentation should be about." };
-      const apiKey = process.env.TWO_SLIDES_API_KEY;
-      if (!apiKey) return { error: "2slides API key not configured" };
       try {
-        let themeId = "st-1763450718138-5utx9lnia";
-        const themeQuery = params.theme || "professional";
-        try {
-          const themeResp = await fetch(`https://2slides.com/api/v1/themes/search?query=${encodeURIComponent(themeQuery)}`, {
-            headers: { "Authorization": `Bearer ${apiKey}` },
-          });
-          if (themeResp.ok) {
-            const themeData = await themeResp.json() as any;
-            if (themeData?.success && themeData.data?.themes?.[0]?.id) {
-              themeId = themeData.data.themes[0].id;
-              console.log(`[create_slides] Using theme: ${themeData.data.themes[0].name} (${themeId})`);
-            }
-          }
-        } catch (themeErr) {
-          console.warn("[create_slides] Theme search failed, using default:", themeErr);
-        }
-
-        console.log(`[create_slides] Generating slides for: ${topic.slice(0, 80)}...`);
-        const genResp = await fetch("https://2slides.com/api/v1/slides/generate", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userInput: topic,
-            themeId,
-            responseLanguage: "English",
-            resolution: "2K",
-            mode: "sync",
-          }),
+        console.log(`[create_slides] Routing to Google Slides for: ${topic.slice(0, 80)}...`);
+        return await executeTool("google_workspace", {
+          service: "slides",
+          action: "create",
+          subject: params.filename || topic.slice(0, 80),
+          slides: params._slides || undefined,
+          theme: params._theme || undefined,
+          body: topic,
+          _tenantId: params._tenantId,
         });
-        if (!genResp.ok) {
-          const errText = await genResp.text().catch(() => "");
-          return { error: `Slide generation failed (${genResp.status}): ${errText.slice(0, 200)}` };
-        }
-        const genData = await genResp.json() as any;
-        let downloadUrl = genData?.data?.downloadUrl || genData?.downloadUrl;
-
-        if (!downloadUrl && genData?.data?.jobId) {
-          const jobId = genData.data.jobId;
-          for (let poll = 0; poll < 60; poll++) {
-            await new Promise(r => setTimeout(r, 3000));
-            const jobResp = await fetch(`https://2slides.com/api/v1/jobs/${jobId}`, {
-              headers: { "Authorization": `Bearer ${apiKey}` },
-            });
-            if (jobResp.ok) {
-              const jobData = await jobResp.json() as any;
-              if (jobData.status === "success" && jobData.downloadUrl) {
-                downloadUrl = jobData.downloadUrl;
-                break;
-              }
-              if (jobData.status === "failed") return { error: "Slide generation job failed" };
-            }
-          }
-        }
-
-        if (!downloadUrl) return { error: "No download URL returned from slide generation" };
-
-        const pptxResp = await fetch(downloadUrl);
-        if (!pptxResp.ok) return { error: `Failed to download generated slides (${pptxResp.status})` };
-        const pptxBuffer = Buffer.from(await pptxResp.arrayBuffer());
-
-        const filename = (params.filename || topic.slice(0, 50).replace(/[^a-zA-Z0-9\s-]/g, "").trim().replace(/\s+/g, "_")) + ".pptx";
-        const { uploadAndShare } = await import("./google-drive");
-        const driveResult = await uploadAndShare({
-          fileData: pptxBuffer,
-          fileName: filename,
-          mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          folderLabel: "presentations",
-          share: true,
-        });
-
-        const pageCount = genData?.data?.slidePageCount || "unknown";
-        console.log(`[create_slides] Success: ${pageCount} slides → ${driveResult.viewUrl || driveResult.fileId}`);
-        return {
-          success: true,
-          driveLink: driveResult.viewUrl || driveResult.downloadUrl,
-          driveFileId: driveResult.fileId,
-          filename,
-          slideCount: pageCount,
-          message: `Created ${pageCount}-slide presentation "${filename}" and uploaded to Google Drive`,
-        };
       } catch (err: any) {
         console.error("[create_slides] Error:", err.message);
         return { error: `Slide creation failed: ${err.message}` };
@@ -3334,12 +3262,39 @@ export async function executeTool(name: string, params: Record<string, any>): Pr
             switch (action) {
               case "create": {
                 if (!params.subject) return { error: "subject (presentation title) is required" };
-                if (!params.slides || !Array.isArray(params.slides) || params.slides.length === 0) {
-                  return { error: "slides array is required. Each slide needs at minimum a 'title'. Optional: 'body', 'bullets' (string[]), 'speakerNotes', 'layout' (TITLE|TITLE_AND_BODY|SECTION_HEADER|BLANK)" };
+                let slidesList = params.slides;
+                if (!slidesList || !Array.isArray(slidesList) || slidesList.length === 0) {
+                  const topicText = params.body || params.subject;
+                  const lines = topicText.split(/\n+/).filter((l: string) => l.trim());
+                  slidesList = [
+                    { title: params.subject, body: "AI-Powered Presentation", layout: "TITLE" },
+                  ];
+                  let currentSlide: any = null;
+                  for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.match(/^#{1,3}\s/) || trimmed.match(/^[A-Z].*:$/) || (trimmed.length < 60 && !trimmed.startsWith("-") && !trimmed.startsWith("•"))) {
+                      if (currentSlide) slidesList.push(currentSlide);
+                      currentSlide = { title: trimmed.replace(/^#+\s*/, "").replace(/:$/, ""), bullets: [] };
+                    } else if (currentSlide) {
+                      currentSlide.bullets.push(trimmed.replace(/^[-•*]\s*/, ""));
+                    } else {
+                      currentSlide = { title: "Overview", bullets: [trimmed.replace(/^[-•*]\s*/, "")] };
+                    }
+                  }
+                  if (currentSlide) slidesList.push(currentSlide);
+                  if (slidesList.length < 2) {
+                    slidesList = [
+                      { title: params.subject, body: topicText.slice(0, 100), layout: "TITLE" },
+                      { title: "Overview", bullets: lines.slice(0, 6).map((l: string) => l.trim().replace(/^[-•*]\s*/, "")) },
+                      { title: "Key Points", bullets: lines.slice(6, 12).map((l: string) => l.trim().replace(/^[-•*]\s*/, "")) },
+                      { title: "Summary", body: "Thank you" },
+                    ].filter(s => s.bullets ? s.bullets.length > 0 : true);
+                  }
+                  console.log(`[google_workspace/slides] Auto-generated ${slidesList.length} slides from topic text`);
                 }
                 return await slidesCreate(tenantId, {
                   title: params.subject,
-                  slides: params.slides,
+                  slides: slidesList,
                   theme: params.theme,
                 });
               }
