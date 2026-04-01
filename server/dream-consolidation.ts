@@ -112,13 +112,17 @@ function findDuplicateCandidates(
       const a = memories[i];
       const b = memories[j];
       if (a.embedding && b.embedding) {
-        const embA = typeof a.embedding === "string" ? JSON.parse(a.embedding) : a.embedding;
-        const embB = typeof b.embedding === "string" ? JSON.parse(b.embedding) : b.embedding;
-        if (Array.isArray(embA) && Array.isArray(embB) && embA.length === embB.length) {
-          const sim = cosineSimilarity(embA as number[], embB as number[]);
-          if (sim > 0.85) {
-            pairs.push([a.id, b.id, Math.round(sim * 1000) / 1000]);
+        try {
+          const embA = typeof a.embedding === "string" ? JSON.parse(a.embedding) : a.embedding;
+          const embB = typeof b.embedding === "string" ? JSON.parse(b.embedding) : b.embedding;
+          if (Array.isArray(embA) && Array.isArray(embB) && embA.length === embB.length) {
+            const sim = cosineSimilarity(embA as number[], embB as number[]);
+            if (sim > 0.85) {
+              pairs.push([a.id, b.id, Math.round(sim * 1000) / 1000]);
+            }
           }
+        } catch {
+          /* skip malformed embeddings */
         }
       }
     }
@@ -176,7 +180,6 @@ interface LlmClient {
 
 async function consolidateChunk(
   chunk: MemoryEntry[],
-  validIds: Set<number>,
   duplicatePairsForChunk: Array<[number, number, number]>,
   sessionSummaries: string,
   totalActive: number,
@@ -287,7 +290,7 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
       const relevantPairs = duplicatePairs.filter(([a, b]) => chunkIds.has(a) && chunkIds.has(b));
       try {
         const chunkActions = await consolidateChunk(
-          chunk, validIds, relevantPairs, sessionSummaries,
+          chunk, relevantPairs, sessionSummaries,
           activeMemories.length, activeMemories.length,
           tenantId, model, availableModels,
         );
