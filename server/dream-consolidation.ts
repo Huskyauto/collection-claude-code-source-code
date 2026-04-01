@@ -284,7 +284,7 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
     const allActions: DreamAction[] = [];
     for (const chunk of chunks) {
       const chunkIds = new Set(chunk.map(m => m.id));
-      const relevantPairs = duplicatePairs.filter(([a, b]) => chunkIds.has(a) || chunkIds.has(b));
+      const relevantPairs = duplicatePairs.filter(([a, b]) => chunkIds.has(a) && chunkIds.has(b));
       try {
         const chunkActions = await consolidateChunk(
           chunk, validIds, relevantPairs, sessionSummaries,
@@ -299,9 +299,14 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
       }
     }
 
-    console.log(`[dream] Processing ${allActions.length} total consolidation actions...`);
+    const MAX_ACTIONS_PER_RUN = 30;
+    const cappedActions = allActions.slice(0, MAX_ACTIONS_PER_RUN);
+    if (allActions.length > MAX_ACTIONS_PER_RUN) {
+      console.log(`[dream] Capping actions from ${allActions.length} to ${MAX_ACTIONS_PER_RUN} for safety`);
+    }
+    console.log(`[dream] Processing ${cappedActions.length} total consolidation actions...`);
 
-    for (const action of allActions) {
+    for (const action of cappedActions) {
       try {
         switch (action.type) {
           case "merge": {
@@ -312,25 +317,32 @@ export async function runDreamConsolidation(tenantId: number = 1, sessionCount: 
               result.errors++;
               break;
             }
-            for (const id of action.ids) {
-              await archiveMemoryByTenant(id, tenantId);
+            await db.execute(sql`BEGIN`);
+            try {
+              for (const id of action.ids) {
+                await archiveMemoryByTenant(id, tenantId);
+              }
+              const mergeData: InsertMemoryEntry = {
+                fact: action.fact,
+                category: action.category || "general",
+                source: "dream_consolidation",
+                status: "active",
+                personaId: null,
+                tenantId,
+              };
+              const merged = await storage.createMemoryEntry(mergeData);
+              const emb = await generateEmbedding(merged.fact);
+              if (emb) {
+                await storage.updateMemoryEmbedding(merged.id, emb);
+                try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch { /* pgvector optional */ }
+              }
+              await db.execute(sql`COMMIT`);
+              result.merged++;
+              console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${merged.id}: ${action.reason || ""}`);
+            } catch (mergeErr) {
+              await db.execute(sql`ROLLBACK`);
+              throw mergeErr;
             }
-            const mergeData: InsertMemoryEntry = {
-              fact: action.fact,
-              category: action.category || "general",
-              source: "dream_consolidation",
-              status: "active",
-              personaId: null,
-              tenantId,
-            };
-            const merged = await storage.createMemoryEntry(mergeData);
-            const emb = await generateEmbedding(merged.fact);
-            if (emb) {
-              await storage.updateMemoryEmbedding(merged.id, emb);
-              try { await storeEmbeddingVec("memory_entries", merged.id, emb); } catch { /* pgvector optional */ }
-            }
-            result.merged++;
-            console.log(`[dream] Merged IDs [${action.ids.join(",")}] → ID ${merged.id}: ${action.reason || ""}`);
             break;
           }
           case "archive": {
