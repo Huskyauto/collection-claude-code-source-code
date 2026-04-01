@@ -4982,23 +4982,28 @@ export async function executeToolWithTimeout(name: string, params: Record<string
     } catch {}
   }
 
+  let timedOut = false;
   try {
     const result = await Promise.race([
       executeTool(name, params),
       new Promise((_, reject) => {
-        controller.signal.addEventListener("abort", () =>
-          reject(new Error(`Tool "${name}" timed out after ${timeoutMs / 1000}s`))
-        );
+        controller.signal.addEventListener("abort", () => {
+          timedOut = true;
+          reject(new Error(`Tool "${name}" timed out after ${timeoutMs / 1000}s`));
+        });
       }),
     ]);
-    return result;
-  } finally {
-    clearTimeout(timer);
     if (trackingId) {
       try {
         const { untrackHttpRequest } = await import("./stuck-diagnostics");
         untrackHttpRequest(trackingId);
       } catch {}
+    }
+    return result;
+  } finally {
+    clearTimeout(timer);
+    if (timedOut && trackingId) {
+      console.log(`[tools] Timed-out request "${name}" left tracked for diagnostic cleanup (id: ${trackingId})`);
     }
   }
 }

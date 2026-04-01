@@ -5,7 +5,7 @@ export interface DelegationEvent {
   conversationId: number;
   tenantId?: number;
   timestamp: number;
-  type: "started" | "thinking" | "tool_call" | "sub_delegation" | "progress" | "completed" | "error";
+  type: "started" | "thinking" | "tool_call" | "sub_delegation" | "progress" | "completed" | "error" | "warning" | "failed";
   agentName: string;
   agentRole?: string;
   message: string;
